@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/screens/auth/views/register_screen.dart';
 import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 
 final appRouter = GoRouter(
@@ -9,6 +9,13 @@ final appRouter = GoRouter(
       path: "/",
       builder: (context, state) {
         return const OnboardingScreen();
+      },
+    ),
+    
+    GoRoute(
+      path: "/register",
+      builder: (context, state) {
+        return const RegisterScreen();
       },
     ),
   ],
