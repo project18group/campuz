@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/onboarding/data/onboarding_data.dart';
+import 'package:mobile/shared/widgets/primary_button.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -141,11 +142,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   return SizedBox(
                     width: double.infinity,
                     height: 56,
-                    child: ElevatedButton(
+                    child: PrimaryButton(
                       onPressed: () {
                         if (isLastPage) {
                           //Navigate to register
-                          context.go("/register");
+                          context.go("/register-onboard");
                         } else {
                           _pageController.nextPage(
                             duration: const Duration(milliseconds: 300),
@@ -153,10 +154,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           );
                         }
                       },
-                      child: Text(
-                        isLastPage ? "Get Started" : "Next",
-                        style: AppTextStyles.title,
-                      ),
+                      text: "Next",
                     ),
                   );
                 },
