@@ -35,10 +35,13 @@ class RegisterOnboard extends StatelessWidget {
                   style: AppTextStyles.body.copyWith(
                     color: AppColors.textSecondary,
                   ),
-                  children: const [
+                  children:[
+
                     TextSpan(
+                      
                       text:
                           'Read our Privacy Policies. By tapping "Continue" you agree to our ',
+                          
                     ),
 
                     TextSpan(text: 'Terms of Service.'),

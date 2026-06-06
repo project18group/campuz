@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/shared/widgets/app_text_field.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
-
 
 class RegisterScreen extends StatelessWidget {
   const RegisterScreen({super.key});
@@ -19,11 +19,7 @@ class RegisterScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
-            Text(
-              'Create Account',
-              style: AppTextStyles.heading,
-            ),
+            Text('Create Account', style: AppTextStyles.heading),
 
             const SizedBox(height: 8),
 
@@ -78,7 +74,9 @@ class RegisterScreen extends StatelessWidget {
               height: 56,
 
               child: PrimaryButton(
-                onPressed: () {},
+                onPressed: () {
+                  context.go("/otp");
+                },
                 text: "Create Account",
               ),
             ),
@@ -95,7 +93,7 @@ class RegisterScreen extends StatelessWidget {
                       text: 'Sign In',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.surface
+                        color: AppColors.surface,
                       ),
                     ),
                   ],
