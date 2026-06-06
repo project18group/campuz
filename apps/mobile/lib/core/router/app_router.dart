@@ -5,6 +5,7 @@ import 'package:mobile/screens/auth/views/otp_screen.dart';
 import 'package:mobile/screens/auth/views/register_onboard.dart';
 import 'package:mobile/screens/auth/views/register_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
+import 'package:mobile/screens/hubs/views/join_hub_screen.dart';
 import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 
 final appRouter = GoRouter(
@@ -47,8 +48,18 @@ final appRouter = GoRouter(
         return const AccountSetupScreen();
       },
     ),
-    GoRoute(path: "/home", builder: (context, state) {
-      return const HomeScreen();
-    },)
+    GoRoute(
+      path: "/home",
+      builder: (context, state) {
+        return const HomeScreen();
+      },
+    ),
+
+    GoRoute(
+      path: "/join-hub",
+      builder: (context, state) {
+        return const JoinHubScreen();
+      },
+    ),
   ],
 );

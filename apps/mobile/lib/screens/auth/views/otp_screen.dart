@@ -12,7 +12,12 @@ class OtpScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         // adjust to navigate back to the create account screen
-        leading: Icon(Icons.arrow_back),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new),
+          onPressed: () {
+            context.go('/register');
+          },
+        ),
       ),
 
       body: SafeArea(
@@ -35,13 +40,12 @@ class OtpScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              Center(child: 
-              Pinput
-              (
-                length: 6,
-                //listen for incoming sms and extract code from it
-                // smsRetriever: ,
-              )
+              Center(
+                child: Pinput(
+                  length: 6,
+                  //listen for incoming sms and extract code from it
+                  // smsRetriever: ,
+                ),
               ),
 
               const SizedBox(height: 24),

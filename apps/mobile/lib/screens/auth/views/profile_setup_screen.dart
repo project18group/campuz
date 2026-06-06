@@ -57,7 +57,7 @@ class ProfileSetupScreen extends StatelessWidget {
 
               const SizedBox(height: 40),
 
-              const AppTextField(label: "Username", hintText: "user"),
+              const AppTextField(label: "Username", hintText: "@user_name"),
 
               const SizedBox(height: 360),
 

@@ -87,13 +87,15 @@ class RegisterScreen extends StatelessWidget {
               child: RichText(
                 text: TextSpan(
                   text: 'Already have an account? ',
-                  style: AppTextStyles.body,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textPrimary
+                  ),
                   children: [
                     TextSpan(
                       text: 'Sign In',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.surface,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ],
