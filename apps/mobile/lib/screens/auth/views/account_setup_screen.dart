@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/theme/app_text_styles.dart';
 
 class AccountSetupScreen extends StatefulWidget {
   const AccountSetupScreen({super.key});
@@ -33,7 +34,9 @@ class _AccountSetupScreenState extends State<AccountSetupScreen> {
 
             SizedBox(height: 24),
 
-            Text("Setting up your account..."),
+            Text("Setting up your account...",
+            style: AppTextStyles.body,
+            ),
           ],
         ),
       ),

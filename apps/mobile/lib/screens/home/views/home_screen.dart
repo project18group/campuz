@@ -22,16 +22,18 @@ class HomeScreen extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             //Flexible or Sizedbox to prevent overflow on smaller devices
-            Flexible(
-              child: SvgPicture.asset(
-                'assets/images/home.svg',
-                height: MediaQuery.of(context).size.height * 0.3,
-              ),
+            // Flexible(
+            //   child: SvgPicture.asset(
+            //     'assets/images/home.svg',
+            //     height: MediaQuery.of(context).size.height * 0.3,
+            //   ),
+            // ),
+            SizedBox(
+              height: 220,
+              child: SvgPicture.asset("assets/images/firsttime_home.svg"),
             ),
-
             Text(
               'No Hubs or Messages Yet?',
               textAlign: TextAlign.center,
