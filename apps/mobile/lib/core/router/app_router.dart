@@ -7,6 +7,7 @@ import 'package:mobile/screens/auth/views/register_screen.dart';
 import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
 import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
+import 'package:mobile/screens/hubs/views/hub_permissions_screen.dart';
 import 'package:mobile/screens/hubs/views/join_hub_screen.dart';
 import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 
@@ -75,6 +76,12 @@ final appRouter = GoRouter(
       path: "/create-hub",
       builder: (context, state) {
         return const CreateHubScreen();
+      },
+    ),
+    GoRoute(
+      path: "/hub-permissions",
+      builder: (context, state) {
+        return const HubPermissionsScreen();
       },
     ),
   ],
