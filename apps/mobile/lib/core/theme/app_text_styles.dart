@@ -26,4 +26,9 @@ class AppTextStyles {
     fontSize: 16,
     fontWeight: FontWeight.w500,
   );
+
+  static TextStyle caption = GoogleFonts.plusJakartaSans(
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+  );
 }
