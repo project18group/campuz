@@ -14,6 +14,7 @@ class _HubPermissionsScreenState extends State<HubPermissionsScreen> {
   final List<String> members = ['Kofi', 'Yaw', "Kwame", "Kane", "Nuella"];
 
   final Set<String> selectedAdmins = {};
+  bool _isCreating = false;
 
   @override
   Widget build(BuildContext context) {
@@ -105,9 +106,19 @@ class _HubPermissionsScreenState extends State<HubPermissionsScreen> {
           Padding(
             padding: const EdgeInsets.all(24),
             child: PrimaryButton(
-              text: 'Finish',
+              text: _isCreating? "Creating Hub...":"Finish",
+
               onPressed: () {
-                context.push('/hub-created');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text("Creating academic hub...",),
+                    duration: Duration(milliseconds: 800),
+                  ),
+                );
+                Future.delayed(Duration(milliseconds: 900), () {
+                  // ignore: use_build_context_synchronously
+                  context.go('/hub-created');
+                });
               },
             ),
           ),

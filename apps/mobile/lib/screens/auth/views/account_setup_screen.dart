@@ -16,7 +16,7 @@ class _AccountSetupScreenState extends State<AccountSetupScreen> {
   void initState() {
     super.initState();
 
-    Timer(const Duration(seconds: 3), () {
+    Timer(const Duration(seconds: 2), () {
       if (mounted) {
         context.go("/home");
       }
