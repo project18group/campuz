@@ -14,7 +14,7 @@ class _HubPermissionsScreenState extends State<HubPermissionsScreen> {
   final List<String> members = ['Kofi', 'Yaw', "Kwame", "Kane", "Nuella"];
 
   final Set<String> selectedAdmins = {};
-  bool _isCreating = false;
+  final bool _isCreating = false;
 
   @override
   Widget build(BuildContext context) {
