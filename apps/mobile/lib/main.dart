@@ -3,6 +3,10 @@ import 'package:mobile/core/router/app_router.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // TODO: Initialize Django REST Framework client / HTTP interceptors here
+
   runApp(const CampuzApp());
 }
 
