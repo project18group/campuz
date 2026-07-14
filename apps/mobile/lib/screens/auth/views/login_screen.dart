@@ -5,56 +5,32 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/shared/widgets/app_text_field.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
 
-class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
 
   @override
-  State<RegisterScreen> createState() => _RegisterScreenState();
+  State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
-  final _fullNameController = TextEditingController();
+class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _fullNameController.dispose();
     _emailController.dispose();
-    _phoneController.dispose();
     _passwordController.dispose();
-    _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  Future<void> _handleSignUp() async {
-    final fullName = _fullNameController.text.trim();
+  Future<void> _handleLogin() async {
     final email = _emailController.text.trim();
-    final phone = _phoneController.text.trim();
     final password = _passwordController.text.trim();
-    final confirmPassword = _confirmPasswordController.text.trim();
 
-    if (fullName.isEmpty || email.isEmpty || phone.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all fields')),
-      );
-      return;
-    }
-
-    if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Passwords do not match')),
-      );
-      return;
-    }
-
-    if (password.length < 6) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Password must be at least 6 characters')),
+        const SnackBar(content: Text('Please enter your email and password')),
       );
       return;
     }
@@ -64,18 +40,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     // TODO: Connect to Django REST authentication
-    // POST /api/auth/register/ with {full_name, email, phone, password}
-    // Then navigate to OTP verification screen
+    // POST /api/auth/login/ with {email, password}
+    // Store returned token (e.g. JWT) securely
     await Future.delayed(const Duration(seconds: 1)); // Placeholder delay
 
     if (mounted) {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code sent to your email!')),
-      );
-      context.go('/otp');
+      context.go('/home');
     }
   }
 
@@ -88,19 +61,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Create Account', style: AppTextStyles.heading),
+            Text('Sign In', style: AppTextStyles.heading),
             const SizedBox(height: 8),
             Text(
-              'Provide the required details in the form fields below.',
+              'Welcome back! Please enter your details.',
               style: AppTextStyles.body,
             ),
             const SizedBox(height: 32),
-            AppTextField(
-              controller: _fullNameController,
-              label: 'Full Name',
-              hintText: 'Enter your full name',
-            ),
-            const SizedBox(height: 20),
             AppTextField(
               controller: _emailController,
               label: 'Email Address',
@@ -109,23 +76,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 20),
             AppTextField(
-              controller: _phoneController,
-              label: 'Phone Number',
-              hintText: '0201234567',
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 20),
-            AppTextField(
               controller: _passwordController,
               label: 'Password',
               hintText: 'Enter password',
-              obscureText: true,
-            ),
-            const SizedBox(height: 20),
-            AppTextField(
-              controller: _confirmPasswordController,
-              label: 'Confirm Password',
-              hintText: 'Confirm password',
               obscureText: true,
             ),
             const SizedBox(height: 32),
@@ -134,26 +87,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
               height: 56,
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : PrimaryButton(
-                      onPressed: _handleSignUp,
-                      text: "Create Account",
-                    ),
+                  : PrimaryButton(onPressed: _handleLogin, text: "Sign In"),
             ),
             const SizedBox(height: 24),
             Center(
               child: GestureDetector(
                 onTap: () {
-                  context.go('/login');
+                  context.go('/register');
                 },
                 child: RichText(
                   text: TextSpan(
-                    text: 'Already have an account? ',
+                    text: "Don't have an account? ",
                     style: AppTextStyles.body.copyWith(
                       color: AppColors.textPrimary,
                     ),
                     children: [
                       TextSpan(
-                        text: 'Sign In',
+                        text: 'Sign Up',
                         style: AppTextStyles.body.copyWith(
                           fontWeight: FontWeight.w600,
                           color: AppColors.textSecondary,
