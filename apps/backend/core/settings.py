@@ -80,26 +80,26 @@ WSGI_APPLICATION = "core.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.getenv("POSTGRES_DB", "campuz"),
-#         "USER": os.getenv("POSTGRES_USER", "postgres"),
-#         "PASSWORD": os.getenv("POSTGRES_PASSWORD", "pgadmin4"),
-#         "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-#         "PORT": os.getenv("POSTGRES_PORT", "5432"),
-#     }
-# }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "postgres"),
+        "USER": os.getenv("DB_USER"),
+        "PASSWORD": os.getenv("DB_PASSWORD"),
+        "HOST": os.getenv("DB_HOST"),
+        "PORT": os.getenv("DB_PORT", "5432"),
+    }
+}
 
 # Configure the database using dj_database_url for flexibility in different environments
-DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv(
-            "DATABASE_URL", "postgresql://postgres:pgadmin4@localhost:5432/campuz"
-        ),
-        conn_max_age=600,
-    )
-}
+# DATABASES = {
+#     "default": dj_database_url.config(
+#         default=os.getenv(
+#             "DATABASE_URL", "postgresql://postgres:pgadmin4@localhost:5432/campuz"
+#         ),
+#         conn_max_age=600,
+#     )
+# }
 
 
 # Password validation
