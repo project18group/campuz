@@ -10,7 +10,7 @@ class AppFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       backgroundColor: AppColors.primary,
-      foregroundColor: Colors.white,
+      foregroundColor: AppColors.textOnPrimary,
       elevation: 0,
       onPressed: onPressed,
       child: Icon(icon),

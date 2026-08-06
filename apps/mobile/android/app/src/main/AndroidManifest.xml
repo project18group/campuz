@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Campuz talks to the REST API on every screen, so release builds need
+         this too — the Flutter template only declares it for debug/profile. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="mobile"
         android:name="${applicationName}"

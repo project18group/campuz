@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
 import 'package:pinput/pinput.dart';
 
 class OtpScreen extends StatefulWidget {
-  const OtpScreen({super.key});
+  final String? username;
+
+  const OtpScreen({super.key, this.username});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -16,6 +20,16 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _isLoading = false;
 
   Future<void> _verifyOtp() async {
+    final username = widget.username;
+    if (username == null || username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing account details. Please register again.'),
+        ),
+      );
+      return;
+    }
+
     if (_otpCode.length < 6) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the 6-digit code')),
@@ -27,35 +41,78 @@ class _OtpScreenState extends State<OtpScreen> {
       _isLoading = true;
     });
 
-    // TODO: Connect to Django REST authentication
-    // POST /api/auth/verify-otp/ with {otp_code}
-    // Simulate network delay for presentation realism
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      context.go('/complete-profile');
+    try {
+      await AuthApiService.verifyOtp(username: username, otpCode: _otpCode);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        context.go('/complete-profile');
+      }
+    } on AuthApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to verify code right now')),
+        );
+      }
     }
   }
 
   Future<void> _resendCode() async {
+    final username = widget.username;
+    if (username == null || username.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Missing account details. Please register again.'),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    // TODO: Connect to Django REST authentication
-    // POST /api/auth/resend-otp/
-    await Future.delayed(const Duration(seconds: 1));
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification code resent!')),
-      );
+    try {
+      await AuthApiService.resendOtp(username: username);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Verification code resent!')),
+        );
+      }
+    } on AuthApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to resend code right now')),
+        );
+      }
     }
   }
 
@@ -87,6 +144,95 @@ class _OtpScreenState extends State<OtpScreen> {
               Center(
                 child: Pinput(
                   length: 6,
+                  showCursor: true,
+                  cursor: Container(
+                    width: 2,
+                    height: 24,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDeep,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                  defaultPinTheme: PinTheme(
+                    width: 56,
+                    height: 64,
+                    textStyle: AppTextStyles.heading.copyWith(
+                      color: AppColors.textPrimary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.border, width: 1.4),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: AppColors.shadow,
+                          blurRadius: 14,
+                          offset: Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                  ),
+                  followingPinTheme: PinTheme(
+                    width: 56,
+                    height: 64,
+                    textStyle: AppTextStyles.heading.copyWith(
+                      color: AppColors.textSecondary,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.border, width: 1.2),
+                    ),
+                  ),
+                  focusedPinTheme: PinTheme(
+                    width: 56,
+                    height: 64,
+                    textStyle: AppTextStyles.heading.copyWith(
+                      color: AppColors.primaryDeep,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: AppColors.primaryDeep,
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.primaryDeep.withValues(alpha: 0.16),
+                          blurRadius: 18,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                  submittedPinTheme: PinTheme(
+                    width: 56,
+                    height: 64,
+                    textStyle: AppTextStyles.heading.copyWith(
+                      color: AppColors.primaryDeep,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: AppColors.primary, width: 1.4),
+                    ),
+                  ),
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  separatorBuilder: (index) => const SizedBox(width: 12),
+                  onCompleted: (pin) {
+                    setState(() {
+                      _otpCode = pin;
+                    });
+                  },
                   onChanged: (pin) {
                     setState(() {
                       _otpCode = pin;
