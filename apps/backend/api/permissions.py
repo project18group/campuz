@@ -2,32 +2,31 @@ from rest_framework import permissions
 from .models import Hub
 
 
+from rest_framework import permissions
+from .models import HubMember
+
+
+# Custom permission class to check if the user is the creator of the hub or has admin role in the hub.
 class IsHubCreatorOrReadOnly(permissions.BasePermission):
-    """
-    Hub-scoped permission — mirrors how WhatsApp groups work:
-    - Anyone can register with a single generic flow.
-    - The user who CREATES a Hub becomes its admin (can broadcast messages).
-    - Users who JOIN a Hub later are viewers (read-only, can react).
-    - Superusers always have full access.
-    """
 
     def has_permission(self, request, view):
-        # All authenticated users can read (GET, HEAD, OPTIONS)
+
+        if not request.user or not request.user.is_authenticated:
+            return False
+
         if request.method in permissions.SAFE_METHODS:
-            return request.user and request.user.is_authenticated
+            return True
 
-        # For write operations, check if the user is the creator of the target Hub
-        if request.user and request.user.is_authenticated:
-            if request.user.is_superuser:
-                return True
+        if request.user.is_superuser:
+            return True
 
-            hub_id = request.data.get('hub')
-            if hub_id:
-                try:
-                    hub = Hub.objects.get(pk=hub_id)
-                    return hub.creator == request.user
-                except Hub.DoesNotExist:
-                    return False
+        hub_id = request.data.get("hub")
 
-        return False
+        if not hub_id:
+            return False
 
+        return HubMember.objects.filter(
+            hub_id=hub_id,
+            user=request.user,
+            role="admin",
+        ).exists()
