@@ -33,25 +33,36 @@ class AppShell extends StatelessWidget {
     final currentIndex = _getCurrentIndex(context);
 
     return Scaffold(
-      body: child,
+      body: ColoredBox(
+        color: AppColors.background,
+        child: child,
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
+          color: AppColors.surface,
           border: Border(
             top: BorderSide(
-              color: AppColors.border.withOpacity(0.5),
+              color: AppColors.border.withOpacity(0.7),
               width: 1,
             ),
           ),
+          boxShadow: const [
+            BoxShadow(
+              color: AppColors.shadow,
+              blurRadius: 16,
+              offset: Offset(0, -4),
+            ),
+          ],
         ),
         child: BottomNavigationBar(
           currentIndex: currentIndex,
           onTap: (index) => _onTabTapped(context, index),
-          selectedItemColor: AppColors.primary,
+          selectedItemColor: AppColors.primaryDeep,
           unselectedItemColor: AppColors.textSecondary,
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.surface,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
           unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
           items: const [
             BottomNavigationBarItem(

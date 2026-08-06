@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
@@ -9,6 +10,8 @@ class AppTextField extends StatefulWidget {
   final TextEditingController? controller;
   final int? maxLines;
   final TextInputType keyboardType;
+  final String? prefixText;
+  final List<TextInputFormatter>? inputFormatters;
 
   const AppTextField({
     super.key,
@@ -18,6 +21,8 @@ class AppTextField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.controller,
     this.maxLines,
+    this.prefixText,
+    this.inputFormatters,
   });
 
   @override
@@ -38,7 +43,13 @@ class _AppTextFieldState extends State<AppTextField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.label, style: AppTextStyles.label),
+        Text(
+          widget.label,
+          style: AppTextStyles.label.copyWith(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
 
         const SizedBox(height: 8),
 
@@ -46,9 +57,11 @@ class _AppTextFieldState extends State<AppTextField> {
           controller: widget.controller,
           obscureText: _obscureText,
           keyboardType: widget.keyboardType,
+          inputFormatters: widget.inputFormatters,
 
           decoration: InputDecoration(
             hintText: widget.hintText,
+            prefixText: widget.prefixText,
 
             suffixIcon: widget.obscureText
                 ? IconButton(
@@ -64,13 +77,6 @@ class _AppTextFieldState extends State<AppTextField> {
                     },
                   )
                 : null,
-
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
-            ),
           ),
         ),
       ],

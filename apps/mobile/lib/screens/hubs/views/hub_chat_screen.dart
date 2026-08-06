@@ -10,6 +10,7 @@ import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/screens/hubs/widget/hub_message_bubble.dart';
 import 'package:mobile/screens/hubs/widget/invite_card.dart';
 import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
+import 'package:mobile/core/mock/mock_data.dart';
 
 class HubChatScreen extends StatefulWidget {
   const HubChatScreen({super.key});
@@ -24,23 +25,22 @@ class _HubChatScreenState extends State<HubChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
 
-  List<HubMessage> messages = [
-    HubMessage(
-      sender: "Class Rep",
-      message:
-          "Welcome to Computer Science 2029. Important announcements will be shared here.",
-      time: "8:30 AM",
-      smsSent: true,
-      messageType: MessageType.text,
-    ),
-    HubMessage(
-      sender: "Class Rep",
-      message: "Programming II lecture has been moved to LT4.",
-      time: "11:15 AM",
-      smsSent: false,
-      messageType: MessageType.text,
-    ),
-  ];
+  late List<HubMessage> messages;
+
+  @override
+  void initState() {
+    super.initState();
+    // Map MockData messages to HubMessage for the UI
+    messages = MockData.messages.map((m) {
+      return HubMessage(
+        sender: m.sender.name,
+        message: m.content,
+        time: "${m.timestamp.hour}:${m.timestamp.minute.toString().padLeft(2, '0')}",
+        smsSent: false,
+        messageType: MessageType.text,
+      );
+    }).toList();
+  }
 
   void _sendMessage() {
     final text = _messageController.text.trim();
@@ -50,9 +50,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
     setState(() {
       messages.add(
         HubMessage(
-          sender: "Class Rep",
+          sender: MockData.currentUser.name,
           message: text,
-          time: "now",
+          time: "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}",
           smsSent: sendAsSms,
           messageType: MessageType.text,
         ),
@@ -73,13 +73,17 @@ class _HubChatScreenState extends State<HubChatScreen> {
   void _showAttachmentOptions() {
     showModalBottomSheet(
       context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (context) {
         return SafeArea(
           child: Wrap(
             children: [
               ListTile(
                 leading: const Icon(Icons.description),
-                title: Text("Document", style: AppTextStyles.title),
+                title: Text("Document", style: AppTextStyles.title.copyWith(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickDocument();
@@ -87,7 +91,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.image),
-                title: Text("Gallery", style: AppTextStyles.title),
+                title: Text("Gallery", style: AppTextStyles.title.copyWith(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickImage();
@@ -95,7 +99,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt),
-                title: Text("Camera", style: AppTextStyles.title),
+                title: Text("Camera", style: AppTextStyles.title.copyWith(color: AppColors.textPrimary)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickCamera();
@@ -127,8 +131,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
         setState(() {
           messages.add(
             HubMessage(
-              sender: "Class Rep",
-              time: "now",
+              sender: MockData.currentUser.name,
+              time: "${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}",
               smsSent: sendAsSms,
               messageType: MessageType.attachment,
               message: caption,
@@ -204,6 +208,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -239,6 +244,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         centerTitle: false,
         leading: IconButton(
@@ -254,10 +260,13 @@ class _HubChatScreenState extends State<HubChatScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Computer Science 2029", style: AppTextStyles.title),
+              Text(
+                "Computer Science 2029",
+                style: AppTextStyles.title.copyWith(color: Colors.white),
+              ),
               Text(
                 "248 members",
-                style: AppTextStyles.body.copyWith(fontSize: 12, color: AppColors.textSecondary),
+                style: AppTextStyles.body.copyWith(fontSize: 12, color: Colors.white70),
               ),
             ],
           ),
@@ -279,6 +288,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               padding: const EdgeInsets.all(16),
               children: [
                 const InviteCard(),
+                const SizedBox(height: 8),
                 ...messages.asMap().entries.map((entry) {
                   final index = entry.key;
                   final message = entry.value;

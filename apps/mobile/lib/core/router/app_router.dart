@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/screens/auth/views/account_setup_screen.dart';
 import 'package:mobile/screens/auth/views/profile_setup_screen.dart';
 import 'package:mobile/screens/auth/views/otp_screen.dart';
+import 'package:mobile/screens/auth/views/startup_screen.dart';
 import 'package:mobile/screens/auth/views/register_onboard.dart';
 import 'package:mobile/screens/auth/views/register_screen.dart';
 import 'package:mobile/screens/auth/views/login_screen.dart';
@@ -16,15 +17,25 @@ import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_info_screen.dart';
 import 'package:mobile/screens/ai/views/ai_screen.dart';
 import 'package:mobile/screens/profile/views/profile_screen.dart';
+import 'package:mobile/screens/broadcasts/views/broadcast_feed_screen.dart';
+import 'package:mobile/screens/resources/views/resource_list_screen.dart';
+import 'package:mobile/screens/tasks/views/task_list_screen.dart';
+import 'package:mobile/screens/calendar/views/calendar_screen.dart';
 import 'package:mobile/shared/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
-  initialLocation: "/",
+  initialLocation: "/startup",
   routes: [
     GoRoute(
       path: "/",
       builder: (context, state) {
         return const OnboardingScreen();
+      },
+    ),
+    GoRoute(
+      path: "/startup",
+      builder: (context, state) {
+        return const StartupScreen();
       },
     ),
     GoRoute(
@@ -48,7 +59,8 @@ final appRouter = GoRouter(
     GoRoute(
       path: "/otp",
       builder: (context, state) {
-        return const OtpScreen();
+        final username = state.uri.queryParameters['username'];
+        return OtpScreen(username: username);
       },
     ),
     GoRoute(
@@ -131,6 +143,30 @@ final appRouter = GoRouter(
       path: "/hub-info",
       builder: (context, state) {
         return const HubInfoScreen();
+      },
+    ),
+    GoRoute(
+      path: "/broadcasts",
+      builder: (context, state) {
+        return const BroadcastFeedScreen();
+      },
+    ),
+    GoRoute(
+      path: "/resources",
+      builder: (context, state) {
+        return const ResourceListScreen();
+      },
+    ),
+    GoRoute(
+      path: "/tasks",
+      builder: (context, state) {
+        return const TaskListScreen();
+      },
+    ),
+    GoRoute(
+      path: "/calendar",
+      builder: (context, state) {
+        return const CalendarScreen();
       },
     ),
   ],

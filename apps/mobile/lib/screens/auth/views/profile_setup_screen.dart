@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/shared/widgets/app_text_field.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
@@ -51,15 +52,35 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       _isLoading = true;
     });
 
-    // TODO: Connect to Django REST Framework
-    // PATCH /api/users/me/ with {username, avatar} (multipart form or JSON)
-    await Future.delayed(const Duration(seconds: 1)); // Placeholder delay
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-      context.go('/account-setup');
+    try {
+      // Authenticated by the token pair returned from OTP verification.
+      // TODO: avatar is still local-only — uploading the picked file needs a
+      // multipart media endpoint; profile-setup only accepts avatar_url today.
+      await AuthApiService.profileSetup(displayName: username);
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        context.go('/account-setup');
+      }
+    } on AuthApiException catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to save your profile right now')),
+        );
+      }
     }
   }
 

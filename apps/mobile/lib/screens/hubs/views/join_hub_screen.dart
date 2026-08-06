@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../shared/widgets/app_text_field.dart';
 import '../../../shared/widgets/primary_button.dart';
+import '../../../screens/home/widgets/empty_home_state.dart';
 
 class JoinHubScreen extends StatelessWidget {
   const JoinHubScreen({super.key});
@@ -27,12 +30,31 @@ class JoinHubScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Center(
+                child: Hero(
+                  tag: homeEmptyHeroTag,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: SvgPicture.asset(
+                      'assets/images/firsttime_home.svg',
+                      height: 150,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Welcome in. Join your first hub to start receiving updates.',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
               Text('Join Academic Hub', style: AppTextStyles.heading),
 
               const SizedBox(height: 8),
 
               Text(
-                'Enter an invite code, scan a QR code, or use an invitation link shared by your class representative.',
+                'Enter an invite code, scan a QR code, or use an invitation link shared by the hub creator.',
                 style: AppTextStyles.body,
               ),
 

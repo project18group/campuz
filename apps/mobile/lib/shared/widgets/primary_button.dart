@@ -15,20 +15,20 @@ class PrimaryButton extends StatelessWidget {
       height: 56,
       child: ElevatedButton(
         onPressed: onPressed,
-
         style: ElevatedButton.styleFrom(
           backgroundColor: AppColors.primary,
-
+          foregroundColor: AppColors.textOnPrimary,
           elevation: 0,
-
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
-
         child: Text(
           text,
-          style: AppTextStyles.title.copyWith(color: Colors.white),
+          style: AppTextStyles.title.copyWith(
+            color: AppColors.textOnPrimary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
     );
