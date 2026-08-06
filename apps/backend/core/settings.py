@@ -173,3 +173,7 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Security settings for production, especially when behind a reverse proxy or load balancer
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+
+# Connection String
+# --
