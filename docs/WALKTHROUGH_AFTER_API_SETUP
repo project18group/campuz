@@ -1,0 +1,42 @@
+# API Implementation and Mobile App Walkthrough
+
+We've successfully pushed the recent API implementations and mobile app updates to the `api` branch. This walkthrough highlights the changes and provides guidance on how to test the new functionality.
+
+## What's Included
+
+### 1. Backend API (Django)
+A new Django backend application has been initialized in `apps/backend/` with several API endpoints:
+
+- **Models & Migrations**: Configured the initial set of database models, including UserProfiles, Hubs, Messages, and attachments.
+- **Serializers & Views**: Set up Django REST Framework (DRF) serializers and views for interacting with these models.
+- **URLs**: Added routing for all the API endpoints.
+
+**To Test the Backend locally:**
+1. Navigate to the backend directory: `cd apps/backend`
+2. Install dependencies (e.g., via `pip install -r requirements.txt`)
+3. Run migrations: `python manage.py migrate`
+4. Start the server: `python manage.py runserver`
+5. Test the endpoints, for example, the Hubs or Messaging APIs, using tools like Postman or cURL.
+
+### 2. Mobile Application Updates (Flutter)
+The mobile app in `apps/mobile/` has received major UI and feature updates for Hubs and the Home Screen:
+
+- **Home Screen**:
+  - `empty_home_state.dart`: Added a new empty state view when no hubs exist.
+  - `hub_actions_sheet.dart`: A bottom sheet for hub-related actions.
+  - `hub_list_tile.dart`: Updated the design for displaying individual hubs.
+- **Hubs & Messaging**:
+  - Added models and repositories for attachments.
+  - Added new services for downloading (`file_download_service.dart`) and opening files (`file_open_service.dart`).
+  - Implemented an `attachment_picker.dart` and `image_viewer_page.dart` to support sending and viewing media in hub chats.
+  - Added `shared_media_screen.dart` to view all media shared in a hub.
+
+**To Test the Mobile App locally:**
+1. Navigate to the mobile directory: `cd apps/mobile`
+2. Get Flutter dependencies: `flutter pub get`
+3. Run the app on your preferred emulator or physical device: `flutter run`
+4. Test navigating through the Home Screen, viewing the Hubs, and opening the attachment picker or shared media screens. (Note: Currently uses mock data `mock_hubs.dart` and `mock_shared_media.dart` which can be wired to the new backend APIs).
+
+## Next Steps
+
+Now that both the API foundation and the Mobile UI updates are in place, the primary next step would be connecting the Flutter application's repositories to consume the live Django backend APIs instead of the local mock data. Let me know if you would like to proceed with testing the APIs or if we should start wiring the frontend to the backend!

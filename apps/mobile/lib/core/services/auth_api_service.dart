@@ -21,22 +21,12 @@ class AuthApiService {
 
   static String get _baseUrl {
     const envBaseUrl = String.fromEnvironment('CAMPUZ_API_BASE_URL');
+
     if (envBaseUrl.isNotEmpty) {
       return envBaseUrl;
     }
-    if (kIsWeb) {
-      return 'http://localhost:8000/api';
-    }
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return 'http://10.0.2.2:8000/api';
-      case TargetPlatform.iOS:
-      case TargetPlatform.macOS:
-      case TargetPlatform.windows:
-      case TargetPlatform.linux:
-      case TargetPlatform.fuchsia:
-        return 'http://127.0.0.1:8000/api';
-    }
+
+    return "https://campuz-api.onrender.com/api";
   }
 
   static Future<Map<String, dynamic>> register({
@@ -184,7 +174,10 @@ class AuthApiService {
   }) async {
     final access = response['access'] as String?;
     final refresh = response['refresh'] as String?;
-    if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
+    if (access == null ||
+        access.isEmpty ||
+        refresh == null ||
+        refresh.isEmpty) {
       return;
     }
     final resolvedUsername =
