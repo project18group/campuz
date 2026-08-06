@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
-import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/shared/widgets/primary_button.dart';
 import 'package:pinput/pinput.dart';
 
 class OtpScreen extends StatefulWidget {
-  final String? username;
+  /// E.164 phone number the OTP was sent to (e.g. "+233201234567").
+  final String? phone;
 
-  const OtpScreen({super.key, this.username});
+  const OtpScreen({super.key, this.phone});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -20,11 +21,11 @@ class _OtpScreenState extends State<OtpScreen> {
   bool _isLoading = false;
 
   Future<void> _verifyOtp() async {
-    final username = widget.username;
-    if (username == null || username.isEmpty) {
+    final phone = widget.phone;
+    if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Missing account details. Please register again.'),
+          content: Text('Missing phone number. Please go back and try again.'),
         ),
       );
       return;
@@ -42,12 +43,22 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      await AuthApiService.verifyOtp(username: username, otpCode: _otpCode);
+      final response = await AuthApiService.verifyOtp(
+        phoneNumber: phone,
+        otpCode: _otpCode,
+      );
+
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        context.go('/complete-profile');
+
+        final isNewUser = response['is_new_user'] as bool? ?? false;
+        if (isNewUser) {
+          context.go('/complete-profile');
+        } else {
+          context.go('/home');
+        }
       }
     } on AuthApiException catch (error) {
       if (mounted) {
@@ -71,11 +82,11 @@ class _OtpScreenState extends State<OtpScreen> {
   }
 
   Future<void> _resendCode() async {
-    final username = widget.username;
-    if (username == null || username.isEmpty) {
+    final phone = widget.phone;
+    if (phone == null || phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Missing account details. Please register again.'),
+          content: Text('Missing phone number. Please go back and try again.'),
         ),
       );
       return;
@@ -86,7 +97,7 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      await AuthApiService.resendOtp(username: username);
+      await AuthApiService.requestOtp(phoneNumber: phone);
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -122,9 +133,7 @@ class _OtpScreenState extends State<OtpScreen> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new),
-          onPressed: () {
-            context.go('/register');
-          },
+          onPressed: () => context.go('/phone'),
         ),
       ),
       body: SafeArea(
@@ -134,10 +143,10 @@ class _OtpScreenState extends State<OtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              Text("Verify Your Account", style: AppTextStyles.heading),
+              Text("Verify Your Number", style: AppTextStyles.heading),
               const SizedBox(height: 12),
               Text(
-                "Enter the 6-digit verification code sent to your email.",
+                "Enter the 6-digit code sent to ${widget.phone ?? 'your phone'}.",
                 style: AppTextStyles.body,
               ),
               const SizedBox(height: 40),
@@ -228,16 +237,8 @@ class _OtpScreenState extends State<OtpScreen> {
                   ),
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   separatorBuilder: (index) => const SizedBox(width: 12),
-                  onCompleted: (pin) {
-                    setState(() {
-                      _otpCode = pin;
-                    });
-                  },
-                  onChanged: (pin) {
-                    setState(() {
-                      _otpCode = pin;
-                    });
-                  },
+                  onCompleted: (pin) => setState(() => _otpCode = pin),
+                  onChanged: (pin) => setState(() => _otpCode = pin),
                 ),
               ),
               const SizedBox(height: 24),

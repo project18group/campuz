@@ -21,66 +21,79 @@ class AuthApiService {
 
   static String get _baseUrl {
     const envBaseUrl = String.fromEnvironment('CAMPUZ_API_BASE_URL');
-
     if (envBaseUrl.isNotEmpty) {
       return envBaseUrl;
     }
-
     return "https://campuz-api.onrender.com/api";
   }
 
-  static Future<Map<String, dynamic>> register({
-    required String username,
-    required String email,
-    required String password,
-    required String fullName,
-    String? phoneNumber,
+  // ---------------------------------------------------------------------------
+  // Phone-OTP authentication
+  // ---------------------------------------------------------------------------
+
+  /// Requests a 6-digit OTP to be sent to [phoneNumber] via SMS.
+  ///
+  /// Throws [AuthApiException] on network or server errors.  Returns the raw
+  /// response map (contains `message` on success).
+  static Future<Map<String, dynamic>> requestOtp({
+    required String phoneNumber,
   }) async {
-    final response = await _postJson(
-      '/auth/register/',
-      body: {
-        'username': username,
-        'email': email,
-        'password': password,
-        'full_name': fullName,
-        if (phoneNumber != null && phoneNumber.isNotEmpty)
-          'phone_number': phoneNumber,
-      },
+    return _postJson(
+      '/auth/request-otp/',
+      body: {'phone_number': phoneNumber},
     );
-    return response;
   }
 
-  /// Verifying the OTP also signs the user in — the backend returns a token
-  /// pair so profile setup can run without a separate login round trip.
+  /// Verifies [otpCode] for [phoneNumber].
+  ///
+  /// On success the backend returns:
+  ///   { "access": "...", "refresh": "...", "is_new_user": true/false }
+  ///
+  /// Tokens are persisted to secure storage and [AuthSession] automatically.
+  /// The caller should read `response['is_new_user']` to decide the next route.
   static Future<Map<String, dynamic>> verifyOtp({
-    required String username,
+    required String phoneNumber,
     required String otpCode,
   }) async {
     final response = await _postJson(
       '/auth/verify-otp/',
-      body: {'username': username, 'otp_code': otpCode},
+      body: {'phone_number': phoneNumber, 'otp_code': otpCode},
     );
-    await _persistTokens(response, username: username);
+    await _persistTokens(response);
     return response;
   }
 
-  static Future<Map<String, dynamic>> resendOtp({
+  // ---------------------------------------------------------------------------
+  // Profile setup (authenticated)
+  // ---------------------------------------------------------------------------
+
+  /// Sets the user's public [username], optional [displayName], and optional
+  /// [avatarUrl] after OTP sign-in.
+  static Future<Map<String, dynamic>> profileSetup({
     required String username,
+    String? displayName,
+    String? avatarUrl,
   }) async {
-    return _postJson('/auth/resend-otp/', body: {'username': username});
+    final body = <String, dynamic>{'username': username};
+    if (displayName != null && displayName.isNotEmpty) {
+      body['display_name'] = displayName;
+    }
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      body['avatar_url'] = avatarUrl;
+    }
+
+    return _authorized(
+      (token) => _client.patch(
+        Uri.parse('$_baseUrl/auth/profile-setup/'),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      ),
+    );
   }
 
-  static Future<Map<String, dynamic>> login({
-    required String username,
-    required String password,
-  }) async {
-    final response = await _postJson(
-      '/token/',
-      body: {'username': username, 'password': password},
-    );
-    await _persistTokens(response, username: username);
-    return response;
-  }
+  // ---------------------------------------------------------------------------
+  // Session management (unchanged)
+  // ---------------------------------------------------------------------------
 
   static Future<Map<String, dynamic>> currentUser({String? accessToken}) async {
     return _authorized(
@@ -92,26 +105,8 @@ class AuthApiService {
     );
   }
 
-  static Future<Map<String, dynamic>> profileSetup({
-    String? displayName,
-    String? avatarUrl,
-  }) async {
-    final body = <String, dynamic>{};
-    if (displayName != null) body['display_name'] = displayName;
-    if (avatarUrl != null) body['avatar_url'] = avatarUrl;
-
-    return _authorized(
-      (token) => _client.patch(
-        Uri.parse('$_baseUrl/auth/profile-setup/'),
-        headers: _headers(token),
-        body: jsonEncode(body),
-      ),
-    );
-  }
-
   /// Exchanges the stored refresh token for a new access token.
-  /// Returns false when no refresh token exists or the backend rejects it,
-  /// which callers should treat as "session over, send the user to login".
+  /// Returns false when no refresh token exists or the backend rejects it.
   static Future<bool> refreshSession() async {
     final refreshToken =
         AuthSession.refreshToken ?? await SecureTokenStorage.readRefreshToken();
@@ -127,7 +122,7 @@ class AuthApiService {
       if (access == null || access.isEmpty) {
         return false;
       }
-      // ROTATE_REFRESH_TOKENS is on, so a new refresh token comes back too.
+      // ROTATE_REFRESH_TOKENS is on — a new refresh token comes back too.
       await _persistTokens({
         'access': access,
         'refresh': response['refresh'] as String? ?? refreshToken,
@@ -138,8 +133,7 @@ class AuthApiService {
     }
   }
 
-  /// True when a stored session can still make authenticated calls, refreshing
-  /// a stale access token first if needed.
+  /// True when a stored session can still make authenticated calls.
   static Future<bool> hasValidSession() async {
     final access =
         AuthSession.accessToken ?? await SecureTokenStorage.readAccessToken();
@@ -162,44 +156,38 @@ class AuthApiService {
     AuthSession.clear();
   }
 
+  // ---------------------------------------------------------------------------
+  // Private helpers
+  // ---------------------------------------------------------------------------
+
   static Map<String, String> _headers(String? token) => {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
     if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
   };
 
-  static Future<void> _persistTokens(
-    Map<String, dynamic> response, {
-    String? username,
-  }) async {
+  static Future<void> _persistTokens(Map<String, dynamic> response) async {
     final access = response['access'] as String?;
     final refresh = response['refresh'] as String?;
-    if (access == null ||
-        access.isEmpty ||
-        refresh == null ||
-        refresh.isEmpty) {
+    if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
       return;
     }
-    final resolvedUsername =
-        username ??
-        AuthSession.username ??
-        await SecureTokenStorage.readUsername() ??
-        '';
+    final username =
+        AuthSession.username ?? await SecureTokenStorage.readUsername() ?? '';
     await SecureTokenStorage.saveTokens(
       accessToken: access,
       refreshToken: refresh,
-      username: resolvedUsername,
+      username: username,
     );
     AuthSession.setTokens(
       accessToken: access,
       refreshToken: refresh,
-      username: resolvedUsername.isEmpty ? null : resolvedUsername,
+      username: username.isEmpty ? null : username,
     );
   }
 
-  /// Runs an authenticated request, and on a 401 refreshes the access token
-  /// once and replays it. Without this every call fails silently as soon as
-  /// the access token expires.
+  /// Runs an authenticated request; on 401 refreshes the token once and
+  /// replays the call before giving up.
   static Future<Map<String, dynamic>> _authorized(
     Future<http.Response> Function(String? token) send, {
     String? overrideToken,
@@ -221,24 +209,21 @@ class AuthApiService {
 
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (decoded is Map<String, dynamic>) {
-          return decoded;
-        }
-        return <String, dynamic>{'data': decoded};
+        return decoded is Map<String, dynamic>
+            ? decoded
+            : <String, dynamic>{'data': decoded};
       }
 
-      final message =
-          _extractErrorMessage(decoded) ??
-          'Request failed with status ${response.statusCode}';
-      throw AuthApiException(message);
+      throw AuthApiException(
+        _extractErrorMessage(decoded) ??
+            'Request failed with status ${response.statusCode}',
+      );
     } on http.ClientException catch (error) {
       throw AuthApiException(
         'Unable to reach the backend at $_baseUrl. ${error.message}',
       );
     } catch (error) {
-      if (error is AuthApiException) {
-        rethrow;
-      }
+      if (error is AuthApiException) rethrow;
       throw AuthApiException('Unexpected auth error: $error');
     }
   }
@@ -260,32 +245,27 @@ class AuthApiService {
 
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        if (decoded is Map<String, dynamic>) {
-          return decoded;
-        }
-        return <String, dynamic>{'data': decoded};
+        return decoded is Map<String, dynamic>
+            ? decoded
+            : <String, dynamic>{'data': decoded};
       }
 
-      final message =
-          _extractErrorMessage(decoded) ??
-          'Request failed with status ${response.statusCode}';
-      throw AuthApiException(message);
+      throw AuthApiException(
+        _extractErrorMessage(decoded) ??
+            'Request failed with status ${response.statusCode}',
+      );
     } on http.ClientException catch (error) {
       throw AuthApiException(
         'Unable to reach the backend at $_baseUrl. ${error.message}',
       );
     } catch (error) {
-      if (error is AuthApiException) {
-        rethrow;
-      }
+      if (error is AuthApiException) rethrow;
       throw AuthApiException('Unexpected auth error: $error');
     }
   }
 
   static dynamic _decodeResponse(http.Response response) {
-    if (response.body.isEmpty) {
-      return const <String, dynamic>{};
-    }
+    if (response.body.isEmpty) return const <String, dynamic>{};
     try {
       return jsonDecode(response.body);
     } catch (_) {
@@ -295,20 +275,14 @@ class AuthApiService {
 
   static String? _extractErrorMessage(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
-      final error = decoded['error'];
-      if (error is String && error.isNotEmpty) {
-        return error;
-      }
-      final message = decoded['message'];
-      if (message is String && message.isNotEmpty) {
-        return message;
+      for (final key in ['error', 'message', 'detail']) {
+        final v = decoded[key];
+        if (v is String && v.isNotEmpty) return v;
       }
       for (final value in decoded.values) {
         if (value is List && value.isNotEmpty) {
           final first = value.first;
-          if (first is String && first.isNotEmpty) {
-            return first;
-          }
+          if (first is String && first.isNotEmpty) return first;
         }
       }
     }

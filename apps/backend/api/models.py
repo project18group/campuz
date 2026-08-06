@@ -25,12 +25,22 @@ class UserProfile(models.Model):
         max_length=20,
         blank=True,
         null=True,
+        unique=True,
         help_text="E.164 number used for OTP delivery",
     )
 
     # Auth Verification Fields
     is_verified = models.BooleanField(default=False)
     otp_code = models.CharField(max_length=6, blank=True, null=True)
+    otp_created_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp when the current OTP was generated",
+    )
+    profile_setup_completed = models.BooleanField(
+        default=False,
+        help_text="True once the user has chosen a public username via profile setup",
+    )
 
     def __str__(self):
         return self.user.username

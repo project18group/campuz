@@ -1,11 +1,9 @@
 import 'package:go_router/go_router.dart';
 import 'package:mobile/screens/auth/views/account_setup_screen.dart';
+import 'package:mobile/screens/auth/views/phone_screen.dart';
 import 'package:mobile/screens/auth/views/profile_setup_screen.dart';
 import 'package:mobile/screens/auth/views/otp_screen.dart';
 import 'package:mobile/screens/auth/views/startup_screen.dart';
-import 'package:mobile/screens/auth/views/register_onboard.dart';
-import 'package:mobile/screens/auth/views/register_screen.dart';
-import 'package:mobile/screens/auth/views/login_screen.dart';
 import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
 import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
@@ -26,148 +24,117 @@ import 'package:mobile/shared/widgets/app_shell.dart';
 final appRouter = GoRouter(
   initialLocation: "/startup",
   routes: [
-    GoRoute(
-      path: "/",
-      builder: (context, state) {
-        return const OnboardingScreen();
-      },
-    ),
+    // -----------------------------------------------------------------------
+    // Startup splash — checks for a stored session, then routes to /phone or
+    // /home accordingly.
+    // -----------------------------------------------------------------------
     GoRoute(
       path: "/startup",
-      builder: (context, state) {
-        return const StartupScreen();
-      },
+      builder: (context, state) => const StartupScreen(),
     ),
+
+    // -----------------------------------------------------------------------
+    // Onboarding (welcome / marketing screen)
+    // -----------------------------------------------------------------------
     GoRoute(
-      path: "/register-onboard",
-      builder: (context, state) {
-        return const RegisterOnboard();
-      },
+      path: "/",
+      builder: (context, state) => const OnboardingScreen(),
     ),
+
+    // -----------------------------------------------------------------------
+    // Phone-OTP authentication flow
+    // -----------------------------------------------------------------------
     GoRoute(
-      path: "/register",
-      builder: (context, state) {
-        return const RegisterScreen();
-      },
-    ),
-    GoRoute(
-      path: "/login",
-      builder: (context, state) {
-        return const LoginScreen();
-      },
+      path: "/phone",
+      builder: (context, state) => const PhoneScreen(),
     ),
     GoRoute(
       path: "/otp",
       builder: (context, state) {
-        final username = state.uri.queryParameters['username'];
-        return OtpScreen(username: username);
+        final phone = state.uri.queryParameters['phone'];
+        return OtpScreen(phone: phone);
       },
     ),
     GoRoute(
       path: "/complete-profile",
-      builder: (context, state) {
-        return const ProfileSetupScreen();
-      },
+      builder: (context, state) => const ProfileSetupScreen(),
     ),
     GoRoute(
       path: "/account-setup",
-      builder: (context, state) {
-        return const AccountSetupScreen();
-      },
+      builder: (context, state) => const AccountSetupScreen(),
     ),
 
-    // Shell route for tabs
+    // -----------------------------------------------------------------------
+    // Main app shell with bottom navigation tabs
+    // -----------------------------------------------------------------------
     ShellRoute(
-      builder: (context, state, child) {
-        return AppShell(child: child);
-      },
+      builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(
           path: "/home",
-          builder: (context, state) {
-            return const HomeScreen();
-          },
+          builder: (context, state) => const HomeScreen(),
         ),
         GoRoute(
           path: "/ai",
-          builder: (context, state) {
-            return const AiScreen();
-          },
+          builder: (context, state) => const AiScreen(),
         ),
         GoRoute(
           path: "/profile",
-          builder: (context, state) {
-            return const ProfileScreen();
-          },
+          builder: (context, state) => const ProfileScreen(),
         ),
       ],
     ),
 
+    // -----------------------------------------------------------------------
+    // Hub routes (unchanged)
+    // -----------------------------------------------------------------------
     GoRoute(
       path: "/join-hub",
-      builder: (context, state) {
-        return const JoinHubScreen();
-      },
+      builder: (context, state) => const JoinHubScreen(),
     ),
     GoRoute(
       path: "/select-contact",
-      builder: (context, state) {
-        return SelectContactScreen();
-      },
+      builder: (context, state) => SelectContactScreen(),
     ),
     GoRoute(
       path: "/create-hub",
-      builder: (context, state) {
-        return const CreateHubScreen();
-      },
+      builder: (context, state) => const CreateHubScreen(),
     ),
     GoRoute(
       path: "/hub-permissions",
-      builder: (context, state) {
-        return const HubPermissionsScreen();
-      },
+      builder: (context, state) => const HubPermissionsScreen(),
     ),
     GoRoute(
       path: "/hub-created",
-      builder: (context, state) {
-        return const HubCreatedScreen();
-      },
+      builder: (context, state) => const HubCreatedScreen(),
     ),
     GoRoute(
       path: "/hub-chat",
-      builder: (context, state) {
-        return const HubChatScreen();
-      },
+      builder: (context, state) => const HubChatScreen(),
     ),
     GoRoute(
       path: "/hub-info",
-      builder: (context, state) {
-        return const HubInfoScreen();
-      },
+      builder: (context, state) => const HubInfoScreen(),
     ),
+
+    // -----------------------------------------------------------------------
+    // Other feature routes (unchanged)
+    // -----------------------------------------------------------------------
     GoRoute(
       path: "/broadcasts",
-      builder: (context, state) {
-        return const BroadcastFeedScreen();
-      },
+      builder: (context, state) => const BroadcastFeedScreen(),
     ),
     GoRoute(
       path: "/resources",
-      builder: (context, state) {
-        return const ResourceListScreen();
-      },
+      builder: (context, state) => const ResourceListScreen(),
     ),
     GoRoute(
       path: "/tasks",
-      builder: (context, state) {
-        return const TaskListScreen();
-      },
+      builder: (context, state) => const TaskListScreen(),
     ),
     GoRoute(
       path: "/calendar",
-      builder: (context, state) {
-        return const CalendarScreen();
-      },
+      builder: (context, state) => const CalendarScreen(),
     ),
   ],
 );

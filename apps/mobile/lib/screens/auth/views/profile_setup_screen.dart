@@ -16,23 +16,26 @@ class ProfileSetupScreen extends StatefulWidget {
 
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _usernameController = TextEditingController();
+  final _displayNameController = TextEditingController();
   String? _imagePath;
   bool _isLoading = false;
 
   @override
   void dispose() {
     _usernameController.dispose();
+    _displayNameController.dispose();
     super.dispose();
   }
 
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final image = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
+      final image = await picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+      );
       if (image != null) {
-        setState(() {
-          _imagePath = image.path;
-        });
+        setState(() => _imagePath = image.path);
       }
     } catch (e) {
       debugPrint("Error picking image: $e");
@@ -41,42 +44,39 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _saveProfile() async {
     final username = _usernameController.text.trim();
+    final displayName = _displayNameController.text.trim();
+
     if (username.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a username')),
+        const SnackBar(content: Text('Please choose a username')),
       );
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     try {
-      // Authenticated by the token pair returned from OTP verification.
-      // TODO: avatar is still local-only — uploading the picked file needs a
-      // multipart media endpoint; profile-setup only accepts avatar_url today.
-      await AuthApiService.profileSetup(displayName: username);
+      // Avatar upload to a media endpoint is not yet available; avatar_url
+      // remains null until a multipart upload endpoint is added.
+      await AuthApiService.profileSetup(
+        username: username,
+        displayName: displayName.isEmpty ? null : displayName,
+      );
+
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         context.go('/account-setup');
       }
     } on AuthApiException catch (error) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.message)));
       }
     } catch (_) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Unable to save your profile right now')),
         );
@@ -94,10 +94,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Profile Info", style: AppTextStyles.heading),
+              Text("Set Up Profile", style: AppTextStyles.heading),
               const SizedBox(height: 8),
               Text(
-                'Please provide a suitable username and an optional profile picture.',
+                'Choose a username and an optional display name.',
                 style: AppTextStyles.body,
               ),
               const SizedBox(height: 40),
@@ -106,8 +106,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                   children: [
                     CircleAvatar(
                       radius: 55,
-                      backgroundImage: _imagePath != null ? FileImage(File(_imagePath!)) : null,
-                      child: _imagePath == null ? const Icon(Icons.person, size: 50) : null,
+                      backgroundImage: _imagePath != null
+                          ? FileImage(File(_imagePath!))
+                          : null,
+                      child: _imagePath == null
+                          ? const Icon(Icons.person, size: 50)
+                          : null,
                     ),
                     Positioned(
                       right: 0,
@@ -127,16 +131,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               const SizedBox(height: 40),
               AppTextField(
                 controller: _usernameController,
-                label: "Username",
-                hintText: "@user_name",
+                label: 'Username',
+                hintText: '@username',
+              ),
+              const SizedBox(height: 18),
+              AppTextField(
+                controller: _displayNameController,
+                label: 'Display Name (optional)',
+                hintText: 'How others see your name',
               ),
               const SizedBox(height: 60),
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : PrimaryButton(
-                      text: "Finish",
-                      onPressed: _saveProfile,
-                    ),
+                  : PrimaryButton(text: "Finish", onPressed: _saveProfile),
             ],
           ),
         ),
