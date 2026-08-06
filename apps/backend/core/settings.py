@@ -90,6 +90,13 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
+print("=" * 60)
+print("DB_NAME =", os.getenv("DB_NAME"))
+print("DB_USER =", os.getenv("DB_USER"))
+print("DB_HOST =", os.getenv("DB_HOST"))
+print("DB_PORT =", os.getenv("DB_PORT"))
+print("DB_PASSWORD exists =", os.getenv("DB_PASSWORD") is not None)
+print("=" * 60)
 
 # Configure the database using dj_database_url for flexibility in different environments
 # DATABASES = {
