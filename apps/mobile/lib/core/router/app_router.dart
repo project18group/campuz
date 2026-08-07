@@ -1,9 +1,9 @@
 import 'package:go_router/go_router.dart';
-import 'package:mobile/screens/auth/views/account_setup_screen.dart';
 import 'package:mobile/screens/auth/views/phone_screen.dart';
 import 'package:mobile/screens/auth/views/profile_setup_screen.dart';
 import 'package:mobile/screens/auth/views/otp_screen.dart';
 import 'package:mobile/screens/auth/views/startup_screen.dart';
+import 'package:mobile/screens/contacts/views/direct_chat_screen.dart';
 import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
 import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
@@ -36,32 +36,23 @@ final appRouter = GoRouter(
     // -----------------------------------------------------------------------
     // Onboarding (welcome / marketing screen)
     // -----------------------------------------------------------------------
-    GoRoute(
-      path: "/",
-      builder: (context, state) => const OnboardingScreen(),
-    ),
+    GoRoute(path: "/", builder: (context, state) => const OnboardingScreen()),
 
     // -----------------------------------------------------------------------
     // Phone-OTP authentication flow
     // -----------------------------------------------------------------------
-    GoRoute(
-      path: "/phone",
-      builder: (context, state) => const PhoneScreen(),
-    ),
+    GoRoute(path: "/phone", builder: (context, state) => const PhoneScreen()),
     GoRoute(
       path: "/otp",
       builder: (context, state) {
         final phone = state.uri.queryParameters['phone'];
-        return OtpScreen(phone: phone);
+        final fullName = state.uri.queryParameters['fullName'];
+        return OtpScreen(phone: phone, fullName: fullName);
       },
     ),
     GoRoute(
       path: "/complete-profile",
       builder: (context, state) => const ProfileSetupScreen(),
-    ),
-    GoRoute(
-      path: "/account-setup",
-      builder: (context, state) => const AccountSetupScreen(),
     ),
 
     // -----------------------------------------------------------------------
@@ -70,14 +61,8 @@ final appRouter = GoRouter(
     ShellRoute(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
-        GoRoute(
-          path: "/home",
-          builder: (context, state) => const HomeScreen(),
-        ),
-        GoRoute(
-          path: "/ai",
-          builder: (context, state) => const AiScreen(),
-        ),
+        GoRoute(path: "/home", builder: (context, state) => const HomeScreen()),
+        GoRoute(path: "/ai", builder: (context, state) => const AiScreen()),
         GoRoute(
           path: "/profile",
           builder: (context, state) => const ProfileScreen(),
@@ -94,7 +79,15 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: "/select-contact",
-      builder: (context, state) => SelectContactScreen(),
+      builder: (context, state) => const SelectContactScreen(),
+    ),
+    GoRoute(
+      path: "/direct-chat/:conversationId",
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['conversationId']!);
+        final conversation = state.extra as Map<String, dynamic>?;
+        return DirectChatScreen(conversationId: id, conversation: conversation);
+      },
     ),
     GoRoute(
       path: "/create-hub",
@@ -102,11 +95,17 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: "/hub-permissions",
-      builder: (context, state) => const HubPermissionsScreen(),
+      builder: (context, state) {
+        final hubDraft = state.extra as Map<String, String>?;
+        return HubPermissionsScreen(hubDraft: hubDraft);
+      },
     ),
     GoRoute(
       path: "/hub-created",
-      builder: (context, state) => const HubCreatedScreen(),
+      builder: (context, state) {
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubCreatedScreen(hub: hub);
+      },
     ),
     GoRoute(
       path: "/hub-chat",

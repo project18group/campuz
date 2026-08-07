@@ -33,7 +33,6 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   bool _isZoomed = false;
 
   // ─── Overlay (app bar) visibility ───
-  final bool _overlayVisible = true;
   Timer? _singleTapTimer;
 
   // ─── Pointer tracking ───
@@ -57,27 +56,28 @@ class _ImageViewerPageState extends State<ImageViewerPage>
   void initState() {
     super.initState();
 
-    _zoomAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    )..addListener(() {
-        if (_zoomAnimation != null) {
-          _transformController.value = _zoomAnimation!.value;
-        }
-      });
+    _zoomAnimController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 250),
+        )..addListener(() {
+          if (_zoomAnimation != null) {
+            _transformController.value = _zoomAnimation!.value;
+          }
+        });
 
-    _snapBackController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    )..addListener(() {
-        if (_snapBackAnimation != null) {
-          setState(() {
-            _dismissDy = _snapBackAnimation!.value;
-            _bgOpacity =
-                (1.0 - (_dismissDy.abs() / 300)).clamp(0.3, 1.0);
-          });
-        }
-      });
+    _snapBackController =
+        AnimationController(
+          vsync: this,
+          duration: const Duration(milliseconds: 200),
+        )..addListener(() {
+          if (_snapBackAnimation != null) {
+            setState(() {
+              _dismissDy = _snapBackAnimation!.value;
+              _bgOpacity = (1.0 - (_dismissDy.abs() / 300)).clamp(0.3, 1.0);
+            });
+          }
+        });
 
     _transformController.addListener(_onZoomChanged);
   }
@@ -133,8 +133,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
       if (_dismissActive) {
         setState(() {
           _dismissDy = e.position.dy - _dismissAnchor.dy;
-          _bgOpacity =
-              (1.0 - (_dismissDy.abs() / 300)).clamp(0.3, 1.0);
+          _bgOpacity = (1.0 - (_dismissDy.abs() / 300)).clamp(0.3, 1.0);
         });
       }
     }
@@ -207,16 +206,17 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     } else {
       const z = 2.5;
       end = Matrix4.identity()
-        ..translate(-local.dx * (z - 1), -local.dy * (z - 1))
-        ..scale(z);
+        ..translateByDouble(-local.dx * (z - 1), -local.dy * (z - 1), 0, 1)
+        ..scaleByDouble(z, z, z, 1);
     }
 
-    _zoomAnimation = Matrix4Tween(
-      begin: _transformController.value,
-      end: end,
-    ).animate(
-      CurvedAnimation(parent: _zoomAnimController, curve: Curves.easeOutCubic),
-    );
+    _zoomAnimation = Matrix4Tween(begin: _transformController.value, end: end)
+        .animate(
+          CurvedAnimation(
+            parent: _zoomAnimController,
+            curve: Curves.easeOutCubic,
+          ),
+        );
     _zoomAnimController.forward(from: 0);
   }
 
@@ -233,7 +233,7 @@ class _ImageViewerPageState extends State<ImageViewerPage>
         onPointerUp: _onPointerUp,
         onPointerCancel: _onPointerCancel,
         child: Container(
-          color: Colors.black.withOpacity(_bgOpacity),
+          color: Colors.black.withValues(alpha: _bgOpacity),
           child: Stack(
             fit: StackFit.expand,
             children: [

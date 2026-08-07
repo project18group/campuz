@@ -15,15 +15,46 @@ class HubInfoScreen extends StatefulWidget {
 class _HubInfoScreenState extends State<HubInfoScreen> {
   final String hubName = "Computer Science 2029";
   final String inviteLink = "https://campuz.app/invite/abc123";
-  final String description = "Official communication channel for the Computer Science 2029 class. Lecture updates, slides, and exam dates will be posted here.";
+  final String description =
+      "Official communication channel for the Computer Science 2029 class. Lecture updates, slides, and exam dates will be posted here.";
 
   List<Map<String, dynamic>> members = [
-    {"name": "Class Rep", "username": "@class_rep", "isAdmin": true, "isMe": false},
-    {"name": "John Doe", "username": "@johndoe", "isAdmin": true, "isMe": false},
-    {"name": "Alice Smith", "username": "@alice_s", "isAdmin": false, "isMe": true}, // Current user
-    {"name": "Bob Johnson", "username": "@bobj", "isAdmin": false, "isMe": false},
-    {"name": "Charlie Brown", "username": "@charlie_b", "isAdmin": false, "isMe": false},
-    {"name": "Diana Prince", "username": "@diana", "isAdmin": false, "isMe": false},
+    {
+      "name": "Class Rep",
+      "username": "@class_rep",
+      "isAdmin": true,
+      "isMe": false,
+    },
+    {
+      "name": "John Doe",
+      "username": "@johndoe",
+      "isAdmin": true,
+      "isMe": false,
+    },
+    {
+      "name": "Alice Smith",
+      "username": "@alice_s",
+      "isAdmin": false,
+      "isMe": true,
+    }, // Current user
+    {
+      "name": "Bob Johnson",
+      "username": "@bobj",
+      "isAdmin": false,
+      "isMe": false,
+    },
+    {
+      "name": "Charlie Brown",
+      "username": "@charlie_b",
+      "isAdmin": false,
+      "isMe": false,
+    },
+    {
+      "name": "Diana Prince",
+      "username": "@diana",
+      "isAdmin": false,
+      "isMe": false,
+    },
   ];
 
   void _copyLink() {
@@ -38,13 +69,19 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
       context: context,
       builder: (_) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text("Join $hubName", style: AppTextStyles.title, textAlign: TextAlign.center),
+                Text(
+                  "Join $hubName",
+                  style: AppTextStyles.title,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 20),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -59,7 +96,12 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text("ABC123", style: AppTextStyles.label.copyWith(fontWeight: FontWeight.bold)),
+                Text(
+                  "ABC123",
+                  style: AppTextStyles.label.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ],
             ),
           ),
@@ -84,9 +126,9 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     setState(() {
       members.removeAt(index);
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("$name removed from the hub")),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text("$name removed from the hub")));
   }
 
   void _showMemberOptions(int index) {
@@ -96,7 +138,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.only(topLeft: Radius.circular(20), topRight: Radius.circular(20)),
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
       ),
       builder: (context) {
         return SafeArea(
@@ -106,12 +151,18 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Text(
                   "Manage ${member["name"]}",
-                  style: AppTextStyles.title.copyWith(fontWeight: FontWeight.bold),
+                  style: AppTextStyles.title.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               ListTile(
-                leading: Icon(member["isAdmin"] ? Icons.arrow_downward : Icons.arrow_upward),
-                title: Text(member["isAdmin"] ? "Dismiss as Admin" : "Make Hub Admin"),
+                leading: Icon(
+                  member["isAdmin"] ? Icons.arrow_downward : Icons.arrow_upward,
+                ),
+                title: Text(
+                  member["isAdmin"] ? "Dismiss as Admin" : "Make Hub Admin",
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _toggleAdmin(index);
@@ -119,7 +170,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               ),
               ListTile(
                 leading: const Icon(Icons.person_remove, color: Colors.red),
-                title: const Text("Remove from Hub", style: TextStyle(color: Colors.red)),
+                title: const Text(
+                  "Remove from Hub",
+                  style: TextStyle(color: Colors.red),
+                ),
                 onTap: () {
                   Navigator.pop(context);
                   _removeMember(index);
@@ -155,10 +209,14 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: AppColors.primary.withOpacity(0.1),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
                     child: const Text(
                       "CS",
-                      style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -170,7 +228,9 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   const SizedBox(height: 6),
                   Text(
                     "${members.length} members",
-                    style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -185,11 +245,19 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Description", style: AppTextStyles.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    "Description",
+                    style: AppTextStyles.title.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     description,
-                    style: AppTextStyles.body.copyWith(color: AppColors.textPrimary),
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textPrimary,
+                    ),
                   ),
                 ],
               ),
@@ -204,13 +272,22 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Invite Code & Link", style: AppTextStyles.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text(
+                    "Invite Code & Link",
+                    style: AppTextStyles.title.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Expanded(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
                             color: AppColors.background,
                             borderRadius: BorderRadius.circular(8),
@@ -229,7 +306,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                         onPressed: _copyLink,
                       ),
                       IconButton(
-                        icon: const Icon(Icons.qr_code, color: AppColors.primary),
+                        icon: const Icon(
+                          Icons.qr_code,
+                          color: AppColors.primary,
+                        ),
                         onPressed: _showQrDialog,
                       ),
                     ],
@@ -247,10 +327,16 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 children: [
                   Text(
                     "Members (${members.length})",
-                    style: AppTextStyles.title.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: AppTextStyles.title.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.person_add, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.person_add,
+                      color: AppColors.primary,
+                    ),
                     onPressed: _showQrDialog,
                   ),
                 ],
@@ -264,46 +350,67 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: members.length,
-                separatorBuilder: (context, index) => const Divider(height: 1, indent: 72),
+                separatorBuilder: (context, index) =>
+                    const Divider(height: 1, indent: 72),
                 itemBuilder: (context, index) {
                   final member = members[index];
                   return ListTile(
                     onTap: () => _showMemberOptions(index),
                     leading: CircleAvatar(
-                      backgroundColor: AppColors.primary.withOpacity(0.08),
+                      backgroundColor: AppColors.primary.withValues(
+                        alpha: 0.08,
+                      ),
                       child: Text(
                         member["name"][0],
-                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                     title: Row(
                       children: [
                         Text(
                           member["name"],
-                          style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+                          style: AppTextStyles.body.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         if (member["isMe"]) ...[
                           const SizedBox(width: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               "you",
-                              style: AppTextStyles.caption.copyWith(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold),
+                              style: AppTextStyles.caption.copyWith(
+                                color: Colors.blue,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
                       ],
                     ),
-                    subtitle: Text(member["username"], style: AppTextStyles.caption),
+                    subtitle: Text(
+                      member["username"],
+                      style: AppTextStyles.caption,
+                    ),
                     trailing: member["isAdmin"]
                         ? Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -330,21 +437,35 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 children: [
                   ListTile(
                     leading: const Icon(Icons.exit_to_app, color: Colors.red),
-                    title: const Text("Leave Hub", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    title: const Text(
+                      "Leave Hub",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                     onTap: () {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text("Leave Hub"),
-                          content: const Text("Are you sure you want to leave this academic hub?"),
+                          content: const Text(
+                            "Are you sure you want to leave this academic hub?",
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("Cancel"),
+                            ),
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(context); // pop dialog
                                 context.go("/home"); // return home
                               },
-                              child: const Text("Leave", style: TextStyle(color: Colors.red)),
+                              child: const Text(
+                                "Leave",
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ),
                           ],
                         ),
@@ -353,23 +474,43 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   ),
                   const Divider(height: 1, indent: 16),
                   ListTile(
-                    leading: const Icon(Icons.delete_forever, color: Colors.red),
-                    title: const Text("Delete Hub", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                    subtitle: const Text("Admins only — this action cannot be undone", style: TextStyle(fontSize: 12)),
+                    leading: const Icon(
+                      Icons.delete_forever,
+                      color: Colors.red,
+                    ),
+                    title: const Text(
+                      "Delete Hub",
+                      style: TextStyle(
+                        color: Colors.red,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    subtitle: const Text(
+                      "Admins only — this action cannot be undone",
+                      style: TextStyle(fontSize: 12),
+                    ),
                     onTap: () {
                       showDialog(
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text("Delete Hub"),
-                          content: const Text("Are you sure you want to permanently delete this hub? All announcements and documents will be deleted."),
+                          content: const Text(
+                            "Are you sure you want to permanently delete this hub? All announcements and documents will be deleted.",
+                          ),
                           actions: [
-                            TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancel")),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("Cancel"),
+                            ),
                             TextButton(
                               onPressed: () {
                                 Navigator.pop(context); // pop dialog
                                 context.go("/home"); // return home
                               },
-                              child: const Text("Delete", style: TextStyle(color: Colors.red)),
+                              child: const Text(
+                                "Delete",
+                                style: TextStyle(color: Colors.red),
+                              ),
                             ),
                           ],
                         ),

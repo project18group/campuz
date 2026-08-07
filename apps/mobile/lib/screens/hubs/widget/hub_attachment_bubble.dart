@@ -21,7 +21,9 @@ class HubAttachmentBubble extends StatelessWidget {
     if (type == 'pdf') return Colors.redAccent;
     if (type == 'docx' || type == 'doc') return Colors.blueAccent;
     if (type == 'pptx' || type == 'ppt') return Colors.orangeAccent;
-    if (type == 'image' || type == 'jpg' || type == 'png') return Colors.greenAccent;
+    if (type == 'image' || type == 'jpg' || type == 'png') {
+      return Colors.greenAccent;
+    }
     return Colors.grey;
   }
 
@@ -53,10 +55,12 @@ class HubAttachmentBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isImage = message.attachmentType == 'image' ||
+    final isImage =
+        message.attachmentType == 'image' ||
         message.attachmentType == 'jpg' ||
         message.attachmentType == 'png';
-    final hasLocalImage = isImage &&
+    final hasLocalImage =
+        isImage &&
         message.attachmentPath != null &&
         File(message.attachmentPath!).existsSync();
 
@@ -78,7 +82,10 @@ class HubAttachmentBubble extends StatelessWidget {
                 children: [
                   Container(
                     margin: const EdgeInsets.only(bottom: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     decoration: const BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.only(
@@ -107,11 +114,12 @@ class HubAttachmentBubble extends StatelessWidget {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
-                            color: Colors.white.withOpacity(0.12),
+                            color: Colors.white.withValues(alpha: 0.12),
                             child: hasLocalImage
                                 ? Column(
                                     mainAxisSize: MainAxisSize.min,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Image.file(
                                         File(message.attachmentPath!),
@@ -136,11 +144,13 @@ class HubAttachmentBubble extends StatelessWidget {
                                             const SizedBox(width: 8),
                                             Expanded(
                                               child: Text(
-                                                message.attachmentName ?? 'Image',
-                                                style: AppTextStyles.body.copyWith(
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                ),
+                                                message.attachmentName ??
+                                                    'Image',
+                                                style: AppTextStyles.body
+                                                    .copyWith(
+                                                      color: Colors.white,
+                                                      fontSize: 13,
+                                                    ),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -157,8 +167,12 @@ class HubAttachmentBubble extends StatelessWidget {
                                         Container(
                                           padding: const EdgeInsets.all(10),
                                           decoration: BoxDecoration(
-                                            color: _colorForType().withOpacity(0.2),
-                                            borderRadius: BorderRadius.circular(8),
+                                            color: _colorForType().withValues(
+                                              alpha: 0.2,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
                                           ),
                                           child: Icon(
                                             _iconForType(),
@@ -170,24 +184,32 @@ class HubAttachmentBubble extends StatelessWidget {
                                         Flexible(
                                           child: Column(
                                             mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
                                             children: [
                                               Text(
-                                                message.attachmentName ?? 'Attachment',
-                                                style: AppTextStyles.body.copyWith(
-                                                  color: Colors.white,
-                                                  fontWeight: FontWeight.w600,
-                                                ),
+                                                message.attachmentName ??
+                                                    'Attachment',
+                                                style: AppTextStyles.body
+                                                    .copyWith(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                               const SizedBox(height: 2),
                                               Text(
-                                                message.attachmentType?.toUpperCase() ?? 'FILE',
-                                                style: AppTextStyles.caption.copyWith(
-                                                  color: Colors.white54,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                                                message.attachmentType
+                                                        ?.toUpperCase() ??
+                                                    'FILE',
+                                                style: AppTextStyles.caption
+                                                    .copyWith(
+                                                      color: Colors.white54,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
                                               ),
                                             ],
                                           ),
@@ -203,7 +225,8 @@ class HubAttachmentBubble extends StatelessWidget {
                                   ),
                           ),
                         ),
-                        if (message.message != null && message.message!.isNotEmpty) ...[
+                        if (message.message != null &&
+                            message.message!.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -245,10 +268,19 @@ class HubAttachmentBubble extends StatelessWidget {
                   ),
                   if (message.reaction != null)
                     Container(
-                      margin: const EdgeInsets.only(top: -4, bottom: 8, right: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      margin: const EdgeInsets.only(
+                        top: -4,
+                        bottom: 8,
+                        right: 8,
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: const [
                           BoxShadow(

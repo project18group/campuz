@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/services/onboarding_storage.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/onboarding/data/onboarding_data.dart';
@@ -159,7 +160,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       child: PrimaryButton(
                         onPressed: () {
                           if (isLastPage) {
-                            context.go("/register-onboard");
+                            // Capture the router before the async gap so the
+                            // BuildContext is not used across an await boundary.
+                            final router = GoRouter.of(context);
+                            OnboardingStorage.markCompleted().then((_) {
+                              if (mounted) router.go("/phone");
+                            });
                           } else {
                             _pageController.nextPage(
                               duration: const Duration(milliseconds: 300),

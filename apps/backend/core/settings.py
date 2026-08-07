@@ -105,6 +105,8 @@ print("DB_PORT =", os.getenv("DB_PORT"))
 print("DB_PASSWORD exists =", os.getenv("DB_PASSWORD") is not None)
 print("=" * 60)
 
+
+
 # Configure the database using dj_database_url for flexibility in different environments
 # DATABASES = {
 #     "default": dj_database_url.config(

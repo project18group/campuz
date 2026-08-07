@@ -33,16 +33,13 @@ class AppShell extends StatelessWidget {
     final currentIndex = _getCurrentIndex(context);
 
     return Scaffold(
-      body: ColoredBox(
-        color: AppColors.background,
-        child: child,
-      ),
+      body: ColoredBox(color: AppColors.background, child: child),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border(
             top: BorderSide(
-              color: AppColors.border.withOpacity(0.7),
+              color: AppColors.border.withValues(alpha: 0.7),
               width: 1,
             ),
           ),
@@ -62,8 +59,14 @@ class AppShell extends StatelessWidget {
           backgroundColor: AppColors.surface,
           elevation: 0,
           type: BottomNavigationBarType.fixed,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-          unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 12,
+          ),
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.forum_outlined),

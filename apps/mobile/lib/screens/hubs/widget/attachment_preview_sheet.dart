@@ -33,7 +33,9 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
     if (type == 'pdf') return Colors.redAccent;
     if (type == 'docx' || type == 'doc') return Colors.blueAccent;
     if (type == 'pptx' || type == 'ppt') return Colors.orangeAccent;
-    if (type == 'image' || type == 'jpg' || type == 'png') return Colors.greenAccent;
+    if (type == 'image' || type == 'jpg' || type == 'png') {
+      return Colors.greenAccent;
+    }
     return Colors.grey;
   }
 
@@ -48,7 +50,8 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final isImage = widget.fileType == 'image' ||
+    final isImage =
+        widget.fileType == 'image' ||
         widget.fileType == 'jpg' ||
         widget.fileType == 'png';
     final showImagePreview = isImage && File(widget.filePath).existsSync();
@@ -87,7 +90,9 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
             children: [
               Text(
                 "Preview Attachment",
-                style: AppTextStyles.title.copyWith(fontWeight: FontWeight.bold),
+                style: AppTextStyles.title.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               IconButton(
                 icon: const Icon(Icons.close),
@@ -109,10 +114,7 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
             child: showImagePreview
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(16),
-                    child: Image.file(
-                      File(widget.filePath),
-                      fit: BoxFit.cover,
-                    ),
+                    child: Image.file(File(widget.filePath), fit: BoxFit.cover),
                   )
                 : Center(
                     child: Column(
@@ -121,7 +123,7 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: _colorForType().withOpacity(0.1),
+                            color: _colorForType().withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
@@ -167,10 +169,15 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
                   style: AppTextStyles.body,
                   decoration: InputDecoration(
                     hintText: "Add a caption...",
-                    hintStyle: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                    hintStyle: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
                     filled: true,
                     fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
                       borderSide: BorderSide.none,

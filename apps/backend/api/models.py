@@ -12,6 +12,12 @@ class UserProfile(models.Model):
     """
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    full_name = models.CharField(
+        max_length=150,
+        blank=True,
+        null=True,
+        help_text="Full name provided during registration",
+    )
     avatar_url = models.URLField(
         max_length=500, blank=True, null=True, help_text="URL to the user's web avatar"
     )
@@ -40,6 +46,12 @@ class UserProfile(models.Model):
     profile_setup_completed = models.BooleanField(
         default=False,
         help_text="True once the user has chosen a public username via profile setup",
+    )
+
+    # Admin Privileges
+    can_create_hubs = models.BooleanField(
+        default=False,
+        help_text="True when the user has redeemed a valid admin invitation code",
     )
 
     def __str__(self):
@@ -188,3 +200,112 @@ class TaskItem(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+
+
+class AdminInvitationCode(models.Model):
+    """
+    One-time invitation codes issued by system admins to grant hub creation
+    privileges. Each code is unique, single-use, and optionally has an expiry.
+    """
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique invitation code (e.g., KNUST-CS-2026)",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_invitation_codes",
+        help_text="Admin who created this code",
+    )
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="redeemed_invitation_codes",
+        help_text="User who redeemed this code",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Optional expiration timestamp",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Deactivated codes cannot be redeemed",
+    )
+
+    def __str__(self):
+        return f"{self.code} ({'used' if self.is_used else 'active'})"
+
+    class Meta:
+        verbose_name = "Admin Invitation Code"
+        verbose_name_plural = "Admin Invitation Codes"
+
+
+class DirectConversation(models.Model):
+    """
+    A 1:1 conversation between two users. Ordered users ensure uniqueness.
+    """
+
+    user_1 = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="direct_conversations_as_user1",
+    )
+    user_2 = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="direct_conversations_as_user2",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user_1", "user_2"),
+                name="unique_direct_conversation",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(user_1=models.F("user_2")),
+                name="direct_conversation_distinct_users",
+            ),
+        ]
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Conversation: {self.user_1.username} ↔ {self.user_2.username}"
+
+
+class DirectMessage(models.Model):
+    """
+    Messages within a DirectConversation.
+    """
+
+    conversation = models.ForeignKey(
+        DirectConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sent_direct_messages",
+    )
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["timestamp"]
+
+    def __str__(self):
+        return f"{self.sender.username} → {self.content[:30]}"

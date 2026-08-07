@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/mock/mock_data.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
-import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
@@ -35,8 +33,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _userData = user;
         _isLoading = false;
       });
-
-      AuthSession.username ??= user['username'] as String?;
     } on AuthApiException catch (error) {
       if (!mounted) {
         return;
@@ -45,9 +41,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) {
         return;
@@ -64,29 +60,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _handleSignOut(BuildContext context) async {
     await AuthApiService.signOut();
-    MockData.isNewUser = true;
 
     if (context.mounted) {
-      context.go('/');
+      context.go('/phone');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final user = _userData;
-    final firstName = (user?['first_name'] as String? ?? '').trim();
-    final lastName = (user?['last_name'] as String? ?? '').trim();
-    final fullName = [firstName, lastName].where((value) => value.isNotEmpty).join(' ');
-    final username = (user?['username'] as String? ?? AuthSession.username ?? '').trim();
-    final email = (user?['email'] as String? ?? '').trim();
     final profile = user?['profile'] as Map<String, dynamic>?;
+    final fullName = (profile?['full_name'] as String? ?? '').trim();
+    final phoneNumber = (profile?['phone_number'] as String? ?? '').trim();
+    final profileDisplayName = (profile?['display_name'] as String? ?? '')
+        .trim();
     final avatarUrl = (profile?['avatar_url'] as String? ?? '').trim();
-    final displayName = fullName.isNotEmpty ? fullName : (username.isNotEmpty ? username : 'Your profile');
+    final displayName = profileDisplayName.isNotEmpty
+        ? profileDisplayName
+        : (fullName.isNotEmpty ? fullName : 'Your profile');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Profile"),
-      ),
+      appBar: AppBar(title: const Text("Profile")),
       body: Container(
         color: AppColors.background,
         child: _isLoading
@@ -117,8 +111,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           CircleAvatar(
                             radius: 54,
-                            backgroundColor: Colors.white.withValues(alpha: 0.14),
-                            backgroundImage: avatarUrl.isNotEmpty ? NetworkImage(avatarUrl) : null,
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.14,
+                            ),
+                            backgroundImage: avatarUrl.isNotEmpty
+                                ? NetworkImage(avatarUrl)
+                                : null,
                             child: avatarUrl.isEmpty
                                 ? const Icon(
                                     Icons.person,
@@ -136,21 +134,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            username.isNotEmpty ? '@$username' : '',
-                            style: AppTextStyles.body.copyWith(
-                              color: Colors.white.withValues(alpha: 0.85),
-                              fontWeight: FontWeight.w600,
+                          if (fullName.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              fullName,
+                              style: AppTextStyles.body.copyWith(
+                                color: Colors.white.withValues(alpha: 0.85),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            email,
-                            style: AppTextStyles.body.copyWith(
-                              color: Colors.white.withValues(alpha: 0.82),
+                          ],
+                          if (phoneNumber.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              phoneNumber,
+                              style: AppTextStyles.body.copyWith(
+                                color: Colors.white.withValues(alpha: 0.82),
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

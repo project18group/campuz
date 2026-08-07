@@ -44,8 +44,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
   }
 
   List<MediaImageItem> get _images {
-    final items =
-        mockSharedImages.where((i) => _inDateRange(i.date)).toList();
+    final items = mockSharedImages.where((i) => _inDateRange(i.date)).toList();
     switch (_sort) {
       case _SortOption.dateNewest:
         items.sort((a, b) => b.date.compareTo(a.date));
@@ -53,7 +52,8 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
         items.sort((a, b) => a.date.compareTo(b.date));
       case _SortOption.nameAZ:
         items.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       case _SortOption.sizeLargest:
         items.sort((a, b) => b.size.compareTo(a.size));
     }
@@ -62,9 +62,11 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
 
   List<MediaDocumentItem> get _documents {
     final items = mockSharedDocuments
-        .where((d) =>
-            _inDateRange(d.date) &&
-            (_docTypeFilters.isEmpty || _docTypeFilters.contains(d.type)))
+        .where(
+          (d) =>
+              _inDateRange(d.date) &&
+              (_docTypeFilters.isEmpty || _docTypeFilters.contains(d.type)),
+        )
         .toList();
     switch (_sort) {
       case _SortOption.dateNewest:
@@ -73,7 +75,8 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
         items.sort((a, b) => a.date.compareTo(b.date));
       case _SortOption.nameAZ:
         items.sort(
-            (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+          (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+        );
       case _SortOption.sizeLargest:
         items.sort((a, b) => b.size.compareTo(a.size));
     }
@@ -88,8 +91,9 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
       case _SortOption.dateOldest:
         items.sort((a, b) => a.date.compareTo(b.date));
       case _SortOption.nameAZ:
-        items.sort((a, b) =>
-            a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        items.sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
       case _SortOption.sizeLargest:
         // Links have no size; fall back to newest first.
         items.sort((a, b) => b.date.compareTo(a.date));
@@ -99,8 +103,18 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
 
   String _formatDate(DateTime d) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${d.day} ${months[d.month - 1]} ${d.year}';
   }
@@ -130,26 +144,30 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
                 child: Text('Filter by date', style: AppTextStyles.title),
               ),
-              for (final option in _DateRangeFilter.values)
-                RadioListTile<_DateRangeFilter>(
-                  value: option,
-                  groupValue: _dateFilter,
-                  activeColor: AppColors.primary,
-                  title: Text(
-                    switch (option) {
-                      _DateRangeFilter.allTime => 'All time',
-                      _DateRangeFilter.last7Days => 'Last 7 days',
-                      _DateRangeFilter.last30Days => 'Last 30 days',
-                    },
-                    style: AppTextStyles.body,
-                  ),
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _dateFilter = value);
-                    }
-                    Navigator.of(sheetContext).pop();
-                  },
+              RadioGroup<_DateRangeFilter>(
+                groupValue: _dateFilter,
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _dateFilter = value);
+                  }
+                  Navigator.of(sheetContext).pop();
+                },
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final option in _DateRangeFilter.values)
+                      RadioListTile<_DateRangeFilter>(
+                        value: option,
+                        activeColor: AppColors.primary,
+                        title: Text(switch (option) {
+                          _DateRangeFilter.allTime => 'All time',
+                          _DateRangeFilter.last7Days => 'Last 7 days',
+                          _DateRangeFilter.last30Days => 'Last 30 days',
+                        }, style: AppTextStyles.body),
+                      ),
+                  ],
                 ),
+              ),
               const SizedBox(height: 8),
             ],
           ),
@@ -163,9 +181,10 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message, style: AppTextStyles.body.copyWith(
-            color: Colors.white,
-          )),
+          content: Text(
+            message,
+            style: AppTextStyles.body.copyWith(color: Colors.white),
+          ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.textPrimary,
         ),
@@ -232,11 +251,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
           ),
         ),
         body: TabBarView(
-          children: [
-            _buildImagesTab(),
-            _buildDocumentsTab(),
-            _buildLinksTab(),
-          ],
+          children: [_buildImagesTab(), _buildDocumentsTab(), _buildLinksTab()],
         ),
       ),
     );
@@ -257,8 +272,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
           Text(
             label,
             style: AppTextStyles.body.copyWith(
-              color:
-                  selected ? AppColors.primary : AppColors.textPrimary,
+              color: selected ? AppColors.primary : AppColors.textPrimary,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
             ),
           ),
@@ -276,8 +290,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
           const SizedBox(height: 12),
           Text(
             message,
-            style:
-                AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
           ),
         ],
       ),
@@ -328,9 +341,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
 
   void _openImagePreview(MediaImageItem image) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => _ImagePreviewScreen(image: image),
-      ),
+      MaterialPageRoute(builder: (_) => _ImagePreviewScreen(image: image)),
     );
   }
 
@@ -414,7 +425,9 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
         Expanded(
           child: docs.isEmpty
               ? _emptyState(
-                  Icons.description_outlined, 'No documents match the filter')
+                  Icons.description_outlined,
+                  'No documents match the filter',
+                )
               : ListView.separated(
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                   itemCount: docs.length,
@@ -427,8 +440,8 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                       borderRadius: BorderRadius.circular(12),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12),
-                        onTap: () => _showSnack(
-                            'Preview for "${doc.name}" coming soon'),
+                        onTap: () =>
+                            _showSnack('Preview for "${doc.name}" coming soon'),
                         child: Padding(
                           padding: const EdgeInsets.all(12),
                           child: Row(
@@ -440,14 +453,16 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                                   color: color.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(10),
                                 ),
-                                child: Icon(_docIcon(doc.type),
-                                    color: color, size: 24),
+                                child: Icon(
+                                  _docIcon(doc.type),
+                                  color: color,
+                                  size: 24,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
                                 child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     Text(
                                       doc.name,
@@ -472,8 +487,10 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(Icons.chevron_right,
-                                  color: AppColors.textSecondary),
+                              const Icon(
+                                Icons.chevron_right,
+                                color: AppColors.textSecondary,
+                              ),
                             ],
                           ),
                         ),
@@ -519,8 +536,11 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Icon(Icons.public,
-                        color: AppColors.primary, size: 22),
+                    child: const Icon(
+                      Icons.public,
+                      color: AppColors.primary,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -555,8 +575,11 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                       ],
                     ),
                   ),
-                  const Icon(Icons.open_in_new,
-                      size: 18, color: AppColors.textSecondary),
+                  const Icon(
+                    Icons.open_in_new,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
                 ],
               ),
             ),
@@ -607,8 +630,7 @@ class _ImagePreviewScreen extends StatelessWidget {
                   ),
                 ),
                 child: const Center(
-                  child:
-                      Icon(Icons.image, color: Colors.white70, size: 72),
+                  child: Icon(Icons.image, color: Colors.white70, size: 72),
                 ),
               ),
             ),

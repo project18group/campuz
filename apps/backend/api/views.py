@@ -2,6 +2,8 @@ import uuid
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.response import Response
@@ -9,19 +11,22 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re-exported
 
-from .models import Hub, HubMember, Message, UserProfile
-from .permissions import IsHubCreatorOrReadOnly
+from .models import DirectConversation, DirectMessage, Hub, HubMember, Message, UserProfile
+from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
 from .serializers import (
+    CampuzUserSerializer,
+    DirectConversationSerializer,
+    DirectMessageSerializer,
     HubSerializer,
     MessageSerializer,
+    OTP_EXPIRY_MINUTES,
+    OTP_RESEND_COOLDOWN_SECONDS,
     ProfileSetupSerializer,
     RequestOTPSerializer,
     UserSerializer,
     VerifyOTPSerializer,
-    OTP_EXPIRY_MINUTES,
-    OTP_RESEND_COOLDOWN_SECONDS,
-    _generate_and_save_otp,
     _clear_otp,
+    _generate_and_save_otp,
 )
 from .services import sms_service
 
@@ -49,14 +54,12 @@ class RequestOTPView(APIView):
     """
     POST /api/auth/request-otp/
 
-    Body: {"phone_number": "+233..."}
+    Body: {"phone_number": "+233...", "full_name": "Jane Doe"}
 
     Generates a 6-digit OTP, persists it on the UserProfile (creating a
-    temporary profile/user if one doesn't exist yet so the OTP can be stored
-    before the account is formally created), and dispatches it via SMS.
+    temporary profile/user if one doesn't exist yet), and dispatches it via SMS.
 
-    A 60-second resend cooldown is enforced: if an OTP was generated within
-    the last 60 seconds the view returns 429 with the remaining wait time.
+    A 60-second resend cooldown is enforced.
     """
 
     permission_classes = (permissions.AllowAny,)
@@ -67,35 +70,31 @@ class RequestOTPView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         phone = serializer.validated_data["phone_number"]
+        full_name = serializer.validated_data["full_name"]
 
-        # -----------------------------------------------------------------
-        # Find or create a *pending* profile for this phone number so we
-        # have somewhere to store the OTP before the account is confirmed.
-        # -----------------------------------------------------------------
+        # Find or create a pending profile for this phone number.
         profile = UserProfile.objects.filter(phone_number=phone).first()
 
         if profile is None:
-            # First contact from this number — create a shadow user+profile.
             username = _make_uuid_username()
-            # Ensure the generated username is unique (astronomically unlikely
-            # to collide, but guard it anyway).
             while User.objects.filter(username=username).exists():
                 username = _make_uuid_username()
 
-            user = User.objects.create_user(
-                username=username,
-                password=None,  # no password — OTP-only auth
-            )
+            user = User.objects.create_user(username=username, password=None)
             user.set_unusable_password()
             user.save()
 
             profile = UserProfile.objects.get(user=user)
             profile.phone_number = phone
-            profile.save(update_fields=["phone_number"])
+            profile.full_name = full_name
+            profile.save(update_fields=["phone_number", "full_name"])
+        else:
+            # Update full_name in case it changed (e.g. re-registering).
+            if full_name and profile.full_name != full_name:
+                profile.full_name = full_name
+                profile.save(update_fields=["full_name"])
 
-        # -----------------------------------------------------------------
         # Resend cooldown check
-        # -----------------------------------------------------------------
         if profile.otp_created_at is not None:
             elapsed = (timezone.now() - profile.otp_created_at).total_seconds()
             remaining = OTP_RESEND_COOLDOWN_SECONDS - elapsed
@@ -108,15 +107,10 @@ class RequestOTPView(APIView):
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
 
-        # -----------------------------------------------------------------
-        # Generate OTP and send SMS
-        # -----------------------------------------------------------------
         otp = _generate_and_save_otp(profile)
         try:
             sms_service.send_otp(phone, otp)
         except Exception:
-            # SMS dispatch failed — the OTP is already persisted so the user
-            # can retry; we return 502 so the client can show a useful message.
             return Response(
                 {"error": "Failed to send verification code. Please try again."},
                 status=status.HTTP_502_BAD_GATEWAY,
@@ -131,13 +125,7 @@ class VerifyOTPView(APIView):
 
     Body: {"phone_number": "+233...", "otp_code": "123456"}
 
-    Validates the OTP.  On success:
-    - Clears otp_code and otp_created_at on the profile.
-    - If the profile was freshly created (is_verified=False, no display_name):
-        returns is_new_user=true so Flutter routes to Profile Setup.
-    - If the account already completed setup:
-        returns is_new_user=false so Flutter routes straight to Home.
-    - Issues a fresh JWT pair in both cases.
+    On success: clears OTP, issues JWT pair, returns is_new_user flag.
     """
 
     permission_classes = (permissions.AllowAny,)
@@ -160,9 +148,6 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # -----------------------------------------------------------------
-        # OTP validation
-        # -----------------------------------------------------------------
         if not profile.otp_code:
             return Response(
                 {"error": "No verification code was requested. Please request a new one."},
@@ -183,10 +168,6 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # -----------------------------------------------------------------
-        # Success — clear OTP and mark verified
-        # -----------------------------------------------------------------
-        # Read the flag before clearing so we can return the right value.
         is_new_user = not profile.profile_setup_completed
         _clear_otp(profile)
 
@@ -208,9 +189,9 @@ class ProfileSetupView(generics.UpdateAPIView):
     """
     PATCH /api/auth/profile-setup/
 
-    Requires Bearer token.  Sets the user's public username on Django User
-    and stores display_name / avatar_url on UserProfile.  Marks
-    profile_setup_completed so subsequent sign-ins skip profile setup.
+    Requires Bearer token. Sets display_name and optional avatar_url.
+    Optionally redeems an AdminInvitationCode to grant can_create_hubs.
+    Marks profile_setup_completed on success.
     """
 
     queryset = UserProfile.objects.all()
@@ -222,8 +203,9 @@ class ProfileSetupView(generics.UpdateAPIView):
 
     def perform_update(self, serializer):
         instance = serializer.save()
-        instance.profile_setup_completed = True
-        instance.save(update_fields=["profile_setup_completed"])
+        if not instance.profile_setup_completed:
+            instance.profile_setup_completed = True
+            instance.save(update_fields=["profile_setup_completed"])
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +221,174 @@ class CurrentUserView(APIView):
 
 
 # ---------------------------------------------------------------------------
-# Hub / Message / User viewsets (unchanged)
+# User discovery (contact search)
+# ---------------------------------------------------------------------------
+
+class UserSearchView(generics.ListAPIView):
+    """
+    GET /api/users/search/?q=<query>
+
+    Returns registered Campuz users (excluding the requester) whose
+    full_name, display_name, or phone_number match the query.
+    When no query is provided, returns all verified users (paginated).
+
+    Only authenticated users may access this endpoint.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    serializer_class = CampuzUserSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get("q", "").strip()
+        qs = (
+            User.objects.exclude(pk=self.request.user.pk)
+            .filter(
+                profile__is_verified=True,
+                profile__profile_setup_completed=True,
+            )
+            .select_related("profile")
+            .order_by("profile__full_name", "profile__display_name")
+        )
+        if query:
+            qs = qs.filter(
+                Q(profile__full_name__icontains=query)
+                | Q(profile__display_name__icontains=query)
+                | Q(profile__phone_number__icontains=query)
+            )
+        return qs
+
+
+# ---------------------------------------------------------------------------
+# Direct conversations
+# ---------------------------------------------------------------------------
+
+class DirectConversationView(APIView):
+    """
+    POST /api/conversations/direct/
+    Body: {"user_id": <int>}
+
+    Returns an existing DirectConversation between the requester and
+    user_id, or creates one.  Always returns 200 + conversation data.
+    The `created` flag indicates whether a new conversation was made.
+
+    GET /api/conversations/direct/
+    Lists all direct conversations for the current user.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        me = request.user
+        conversations = DirectConversation.objects.filter(
+            Q(user_1=me) | Q(user_2=me)
+        ).select_related("user_1__profile", "user_2__profile").prefetch_related("messages")
+        serializer = DirectConversationSerializer(
+            conversations, many=True, context={"request": request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        other_id = request.data.get("user_id")
+        if not other_id:
+            return Response(
+                {"error": "user_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            other_user = User.objects.select_related("profile").get(
+                pk=other_id,
+                profile__is_verified=True,
+                profile__profile_setup_completed=True,
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if other_user == request.user:
+            return Response(
+                {"error": "You cannot start a conversation with yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        me = request.user
+        # Enforce deterministic ordering to maintain the unique constraint.
+        user_1, user_2 = (me, other_user) if me.pk < other_user.pk else (other_user, me)
+
+        conversation, created = DirectConversation.objects.get_or_create(
+            user_1=user_1,
+            user_2=user_2,
+        )
+
+        serializer = DirectConversationSerializer(
+            conversation, context={"request": request}
+        )
+        return Response(
+            {"created": created, **serializer.data},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class DirectMessageView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def _conversation(self, request, conversation_id):
+        return DirectConversation.objects.filter(
+            Q(user_1=request.user) | Q(user_2=request.user),
+            pk=conversation_id,
+        ).first()
+
+    def get(self, request, conversation_id):
+        conversation = self._conversation(request, conversation_id)
+        if conversation is None:
+            return Response(
+                {"error": "Conversation not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        messages = conversation.messages.select_related("sender__profile")
+        messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
+        return Response(
+            DirectMessageSerializer(
+                messages,
+                many=True,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def post(self, request, conversation_id):
+        conversation = self._conversation(request, conversation_id)
+        if conversation is None:
+            return Response(
+                {"error": "Conversation not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        content = str(request.data.get("content", "")).strip()
+        if not content:
+            return Response(
+                {"error": "Message content is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        message = DirectMessage.objects.create(
+            conversation=conversation,
+            sender=request.user,
+            content=content,
+        )
+        conversation.save(update_fields=["updated_at"])
+        return Response(
+            DirectMessageSerializer(
+                message,
+                context={"request": request},
+            ).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Hub / Message / User viewsets
 # ---------------------------------------------------------------------------
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -253,8 +402,19 @@ class HubViewSet(viewsets.ModelViewSet):
     serializer_class = HubSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action == "create":
+            return [permissions.IsAuthenticated(), CanCreateHubs()]
+        return super().get_permissions()
+
+    @transaction.atomic
     def perform_create(self, serializer):
-        serializer.save(creator=self.request.user)
+        hub = serializer.save(creator=self.request.user)
+        HubMember.objects.get_or_create(
+            hub=hub,
+            user=self.request.user,
+            defaults={"role": "admin"},
+        )
 
 
 class MessageViewSet(viewsets.ModelViewSet):
@@ -263,5 +423,4 @@ class MessageViewSet(viewsets.ModelViewSet):
     permission_classes = [IsHubCreatorOrReadOnly]
 
     def perform_create(self, serializer):
-        hub = serializer.save(creator=self.request.user)
-        HubMember.objects.create(hub=hub, user=self.request.user, role="admin")
+        serializer.save(sender=self.request.user)

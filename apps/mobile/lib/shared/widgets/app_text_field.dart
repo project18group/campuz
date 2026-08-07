@@ -12,6 +12,7 @@ class AppTextField extends StatefulWidget {
   final TextInputType keyboardType;
   final String? prefixText;
   final List<TextInputFormatter>? inputFormatters;
+  final TextCapitalization textCapitalization;
 
   const AppTextField({
     super.key,
@@ -23,6 +24,7 @@ class AppTextField extends StatefulWidget {
     this.maxLines,
     this.prefixText,
     this.inputFormatters,
+    this.textCapitalization = TextCapitalization.none,
   });
 
   @override
@@ -58,6 +60,7 @@ class _AppTextFieldState extends State<AppTextField> {
           obscureText: _obscureText,
           keyboardType: widget.keyboardType,
           inputFormatters: widget.inputFormatters,
+          textCapitalization: widget.textCapitalization,
 
           decoration: InputDecoration(
             hintText: widget.hintText,

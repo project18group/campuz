@@ -1,15 +1,12 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/services/secure_token_storage.dart';
 
 class AuthApiException implements Exception {
   final String message;
-
   const AuthApiException(this.message);
-
   @override
   String toString() => message;
 }
@@ -21,9 +18,7 @@ class AuthApiService {
 
   static String get _baseUrl {
     const envBaseUrl = String.fromEnvironment('CAMPUZ_API_BASE_URL');
-    if (envBaseUrl.isNotEmpty) {
-      return envBaseUrl;
-    }
+    if (envBaseUrl.isNotEmpty) return envBaseUrl;
     return "https://campuz-api.onrender.com/api";
   }
 
@@ -31,26 +26,22 @@ class AuthApiService {
   // Phone-OTP authentication
   // ---------------------------------------------------------------------------
 
-  /// Requests a 6-digit OTP to be sent to [phoneNumber] via SMS.
-  ///
-  /// Throws [AuthApiException] on network or server errors.  Returns the raw
-  /// response map (contains `message` on success).
+  /// Requests a 6-digit OTP sent to [phoneNumber].
+  /// [fullName] is required for first-time registrations.
   static Future<Map<String, dynamic>> requestOtp({
     required String phoneNumber,
+    required String fullName,
   }) async {
     return _postJson(
       '/auth/request-otp/',
-      body: {'phone_number': phoneNumber},
+      body: {'phone_number': phoneNumber, 'full_name': fullName},
     );
   }
 
   /// Verifies [otpCode] for [phoneNumber].
   ///
-  /// On success the backend returns:
-  ///   { "access": "...", "refresh": "...", "is_new_user": true/false }
-  ///
-  /// Tokens are persisted to secure storage and [AuthSession] automatically.
-  /// The caller should read `response['is_new_user']` to decide the next route.
+  /// On success returns `{ "access": "...", "refresh": "...", "is_new_user": bool }`.
+  /// Tokens are persisted to secure storage automatically.
   static Future<Map<String, dynamic>> verifyOtp({
     required String phoneNumber,
     required String otpCode,
@@ -67,21 +58,24 @@ class AuthApiService {
   // Profile setup (authenticated)
   // ---------------------------------------------------------------------------
 
-  /// Sets the user's public [username], optional [displayName], and optional
-  /// [avatarUrl] after OTP sign-in.
+  /// Saves the user's [displayName], optional [avatarUrl], and optional
+  /// [adminCode].  If [adminCode] is a valid invitation code, the backend
+  /// grants can_create_hubs on that account.
   static Future<Map<String, dynamic>> profileSetup({
-    required String username,
     String? displayName,
     String? avatarUrl,
+    String? adminCode,
   }) async {
-    final body = <String, dynamic>{'username': username};
+    final body = <String, dynamic>{};
     if (displayName != null && displayName.isNotEmpty) {
       body['display_name'] = displayName;
     }
     if (avatarUrl != null && avatarUrl.isNotEmpty) {
       body['avatar_url'] = avatarUrl;
     }
-
+    if (adminCode != null && adminCode.isNotEmpty) {
+      body['admin_code'] = adminCode.trim().toUpperCase();
+    }
     return _authorized(
       (token) => _client.patch(
         Uri.parse('$_baseUrl/auth/profile-setup/'),
@@ -92,7 +86,127 @@ class AuthApiService {
   }
 
   // ---------------------------------------------------------------------------
-  // Session management (unchanged)
+  // User discovery
+  // ---------------------------------------------------------------------------
+
+  /// Returns registered Campuz users matching [query] (name / phone).
+  /// Pass an empty string to return all verified users.
+  static Future<List<Map<String, dynamic>>> searchUsers({
+    String query = '',
+  }) async {
+    final uri = Uri.parse(
+      '$_baseUrl/users/search/',
+    ).replace(queryParameters: query.isNotEmpty ? {'q': query} : null);
+    final result = await _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+    final list = result['data'];
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    // Backend returns a raw list — wrap it for consistency.
+    return <Map<String, dynamic>>[];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Direct conversations
+  // ---------------------------------------------------------------------------
+
+  /// Lists all direct conversations for the current user.
+  static Future<List<Map<String, dynamic>>> getDirectConversations() async {
+    final result = await _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/conversations/direct/'),
+        headers: _headers(token),
+      ),
+    );
+    final list = result['data'];
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  /// Gets or creates a direct conversation with [otherUserId].
+  /// Returns the conversation map including `id` and `created`.
+  static Future<Map<String, dynamic>> getOrCreateDirectConversation({
+    required int otherUserId,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/conversations/direct/'),
+        headers: _headers(token),
+        body: jsonEncode({'user_id': otherUserId}),
+      ),
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getDirectMessages({
+    required int conversationId,
+  }) async {
+    final result = await _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
+        headers: _headers(token),
+      ),
+    );
+    final list = result['data'];
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  static Future<Map<String, dynamic>> sendDirectMessage({
+    required int conversationId,
+    required String content,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
+        headers: _headers(token),
+        body: jsonEncode({'content': content}),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Hubs
+  // ---------------------------------------------------------------------------
+
+  static Future<List<Map<String, dynamic>>> getHubs() async {
+    final result = await _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/hubs/'),
+        headers: _headers(token),
+      ),
+    );
+    final list = result['data'];
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  static Future<Map<String, dynamic>> createHub({
+    required String name,
+    String? description,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'name': name,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+        }),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Session management
   // ---------------------------------------------------------------------------
 
   static Future<Map<String, dynamic>> currentUser({String? accessToken}) async {
@@ -110,19 +224,14 @@ class AuthApiService {
   static Future<bool> refreshSession() async {
     final refreshToken =
         AuthSession.refreshToken ?? await SecureTokenStorage.readRefreshToken();
-    if (refreshToken == null || refreshToken.isEmpty) {
-      return false;
-    }
+    if (refreshToken == null || refreshToken.isEmpty) return false;
     try {
       final response = await _postJson(
         '/token/refresh/',
         body: {'refresh': refreshToken},
       );
       final access = response['access'] as String?;
-      if (access == null || access.isEmpty) {
-        return false;
-      }
-      // ROTATE_REFRESH_TOKENS is on — a new refresh token comes back too.
+      if (access == null || access.isEmpty) return false;
       await _persistTokens({
         'access': access,
         'refresh': response['refresh'] as String? ?? refreshToken,
@@ -133,13 +242,11 @@ class AuthApiService {
     }
   }
 
-  /// True when a stored session can still make authenticated calls.
+  /// Returns true when a stored session can still make authenticated calls.
   static Future<bool> hasValidSession() async {
     final access =
         AuthSession.accessToken ?? await SecureTokenStorage.readAccessToken();
-    if (access == null || access.isEmpty) {
-      return false;
-    }
+    if (access == null || access.isEmpty) return false;
     AuthSession.accessToken ??= access;
     AuthSession.refreshToken ??= await SecureTokenStorage.readRefreshToken();
     AuthSession.username ??= await SecureTokenStorage.readUsername();
@@ -147,6 +254,14 @@ class AuthApiService {
       await currentUser();
       return true;
     } on AuthApiException {
+      if (await refreshSession()) {
+        try {
+          await currentUser();
+          return true;
+        } on AuthApiException {
+          return false;
+        }
+      }
       return false;
     }
   }
@@ -169,7 +284,10 @@ class AuthApiService {
   static Future<void> _persistTokens(Map<String, dynamic> response) async {
     final access = response['access'] as String?;
     final refresh = response['refresh'] as String?;
-    if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
+    if (access == null ||
+        access.isEmpty ||
+        refresh == null ||
+        refresh.isEmpty) {
       return;
     }
     final username =
@@ -186,8 +304,6 @@ class AuthApiService {
     );
   }
 
-  /// Runs an authenticated request; on 401 refreshes the token once and
-  /// replays the call before giving up.
   static Future<Map<String, dynamic>> _authorized(
     Future<http.Response> Function(String? token) send, {
     String? overrideToken,
@@ -196,24 +312,22 @@ class AuthApiService {
         overrideToken ??
         AuthSession.accessToken ??
         await SecureTokenStorage.readAccessToken();
-
     try {
       var response = await send(token);
-
       if (response.statusCode == 401 && overrideToken == null) {
         if (await refreshSession()) {
           token = AuthSession.accessToken;
           response = await send(token);
         }
       }
-
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
+        // For list responses, wrap in {"data": [...]} for a uniform return type.
+        if (decoded is List) return <String, dynamic>{'data': decoded};
         return decoded is Map<String, dynamic>
             ? decoded
             : <String, dynamic>{'data': decoded};
       }
-
       throw AuthApiException(
         _extractErrorMessage(decoded) ??
             'Request failed with status ${response.statusCode}',
@@ -242,14 +356,12 @@ class AuthApiService {
         },
         body: jsonEncode(body),
       );
-
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return decoded is Map<String, dynamic>
             ? decoded
             : <String, dynamic>{'data': decoded};
       }
-
       throw AuthApiException(
         _extractErrorMessage(decoded) ??
             'Request failed with status ${response.statusCode}',

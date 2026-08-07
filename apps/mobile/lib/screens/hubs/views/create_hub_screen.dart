@@ -26,14 +26,19 @@ class _CreateHubScreenState extends State<CreateHubScreen> {
   }
 
   void _continue() {
-    print(_hubNameController.text);
     if (_hubNameController.text.trim().isEmpty) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Please enter a hub name")));
       return;
     }
-    context.push("/hub-permissions");
+    context.push(
+      '/hub-permissions',
+      extra: {
+        'name': _hubNameController.text.trim(),
+        'description': _descriptionController.text.trim(),
+      },
+    );
   }
 
   @override
@@ -43,7 +48,11 @@ class _CreateHubScreenState extends State<CreateHubScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new),
           onPressed: () {
-            context.go("/select-contact");
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
           },
         ),
         title: Text("Create Academic Hub", style: AppTextStyles.title),

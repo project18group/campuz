@@ -9,8 +9,9 @@ import 'package:pinput/pinput.dart';
 class OtpScreen extends StatefulWidget {
   /// E.164 phone number the OTP was sent to (e.g. "+233201234567").
   final String? phone;
+  final String? fullName;
 
-  const OtpScreen({super.key, this.phone});
+  const OtpScreen({super.key, this.phone, this.fullName});
 
   @override
   State<OtpScreen> createState() => _OtpScreenState();
@@ -83,7 +84,11 @@ class _OtpScreenState extends State<OtpScreen> {
 
   Future<void> _resendCode() async {
     final phone = widget.phone;
-    if (phone == null || phone.isEmpty) {
+    final fullName = widget.fullName;
+    if (phone == null ||
+        phone.isEmpty ||
+        fullName == null ||
+        fullName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Missing phone number. Please go back and try again.'),
@@ -97,7 +102,7 @@ class _OtpScreenState extends State<OtpScreen> {
     });
 
     try {
-      await AuthApiService.requestOtp(phoneNumber: phone);
+      await AuthApiService.requestOtp(phoneNumber: phone, fullName: fullName);
       if (mounted) {
         setState(() {
           _isLoading = false;
