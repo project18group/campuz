@@ -10,12 +10,13 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re-exported
 
-from .models import DirectConversation, DirectMessage, Hub, HubMember, Message, UserProfile
+from .models import DirectConversation, DirectMessage, Hub, HubMember, HubSection, Message, UserProfile
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
 from .serializers import (
     CampuzUserSerializer,
     DirectConversationSerializer,
     DirectMessageSerializer,
+    HubSectionSerializer,
     HubSerializer,
     MessageSerializer,
     OTP_RESEND_COOLDOWN_SECONDS,
@@ -405,6 +406,83 @@ class HubViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             defaults={"role": "admin"},
         )
+
+
+class HubSectionViewSet(viewsets.ModelViewSet):
+    """
+    Manage sections within a Hub.
+
+    List/Create: /api/hubs/<hub_id>/sections/
+    Retrieve/Update/Delete: /api/sections/<id>/
+
+    Only Hub admins can create/update/delete sections.
+    All Hub members can view sections.
+    """
+
+    serializer_class = HubSectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        hub_id = self.kwargs.get("hub_id")
+        if hub_id:
+            return HubSection.objects.filter(hub_id=hub_id).select_related("hub")
+        return HubSection.objects.select_related("hub")
+
+    def _is_hub_admin(self, hub_id: int) -> bool:
+        """Check if the requesting user is an admin of the hub."""
+        if self.request.user.is_superuser:
+            return True
+        return HubMember.objects.filter(
+            hub_id=hub_id,
+            user=self.request.user,
+            role="admin",
+        ).exists()
+
+    def create(self, request, *args, **kwargs):
+        hub_id = self.kwargs.get("hub_id")
+        if not hub_id:
+            return Response(
+                {"error": "hub_id is required in the URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not self._is_hub_admin(hub_id):
+            return Response(
+                {"error": "Only Hub admins can create sections."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(hub_id=hub_id)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._is_hub_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update sections."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._is_hub_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update sections."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._is_hub_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can delete sections."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class MessageViewSet(viewsets.ModelViewSet):

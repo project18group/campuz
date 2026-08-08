@@ -6,6 +6,7 @@ import 'package:mobile/screens/auth/views/startup_screen.dart';
 import 'package:mobile/screens/contacts/views/direct_chat_screen.dart';
 import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
+import 'package:mobile/screens/hub/views/hub_detail_screen.dart';
 import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_chat_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_created_screen.dart';
@@ -71,8 +72,16 @@ final appRouter = GoRouter(
     ),
 
     // -----------------------------------------------------------------------
-    // Hub routes (unchanged)
+    // Hub routes
     // -----------------------------------------------------------------------
+    GoRoute(
+      path: "/hub/:hubId",
+      builder: (context, state) {
+        final hubId = int.parse(state.pathParameters['hubId']!);
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubDetailScreen(hub: hub ?? {'id': hubId});
+      },
+    ),
     GoRoute(
       path: "/join-hub",
       builder: (context, state) => const JoinHubScreen(),

@@ -10,6 +10,7 @@ from .models import (
     DirectMessage,
     Hub,
     HubMember,
+    HubSection,
     Message,
     UserProfile,
 )
@@ -287,10 +288,27 @@ class HubMemberSerializer(serializers.ModelSerializer):
         fields = ["user", "role", "joined_at", "muted"]
 
 
+class HubSectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HubSection
+        fields = [
+            "id",
+            "section_type",
+            "title",
+            "description",
+            "order",
+            "is_enabled",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["created_at", "updated_at"]
+
+
 class HubSerializer(serializers.ModelSerializer):
     creator = UserSerializer(read_only=True)
     members = HubMemberSerializer(source="hub_members", many=True, read_only=True)
     members_count = serializers.SerializerMethodField()
+    sections = HubSectionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Hub
@@ -302,9 +320,10 @@ class HubSerializer(serializers.ModelSerializer):
             "creator",
             "members",
             "members_count",
+            "sections",
             "created_at",
         ]
-        read_only_fields = ["creator", "members"]
+        read_only_fields = ["creator", "members", "sections"]
 
     def get_members_count(self, obj):
         return obj.hub_members.count()

@@ -36,7 +36,7 @@ def send_otp(phone_number: str) -> None:
     development workflow is unaffected by missing environment variables.
     """
     api_key = os.getenv("ARKESEL_API_KEY", "").strip()
-    sender_id = os.getenv("ARKESEL_SENDER_ID", "Campuz").strip()
+    sender_id = os.getenv("ARKESEL_SENDER_ID", "TekChat").strip()
 
     if not api_key:
         # Development / CI fallback — never log OTPs in production.
@@ -55,7 +55,7 @@ def send_otp(phone_number: str) -> None:
         "expiry": 5,
         "length": 6,
         "medium": "sms",
-        "message": "Your Campuz verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
+        "message": "Your TekChat verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
         "number": number,
         "sender_id": sender_id,
         "type": "numeric",

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -20,6 +21,30 @@ class OtpScreen extends StatefulWidget {
 class _OtpScreenState extends State<OtpScreen> {
   String _otpCode = '';
   bool _isLoading = false;
+  int _resendCooldown = 0;
+  Timer? _cooldownTimer;
+
+  @override
+  void dispose() {
+    _cooldownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCooldown(int seconds) {
+    setState(() {
+      _resendCooldown = seconds;
+    });
+    _cooldownTimer?.cancel();
+    _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_resendCooldown > 0) {
+        setState(() {
+          _resendCooldown--;
+        });
+      } else {
+        timer.cancel();
+      }
+    });
+  }
 
   Future<void> _verifyOtp() async {
     final phone = widget.phone;
@@ -107,6 +132,7 @@ class _OtpScreenState extends State<OtpScreen> {
         setState(() {
           _isLoading = false;
         });
+        _startCooldown(60);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Verification code resent!')),
         );
@@ -116,6 +142,14 @@ class _OtpScreenState extends State<OtpScreen> {
         setState(() {
           _isLoading = false;
         });
+        // Extract retry_after_seconds if present (429 response)
+        if (error.message.contains('retry_after_seconds')) {
+          final match = RegExp(r'\d+').firstMatch(error.message);
+          if (match != null) {
+            final seconds = int.tryParse(match.group(0)!) ?? 60;
+            _startCooldown(seconds);
+          }
+        }
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(error.message)));
@@ -248,10 +282,25 @@ class _OtpScreenState extends State<OtpScreen> {
               ),
               const SizedBox(height: 24),
               Center(
-                child: TextButton(
-                  onPressed: _isLoading ? null : _resendCode,
-                  child: const Text("Resend Code"),
-                ),
+                child: _resendCooldown > 0
+                    ? Text(
+                        "Resend code in ${_resendCooldown}s",
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      )
+                    : TextButton(
+                        onPressed: _isLoading ? null : _resendCode,
+                        child: Text(
+                          "Resend Code",
+                          style: AppTextStyles.body.copyWith(
+                            color: _isLoading
+                                ? AppColors.textSecondary
+                                : AppColors.primary,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
               ),
               const Spacer(),
               _isLoading

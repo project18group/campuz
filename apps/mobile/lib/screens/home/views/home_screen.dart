@@ -185,6 +185,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final name = (hub['name'] as String? ?? 'Academic Hub').trim();
     final description = (hub['description'] as String? ?? '').trim();
     final memberCount = hub['members_count'] as int? ?? 0;
+    final id = hub['id'];
     final initials = name
         .split(RegExp(r'\s+'))
         .where((part) => part.isNotEmpty)
@@ -213,7 +214,9 @@ class _HomeScreenState extends State<HomeScreen> {
         overflow: TextOverflow.ellipsis,
         style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
       ),
-      onTap: () => context.push('/hub-chat'),
+      onTap: id != null
+          ? () => context.push('/hub/$id', extra: hub)
+          : null,
     );
   }
 

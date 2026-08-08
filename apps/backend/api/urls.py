@@ -8,6 +8,7 @@ router = routers.DefaultRouter()
 router.register(r"users", views.UserViewSet)
 router.register(r"hubs", views.HubViewSet)
 router.register(r"messages", views.MessageViewSet)
+router.register(r"sections", views.HubSectionViewSet, basename="section")
 
 urlpatterns = [
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
@@ -33,5 +34,13 @@ urlpatterns = [
         views.DirectMessageView.as_view(),
         name="direct-message-list",
     ),
+
+    # Hub sections (nested under hubs)
+    path(
+        "hubs/<int:hub_id>/sections/",
+        views.HubSectionViewSet.as_view({"get": "list", "post": "create"}),
+        name="hub-section-list",
+    ),
+
     path("", include(router.urls)),
 ]
