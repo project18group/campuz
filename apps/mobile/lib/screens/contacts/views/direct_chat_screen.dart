@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -25,6 +27,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   bool _isLoading = true;
   bool _isSending = false;
   String? _error;
+  Timer? _pollTimer;
 
   Map<String, dynamic> get _otherUser =>
       widget.conversation?['other_user'] as Map<String, dynamic>? ?? const {};
@@ -36,37 +39,54 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return fullName.isEmpty ? 'Conversation' : fullName;
   }
 
+  String? get _otherUserAvatar {
+    final url = (_otherUser['avatar_url'] as String? ?? '').trim();
+    return url.isEmpty ? null : url;
+  }
+
   @override
   void initState() {
     super.initState();
     _loadMessages();
+    // Poll for new messages every 5 seconds while the screen is open.
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadMessages(silent: true),
+    );
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  Future<void> _loadMessages({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final messages = await AuthApiService.getDirectMessages(
         conversationId: widget.conversationId,
       );
       if (mounted) {
+        final prevCount = _messages.length;
         setState(() {
           _messages = messages;
           _isLoading = false;
         });
-        _scrollToBottom();
+        // Auto-scroll on first load or whenever new messages arrive.
+        if (prevCount == 0 || messages.length > prevCount) {
+          _scrollToBottom();
+        }
       }
     } on AuthApiException catch (error) {
-      if (mounted) {
+      if (mounted && !silent) {
         setState(() {
           _isLoading = false;
           _error = error.message;
@@ -120,11 +140,51 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
+        leadingWidth: 40,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(Icons.arrow_back_ios_new),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
-        title: Text(_title, style: AppTextStyles.title),
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: AppColors.surfaceMuted,
+              backgroundImage: _otherUserAvatar != null
+                  ? NetworkImage(_otherUserAvatar!)
+                  : null,
+              child: _otherUserAvatar == null
+                  ? Text(
+                      _title.characters.first.toUpperCase(),
+                      style: AppTextStyles.label.copyWith(
+                        color: AppColors.primaryDeep,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _title,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.label.copyWith(fontSize: 16),
+                  ),
+                  Text(
+                    'Direct message',
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
       body: Column(
         children: [

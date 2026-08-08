@@ -1,4 +1,3 @@
-import random
 from django.db import transaction
 
 from django.contrib.auth.models import User
@@ -20,17 +19,13 @@ from .models import (
 # OTP helpers
 # ---------------------------------------------------------------------------
 
-OTP_EXPIRY_MINUTES = 5
 OTP_RESEND_COOLDOWN_SECONDS = 60
 
 
-def _generate_and_save_otp(profile: UserProfile) -> str:
-    """Generate a 6-digit OTP, persist it with a timestamp, and return it."""
-    otp = str(random.randint(100000, 999999))
-    profile.otp_code = otp
+def _mark_otp_requested(profile: UserProfile) -> None:
+    """Mark timestamp when OTP was requested for cooldown enforcement."""
     profile.otp_created_at = timezone.now()
-    profile.save(update_fields=["otp_code", "otp_created_at"])
-    return otp
+    profile.save(update_fields=["otp_created_at"])
 
 
 def _clear_otp(profile: UserProfile) -> None:

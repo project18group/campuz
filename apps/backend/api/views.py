@@ -1,5 +1,4 @@
 import uuid
-from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -19,14 +18,13 @@ from .serializers import (
     DirectMessageSerializer,
     HubSerializer,
     MessageSerializer,
-    OTP_EXPIRY_MINUTES,
     OTP_RESEND_COOLDOWN_SECONDS,
     ProfileSetupSerializer,
     RequestOTPSerializer,
     UserSerializer,
     VerifyOTPSerializer,
     _clear_otp,
-    _generate_and_save_otp,
+    _mark_otp_requested,
 )
 from .services import sms_service
 
@@ -56,10 +54,8 @@ class RequestOTPView(APIView):
 
     Body: {"phone_number": "+233...", "full_name": "Jane Doe"}
 
-    Generates a 6-digit OTP, persists it on the UserProfile (creating a
-    temporary profile/user if one doesn't exist yet), and dispatches it via SMS.
-
-    A 60-second resend cooldown is enforced.
+    Triggers Arkesel OTP generation and SMS delivery. A 60-second resend
+    cooldown is enforced.
     """
 
     permission_classes = (permissions.AllowAny,)
@@ -107,9 +103,9 @@ class RequestOTPView(APIView):
                     status=status.HTTP_429_TOO_MANY_REQUESTS,
                 )
 
-        otp = _generate_and_save_otp(profile)
+        _mark_otp_requested(profile)
         try:
-            sms_service.send_otp(phone, otp)
+            sms_service.send_otp(phone)
         except Exception:
             return Response(
                 {"error": "Failed to send verification code. Please try again."},
@@ -125,7 +121,8 @@ class VerifyOTPView(APIView):
 
     Body: {"phone_number": "+233...", "otp_code": "123456"}
 
-    On success: clears OTP, issues JWT pair, returns is_new_user flag.
+    Verifies OTP against Arkesel's stored value. On success: clears OTP,
+    issues JWT pair, returns is_new_user flag.
     """
 
     permission_classes = (permissions.AllowAny,)
@@ -148,23 +145,16 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not profile.otp_code:
+        if profile.otp_created_at is None:
             return Response(
                 {"error": "No verification code was requested. Please request a new one."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if profile.otp_code != otp_code:
+        is_valid = sms_service.verify_otp(phone, otp_code)
+        if not is_valid:
             return Response(
-                {"error": "Invalid verification code."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        if profile.otp_created_at is None or timezone.now() > profile.otp_created_at + timedelta(
-            minutes=OTP_EXPIRY_MINUTES
-        ):
-            return Response(
-                {"error": "Verification code has expired. Please request a new one."},
+                {"error": "Invalid or expired verification code."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
