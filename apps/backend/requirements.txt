@@ -17,7 +17,7 @@ cowsay==6.1
 cryptography==46.0.5
 dj-database-url==3.1.0
 dj-rest-auth==7.0.2
-Django==6.0.7
+Django==5.2.16
 django-allauth==65.14.3
 django-cors-headers==4.9.0
 django-debug-toolbar==6.2.0
