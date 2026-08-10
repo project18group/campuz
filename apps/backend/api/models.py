@@ -148,6 +148,61 @@ class Message(models.Model):
         )
 
 
+class SMSDelivery(models.Model):
+    STATUS_PENDING = "pending"
+    STATUS_SENT = "sent"
+    STATUS_FAILED = "failed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_SENT, "Sent"),
+        (STATUS_FAILED, "Failed"),
+    ]
+
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name="sms_deliveries",
+    )
+    recipient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sms_deliveries",
+    )
+    phone_number = models.CharField(max_length=20)
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_PENDING,
+    )
+    provider_message_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+    )
+    provider_status = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Raw delivery status from Arkesel webhook (e.g. DELIVERED).",
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
+    provider_status_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["message", "status"]),
+            models.Index(fields=["recipient", "status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.message_id} -> {self.recipient_id} ({self.status})"
+
+
 class Broadcast(models.Model):
     PRIORITY_CHOICES = [
         ("low", "Low"),

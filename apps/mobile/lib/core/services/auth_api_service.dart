@@ -220,12 +220,16 @@ class AuthApiService {
   static Future<Map<String, dynamic>> sendHubMessage({
     required int hubId,
     required String content,
+    bool sendAsSms = false,
   }) async {
     return _authorized(
       (token) => _client.post(
         Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
         headers: _headers(token),
-        body: jsonEncode({'content': content}),
+        body: jsonEncode({
+          'content': content,
+          'send_as_sms': sendAsSms,
+        }),
       ),
     );
   }

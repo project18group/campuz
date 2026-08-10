@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
 class HubComposer extends StatelessWidget {
+  final bool showSendAsSms;
   final bool sendAsSms;
   final TextEditingController controller;
   final ValueChanged<bool> onSmsChanged;
@@ -10,6 +11,7 @@ class HubComposer extends StatelessWidget {
 
   const HubComposer({
     super.key,
+    this.showSendAsSms = false,
     required this.sendAsSms,
     required this.controller,
     required this.onSmsChanged,
@@ -26,22 +28,23 @@ class HubComposer extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
 
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          if (showSendAsSms)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
 
-            children: [
-              Text(
-                "Send as SMS",
-                style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
-              ),
+              children: [
+                Text(
+                  "Send as SMS",
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.bold),
+                ),
 
-              RotatedBox(
-                quarterTurns: 3,
+                RotatedBox(
+                  quarterTurns: 3,
 
-                child: Switch(value: sendAsSms, onChanged: onSmsChanged),
-              ),
-            ],
-          ),
+                  child: Switch(value: sendAsSms, onChanged: onSmsChanged),
+                ),
+              ],
+            ),
 
           Row(
             children: [

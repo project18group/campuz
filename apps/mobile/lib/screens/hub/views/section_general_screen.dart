@@ -4,15 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 
 class SectionGeneralScreen extends StatefulWidget {
   final int hubId;
   final Map<String, dynamic> section;
+  final Map<String, dynamic>? hub;
 
   const SectionGeneralScreen({
     super.key,
     required this.hubId,
     required this.section,
+    this.hub,
   });
 
   @override
@@ -28,12 +31,15 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
   bool _isSending = false;
   bool _isLoadingMore = false;
   bool _hasMore = true;
+  bool _sendAsSms = false;
   String? _error;
   int _nextPage = 1;
   Timer? _pollTimer;
 
   String get _sectionTitle =>
       (widget.section['title'] as String? ?? 'General').trim();
+
+  bool get _canSendAsSms => widget.hub?['can_manage_members'] == true;
 
   @override
   void initState() {
@@ -170,6 +176,7 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
       final message = await AuthApiService.sendHubMessage(
         hubId: widget.hubId,
         content: content,
+        sendAsSms: _sendAsSms && _canSendAsSms,
       );
 
       if (!mounted) return;
@@ -178,6 +185,9 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
       setState(() {
         _messages.add(Map<String, dynamic>.from(message));
         _isSending = false;
+        if (_sendAsSms && !_canSendAsSms) {
+          _sendAsSms = false;
+        }
       });
       _scrollToBottom();
     } on AuthApiException catch (error) {
@@ -426,53 +436,25 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
         decoration: const BoxDecoration(
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _messageController,
-                textCapitalization: TextCapitalization.sentences,
-                minLines: 1,
-                maxLines: 5,
-                decoration: InputDecoration(
-                  hintText: 'Write a message',
-                  hintStyle: AppTextStyles.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                  filled: true,
-                  fillColor: AppColors.surfaceMuted,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(999),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 12,
-                  ),
-                ),
-                onSubmitted: (_) => _sendMessage(),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton.filled(
-              onPressed: _isSending ? null : _sendMessage,
-              icon: _isSending
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.send_rounded),
-            ),
-          ],
+        child: HubComposer(
+          showSendAsSms: _canSendAsSms,
+          sendAsSms: _sendAsSms,
+          controller: _messageController,
+          onSmsChanged: (value) {
+            setState(() {
+              _sendAsSms = value;
+            });
+          },
+          onAttach: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Attachments are coming soon.')),
+            );
+          },
+          onSend: _isSending ? () {} : _sendMessage,
         ),
       ),
     );
