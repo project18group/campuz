@@ -41,6 +41,16 @@ urlpatterns = [
         views.HubSectionViewSet.as_view({"get": "list", "post": "create"}),
         name="hub-section-list",
     ),
+    path(
+        "hubs/<int:hub_id>/members/",
+        views.HubMembershipView.as_view(),
+        name="hub-members",
+    ),
+    path(
+        "hubs/<int:hub_id>/messages/",
+        views.HubMessageView.as_view(),
+        name="hub-messages",
+    ),
 
     path("", include(router.urls)),
 ]

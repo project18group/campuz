@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hub/views/section_general_screen.dart';
@@ -55,7 +56,10 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
       appBar: AppBar(
         title: Text(_hubName),
         actions: [
-          IconButton(icon: const Icon(Icons.more_vert), onPressed: () {}),
+          IconButton(
+            icon: const Icon(Icons.chat_bubble_outline),
+            onPressed: () => context.push('/hub-chat', extra: widget.hub),
+          ),
         ],
       ),
       body: _buildBody(),
@@ -95,7 +99,12 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: AppColors.surfaceMuted,
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.border,
+            width: 1,
+          ),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +145,10 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
           ),
           if (_hubDescription.isNotEmpty) ...[
             const SizedBox(height: 16),
-            Text(_hubDescription, style: AppTextStyles.body),
+            Text(
+              _hubDescription,
+              style: AppTextStyles.body,
+            ),
           ],
         ],
       ),
@@ -153,7 +165,10 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(18),
-        side: BorderSide(color: AppColors.border, width: 1.2),
+        side: BorderSide(
+          color: AppColors.border,
+          width: 1.2,
+        ),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(18),
@@ -268,6 +283,8 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         return;
     }
 
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) => screen));
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => screen),
+    );
   }
 }

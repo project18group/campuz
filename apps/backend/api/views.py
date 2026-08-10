@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -16,6 +17,8 @@ from .serializers import (
     CampuzUserSerializer,
     DirectConversationSerializer,
     DirectMessageSerializer,
+    HubMembershipActionSerializer,
+    HubMemberSerializer,
     HubSectionSerializer,
     HubSerializer,
     MessageSerializer,
@@ -43,6 +46,28 @@ def _tokens_for_user(user: User) -> dict:
 def _make_uuid_username() -> str:
     """Return a unique internal username the user will never see."""
     return f"u_{uuid.uuid4().hex[:20]}"
+
+
+def _is_hub_member(user: User, hub_id: int) -> bool:
+    if user.is_superuser:
+        return True
+    return HubMember.objects.filter(hub_id=hub_id, user=user).exists()
+
+
+def _is_hub_admin(user: User, hub_id: int) -> bool:
+    if user.is_superuser:
+        return True
+    return HubMember.objects.filter(hub_id=hub_id, user=user, role="admin").exists()
+
+
+def _admin_count(hub_id: int) -> int:
+    return HubMember.objects.filter(hub_id=hub_id, role="admin").count()
+
+
+class HubMessagePagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
 
 
 # ---------------------------------------------------------------------------
@@ -389,9 +414,19 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 class HubViewSet(viewsets.ModelViewSet):
-    queryset = Hub.objects.all().order_by("-created_at")
+    queryset = Hub.objects.all()
     serializer_class = HubSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = (
+            Hub.objects.select_related("creator", "creator__profile")
+            .prefetch_related("hub_members__user__profile", "sections")
+            .order_by("-created_at")
+        )
+        if self.request.user.is_superuser:
+            return qs
+        return qs.filter(hub_members__user=self.request.user).distinct()
 
     def get_permissions(self):
         if self.action == "create":
@@ -425,18 +460,18 @@ class HubSectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         hub_id = self.kwargs.get("hub_id")
         if hub_id:
+            if not _is_hub_member(self.request.user, int(hub_id)):
+                return HubSection.objects.none()
             return HubSection.objects.filter(hub_id=hub_id).select_related("hub")
-        return HubSection.objects.select_related("hub")
+        return (
+            HubSection.objects.select_related("hub")
+            .filter(hub__hub_members__user=self.request.user)
+            .distinct()
+        )
 
     def _is_hub_admin(self, hub_id: int) -> bool:
         """Check if the requesting user is an admin of the hub."""
-        if self.request.user.is_superuser:
-            return True
-        return HubMember.objects.filter(
-            hub_id=hub_id,
-            user=self.request.user,
-            role="admin",
-        ).exists()
+        return _is_hub_admin(self.request.user, hub_id)
 
     def create(self, request, *args, **kwargs):
         hub_id = self.kwargs.get("hub_id")
@@ -485,10 +520,205 @@ class HubSectionViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+class HubMembershipView(APIView):
+    """
+    Manage hub membership and admin roles.
+
+    GET /api/hubs/<hub_id>/members/
+    POST /api/hubs/<hub_id>/members/  body: {"action": "...", "user_id": 1}
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.filter(pk=hub_id).first()
+
+    def _member_or_404(self, hub_id: int, user_id: int) -> HubMember | None:
+        return HubMember.objects.select_related("user", "user__profile").filter(
+            hub_id=hub_id,
+            user_id=user_id,
+        ).first()
+
+    def get(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        members = (
+            HubMember.objects.select_related("user", "user__profile")
+            .filter(hub_id=hub_id)
+            .order_by("-role", "user__profile__full_name", "user__profile__display_name", "user_id")
+        )
+        serializer = HubMemberSerializer(members, many=True, context={"request": request})
+        return Response(
+            {
+                "hub": HubSerializer(hub, context={"request": request}).data,
+                "members": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def post(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = HubMembershipActionSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        action = serializer.validated_data["action"]
+        user_id = serializer.validated_data.get("user_id")
+
+        if action == "leave":
+            target_user_id = request.user.id
+        else:
+            if not _is_hub_admin(request.user, hub_id):
+                return Response(
+                    {"error": "Only Hub admins can manage members."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            if user_id is None:
+                return Response(
+                    {"error": "user_id is required for this action."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            target_user_id = user_id
+
+        membership = self._member_or_404(hub_id, target_user_id)
+        if membership is None:
+            return Response(
+                {"error": "Hub member not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if action in {"demote", "remove", "leave"} and membership.role == "admin":
+            if _admin_count(hub_id) <= 1:
+                return Response(
+                    {"error": "A hub must always have at least one admin."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if action == "promote":
+            if membership.role == "admin":
+                return Response(
+                    {"error": "This member is already an admin."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            membership.role = "admin"
+            membership.save(update_fields=["role"])
+        elif action == "demote":
+            if membership.role != "admin":
+                return Response(
+                    {"error": "This member is already a normal member."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            membership.role = "member"
+            membership.save(update_fields=["role"])
+        elif action == "remove":
+            membership.delete()
+        elif action == "leave":
+            membership.delete()
+        else:
+            return Response(
+                {"error": "Unsupported membership action."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        members = (
+            HubMember.objects.select_related("user", "user__profile")
+            .filter(hub_id=hub_id)
+            .order_by("-role", "user__profile__full_name", "user__profile__display_name", "user_id")
+        )
+        return Response(
+            {
+                "message": "Membership updated successfully.",
+                "hub": HubSerializer(hub, context={"request": request}).data,
+                "members": HubMemberSerializer(
+                    members, many=True, context={"request": request}
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class HubMessageView(APIView):
+    """
+    Hub-scoped discussion messages.
+
+    GET /api/hubs/<hub_id>/messages/?page=1
+    POST /api/hubs/<hub_id>/messages/
+
+    Only hub members may read. Only hub admins may post.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = HubMessagePagination
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def get(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        qs = (
+            Message.objects.select_related("hub", "sender", "sender__profile")
+            .filter(hub_id=hub_id)
+            .order_by("-timestamp", "-id")
+        )
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = MessageSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @transaction.atomic
+    def post(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_admin(request.user, hub_id):
+            return Response(
+                {"error": "Only Hub admins can send hub messages."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        content = str(request.data.get("content", "")).strip()
+        if not content:
+            return Response(
+                {"error": "Message content is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        message = Message.objects.create(hub=hub, sender=request.user, content=content)
+        return Response(
+            MessageSerializer(message, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
 class MessageViewSet(viewsets.ModelViewSet):
-    queryset = Message.objects.all().order_by("-timestamp")
+    queryset = Message.objects.all()
     serializer_class = MessageSerializer
     permission_classes = [IsHubCreatorOrReadOnly]
+
+    def get_queryset(self):
+        qs = Message.objects.select_related("hub", "sender", "sender__profile").order_by(
+            "-timestamp"
+        )
+        if self.request.user.is_superuser:
+            return qs
+        return qs.filter(hub__hub_members__user=self.request.user).distinct()
 
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
