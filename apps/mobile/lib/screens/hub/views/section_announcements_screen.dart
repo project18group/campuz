@@ -280,10 +280,8 @@ class _SectionAnnouncementsScreenState
       if (!mounted) return;
       final broadcast = result;
       setState(() {
-        if (broadcast is Map<String, dynamic>) {
-          _announcements.insert(0, Map<String, dynamic>.from(broadcast));
-        }
-        _isCreating = false;
+        _announcements.insert(0, Map<String, dynamic>.from(broadcast));
+              _isCreating = false;
       });
       _titleController.clear();
       _contentController.clear();
@@ -361,7 +359,7 @@ class _SectionAnnouncementsScreenState
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: _priority,
+                        initialValue: _priority,
                         decoration: const InputDecoration(
                           labelText: 'Priority',
                         ),

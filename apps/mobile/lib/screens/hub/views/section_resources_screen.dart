@@ -1,15 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SectionResourcesScreen extends StatefulWidget {
   final int hubId;
   final Map<String, dynamic> section;
+  final Map<String, dynamic>? hub;
 
   const SectionResourcesScreen({
     super.key,
     required this.hubId,
     required this.section,
+    this.hub,
   });
 
   @override
@@ -17,13 +23,19 @@ class SectionResourcesScreen extends StatefulWidget {
 }
 
 class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
-  List<Map<String, dynamic>> _resources = [];
+  final _searchController = TextEditingController();
+  final List<Map<String, dynamic>> _resources = [];
+  Timer? _searchDebounce;
+
   bool _isLoading = true;
+  bool _isSaving = false;
   String? _error;
   String _filter = 'all';
 
   String get _sectionTitle =>
       (widget.section['title'] as String? ?? 'Resources').trim();
+
+  bool get _canManageResources => widget.hub?['can_manage_members'] == true;
 
   @override
   void initState() {
@@ -31,80 +43,82 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
     _loadResources();
   }
 
-  Future<void> _loadResources() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
 
-    // TODO: Call API to fetch resources
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (mounted) {
+  Future<void> _loadResources({bool silent = false}) async {
+    if (!silent) {
       setState(() {
-        _resources = [
-          {
-            'id': 1,
-            'title': 'Lecture Slides - Week 5',
-            'resource_type': 'pdf',
-            'url': 'https://example.com/slides.pdf',
-            'uploaded_by': 'Dr. Mensah',
-            'upload_date': DateTime.now().subtract(const Duration(hours: 3)),
-          },
-          {
-            'id': 2,
-            'title': 'Course Textbook (Digital)',
-            'resource_type': 'pdf',
-            'url': 'https://example.com/textbook.pdf',
-            'uploaded_by': 'Prof. Asante',
-            'upload_date': DateTime.now().subtract(const Duration(days: 7)),
-          },
-          {
-            'id': 3,
-            'title': 'Python Tutorial Video',
-            'resource_type': 'video',
-            'url': 'https://youtube.com/watch?v=xyz',
-            'uploaded_by': 'TA: Kofi',
-            'upload_date': DateTime.now().subtract(const Duration(days: 2)),
-          },
-          {
-            'id': 4,
-            'title': 'Online IDE - Replit',
-            'resource_type': 'link',
-            'url': 'https://replit.com',
-            'uploaded_by': 'Dr. Mensah',
-            'upload_date': DateTime.now().subtract(const Duration(days: 14)),
-          },
-          {
-            'id': 5,
-            'title': 'Assignment Template',
-            'resource_type': 'doc',
-            'url': 'https://example.com/template.docx',
-            'uploaded_by': 'TA: Ama',
-            'upload_date': DateTime.now().subtract(const Duration(days: 5)),
-          },
-        ];
+        _isLoading = true;
+        _error = null;
+      });
+    }
+
+    try {
+      final resources = await AuthApiService.getResources(
+        hubId: widget.hubId,
+        query: _searchController.text.trim(),
+        type: _filter,
+      );
+      if (!mounted) return;
+      setState(() {
+        _resources
+          ..clear()
+          ..addAll(resources);
+        _isLoading = false;
+        _error = null;
+      });
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Unable to load resources right now.';
         _isLoading = false;
       });
     }
   }
 
-  List<Map<String, dynamic>> get _filteredResources {
-    if (_filter == 'all') return _resources;
-    return _resources
-        .where((r) => r['resource_type'] == _filter)
-        .toList();
+  void _scheduleSearch() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 350),
+      () => _loadResources(silent: true),
+    );
+  }
+
+  String _resourceTypeLabel(String type) {
+    switch (type) {
+      case 'pdf':
+        return 'PDF';
+      case 'document':
+        return 'Document';
+      case 'video':
+        return 'Video';
+      case 'link':
+        return 'Link';
+      default:
+        return 'Other';
+    }
   }
 
   IconData _resourceIcon(String type) {
     switch (type) {
       case 'pdf':
-        return Icons.picture_as_pdf;
+        return Icons.picture_as_pdf_rounded;
       case 'video':
-        return Icons.play_circle_outline;
+        return Icons.play_circle_outline_rounded;
       case 'link':
-        return Icons.link;
-      case 'doc':
+        return Icons.link_rounded;
+      case 'document':
         return Icons.description_outlined;
       default:
         return Icons.insert_drive_file_outlined;
@@ -119,177 +133,312 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
         return Colors.purple;
       case 'link':
         return Colors.blue;
-      case 'doc':
+      case 'document':
         return Colors.indigo;
       default:
         return AppColors.textSecondary;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_sectionTitle, style: AppTextStyles.label),
-            Text(
-              'Files & Links',
-              style: AppTextStyles.body.copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondary,
+  DateTime? _parseUploadDate(Map<String, dynamic> resource) {
+    final raw = resource['upload_date'];
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  String _formatDate(DateTime? date) {
+    if (date == null) return 'Recently';
+    final now = DateTime.now();
+    final difference = now.difference(date);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+    if (difference.inDays < 1) return '${difference.inHours}h ago';
+    if (difference.inDays < 7) return '${difference.inDays}d ago';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
+  String _uploadedBy(Map<String, dynamic> resource) {
+    final uploadedBy = resource['uploaded_by'] as Map<String, dynamic>? ?? const {};
+    final profile = uploadedBy['profile'] as Map<String, dynamic>? ?? const {};
+    final name = (resource['uploaded_by_name'] as String? ?? '').trim();
+    if (name.isNotEmpty) return name;
+    final displayName = (profile['display_name'] as String? ?? '').trim();
+    if (displayName.isNotEmpty) return displayName;
+    final fullName = (profile['full_name'] as String? ?? '').trim();
+    return fullName.isNotEmpty ? fullName : 'Campuz user';
+  }
+
+  Future<void> _openResource(Map<String, dynamic> resource) async {
+    final url = (resource['url'] as String? ?? '').trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No URL is available for this resource.')),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid resource URL.')),
+      );
+      return;
+    }
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open resource.')),
+      );
+    }
+  }
+
+  Future<void> _deleteResource(Map<String, dynamic> resource) async {
+    final resourceId = resource['id'];
+    final id = resourceId is int ? resourceId : int.tryParse('$resourceId');
+    if (id == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Delete resource'),
+          content: const Text('This will permanently remove the resource from the hub.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text(
+                'Delete',
+                style: TextStyle(color: AppColors.error),
               ),
             ),
           ],
-        ),
+        );
+      },
+    );
+
+    if (confirmed != true || _isSaving) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await AuthApiService.deleteResource(resourceId: id);
+      if (!mounted) return;
+      setState(() {
+        _resources.removeWhere((item) => item['id'] == id);
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resource deleted.')),
+      );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to delete resource right now.')),
+      );
+    }
+  }
+
+  Future<void> _showUploadSheet() async {
+    if (!_canManageResources) return;
+
+    final titleController = TextEditingController();
+    final urlController = TextEditingController();
+    String resourceType = 'pdf';
+    bool sending = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      body: Column(
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            Future<void> submit() async {
+              final title = titleController.text.trim();
+              final url = urlController.text.trim();
+              if (title.isEmpty || url.isEmpty || sending) return;
+              setSheetState(() => sending = true);
+              try {
+                final created = await AuthApiService.createHubResource(
+                  hubId: widget.hubId,
+                  title: title,
+                  url: url,
+                  resourceType: resourceType,
+                );
+                if (!mounted) return;
+                setState(() {
+                  _resources.insert(0, Map<String, dynamic>.from(created));
+                });
+                if (Navigator.of(sheetContext).canPop()) {
+                  Navigator.of(sheetContext).pop();
+                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Resource uploaded successfully.')),
+                );
+              } on AuthApiException catch (error) {
+                if (!mounted) return;
+                setSheetState(() => sending = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.message)),
+                );
+              } catch (_) {
+                if (!mounted) return;
+                setSheetState(() => sending = false);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Unable to upload resource right now.')),
+                );
+              }
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Upload resource',
+                        style: AppTextStyles.heading.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: titleController,
+                        decoration: const InputDecoration(labelText: 'Title'),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: urlController,
+                        decoration: const InputDecoration(labelText: 'URL'),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: resourceType,
+                        decoration: const InputDecoration(labelText: 'Type'),
+                        items: const [
+                          DropdownMenuItem(value: 'pdf', child: Text('PDF')),
+                          DropdownMenuItem(value: 'document', child: Text('Document')),
+                          DropdownMenuItem(value: 'video', child: Text('Video')),
+                          DropdownMenuItem(value: 'link', child: Text('Link')),
+                          DropdownMenuItem(value: 'other', child: Text('Other')),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setSheetState(() => resourceType = value);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: sending ? null : submit,
+                          child: sending
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Save resource'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+    titleController.dispose();
+    urlController.dispose();
+  }
+
+  Widget _buildFilterChips() {
+    final chips = const [
+      ('All', 'all'),
+      ('PDFs', 'pdf'),
+      ('Docs', 'document'),
+      ('Videos', 'video'),
+      ('Links', 'link'),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: Column(
         children: [
-          _buildFilterChips(),
-          Expanded(child: _buildBody()),
+          TextField(
+            controller: _searchController,
+            onChanged: (_) => _scheduleSearch(),
+            decoration: InputDecoration(
+              hintText: 'Search resources',
+              prefixIcon: const Icon(Icons.search_rounded),
+              filled: true,
+              fillColor: AppColors.surfaceMuted,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: chips.map((chip) {
+                final label = chip.$1;
+                final value = chip.$2;
+                final selected = _filter == value;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(label),
+                    selected: selected,
+                    onSelected: (_) {
+                      setState(() => _filter = value);
+                      _loadResources();
+                    },
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChips() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          bottom: BorderSide(color: AppColors.border, width: 1),
-        ),
-      ),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            _buildFilterChip('All', 'all'),
-            const SizedBox(width: 8),
-            _buildFilterChip('PDFs', 'pdf'),
-            const SizedBox(width: 8),
-            _buildFilterChip('Videos', 'video'),
-            const SizedBox(width: 8),
-            _buildFilterChip('Links', 'link'),
-            const SizedBox(width: 8),
-            _buildFilterChip('Docs', 'doc'),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterChip(String label, String value) {
-    final isSelected = _filter == value;
-    return FilterChip(
-      label: Text(label),
-      selected: isSelected,
-      onSelected: (selected) {
-        setState(() {
-          _filter = value;
-        });
-      },
-      backgroundColor: AppColors.surfaceMuted,
-      selectedColor: AppColors.primary.withValues(alpha: 0.15),
-      checkmarkColor: AppColors.primaryDeep,
-      labelStyle: AppTextStyles.body.copyWith(
-        fontSize: 14,
-        color: isSelected ? AppColors.primaryDeep : AppColors.text,
-        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-      ),
-      side: BorderSide(
-        color: isSelected ? AppColors.primary : AppColors.border,
-        width: isSelected ? 1.5 : 1,
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-      ),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 48,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: 16),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadResources,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final filtered = _filteredResources;
-
-    if (filtered.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.folder_outlined,
-                size: 64,
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No resources',
-                style: AppTextStyles.heading.copyWith(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _filter == 'all'
-                    ? 'No resources have been uploaded yet'
-                    : 'No $_filter resources found',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadResources,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: filtered.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (context, index) => _buildResourceTile(filtered[index]),
-      ),
-    );
-  }
-
-  Widget _buildResourceTile(Map<String, dynamic> resource) {
-    final title = resource['title'] as String;
-    final type = resource['resource_type'] as String;
-    final uploadedBy = resource['uploaded_by'] as String;
-    final uploadDate = resource['upload_date'] as DateTime;
+  Widget _buildTile(Map<String, dynamic> resource) {
+    final title = (resource['title'] as String? ?? '').trim();
+    final type = (resource['resource_type'] as String? ?? 'other').trim().toLowerCase();
+    final uploadedBy = _uploadedBy(resource);
+    final uploadDate = _formatDate(_parseUploadDate(resource));
+    final canManage = resource['can_manage'] == true || _canManageResources;
 
     return Card(
       elevation: 0,
@@ -300,11 +449,8 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
-        onTap: () {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Opening $title...')),
-          );
-        },
+        onTap: () => _openResource(resource),
+        onLongPress: canManage ? () => _deleteResource(resource) : null,
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -327,28 +473,61 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: AppTextStyles.label.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            style: AppTextStyles.label.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (canManage)
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'delete') {
+                                _deleteResource(resource);
+                              }
+                            },
+                            itemBuilder: (context) => const [
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
+                            ],
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Uploaded by $uploadedBy • ${_formatDate(uploadDate)}',
+                      'Uploaded by $uploadedBy • $uploadDate',
                       style: AppTextStyles.body.copyWith(
                         fontSize: 12,
                         color: AppColors.textSecondary,
                       ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: _resourceColor(type).withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        _resourceTypeLabel(type),
+                        style: AppTextStyles.caption.copyWith(
+                          color: _resourceColor(type),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
                   ],
                 ),
-              ),
-              Icon(
-                Icons.chevron_right,
-                color: AppColors.textSecondary,
               ),
             ],
           ),
@@ -357,19 +536,113 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-
-    if (difference.inDays < 1) {
-      if (difference.inHours < 1) {
-        return '${difference.inMinutes}m ago';
-      }
-      return '${difference.inHours}h ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays}d ago';
-    } else {
-      return '${date.day}/${date.month}/${date.year}';
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
     }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+              const SizedBox(height: 16),
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _loadResources,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_resources.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.folder_outlined,
+                size: 64,
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No resources',
+                style: AppTextStyles.heading.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _filter == 'all'
+                    ? 'No resources have been uploaded yet'
+                    : 'No ${_resourceTypeLabel(_filter).toLowerCase()} resources found',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadResources,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        itemCount: _resources.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (context, index) => _buildTile(_resources[index]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_sectionTitle, style: AppTextStyles.label),
+            Text(
+              'Files & Links',
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: _isLoading ? null : _loadResources,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      floatingActionButton: _canManageResources
+          ? FloatingActionButton.extended(
+              onPressed: _showUploadSheet,
+              icon: const Icon(Icons.upload_file_rounded),
+              label: const Text('Upload'),
+            )
+          : null,
+      body: Column(
+        children: [
+          _buildFilterChips(),
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
   }
 }

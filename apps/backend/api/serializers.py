@@ -13,6 +13,7 @@ from .models import (
     HubMember,
     HubSection,
     Message,
+    Resource,
     UserProfile,
 )
 
@@ -461,6 +462,82 @@ class BroadcastSerializer(serializers.ModelSerializer):
 
     def get_sms_failed_count(self, obj):
         return obj.sms_deliveries.filter(status="failed").count()
+
+
+class ResourceCreateSerializer(serializers.Serializer):
+    RESOURCE_TYPE_CHOICES = [
+        ("pdf", "PDF"),
+        ("document", "Document"),
+        ("video", "Video"),
+        ("link", "Link"),
+        ("other", "Other"),
+    ]
+
+    title = serializers.CharField(max_length=200)
+    url = serializers.URLField(max_length=1000)
+    resource_type = serializers.ChoiceField(
+        choices=RESOURCE_TYPE_CHOICES,
+        default="other",
+    )
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Title cannot be blank.")
+        return value
+
+
+class ResourceSerializer(serializers.ModelSerializer):
+    uploaded_by = UserSerializer(read_only=True)
+    uploaded_by_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+    can_manage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Resource
+        fields = [
+            "id",
+            "hub",
+            "title",
+            "resource_type",
+            "url",
+            "uploaded_by",
+            "uploaded_by_name",
+            "is_mine",
+            "can_manage",
+            "upload_date",
+        ]
+        read_only_fields = [
+            "hub",
+            "uploaded_by",
+            "uploaded_by_name",
+            "is_mine",
+            "can_manage",
+            "upload_date",
+        ]
+
+    def get_uploaded_by_name(self, obj):
+        profile = getattr(obj.uploaded_by, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.uploaded_by_id == request.user.id)
+
+    def get_can_manage(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        membership = obj.hub.hub_members.filter(user=request.user).first()
+        return bool(membership and membership.role == "admin")
 
 
 class MessageSerializer(serializers.ModelSerializer):

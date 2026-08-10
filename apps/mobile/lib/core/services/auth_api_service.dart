@@ -281,6 +281,60 @@ class AuthApiService {
     );
   }
 
+  static Future<List<Map<String, dynamic>>> getResources({
+    int? hubId,
+    String query = '',
+    String type = 'all',
+  }) async {
+    final uri = (hubId == null
+            ? Uri.parse('$_baseUrl/resources/')
+            : Uri.parse('$_baseUrl/hubs/$hubId/resources/'))
+        .replace(
+      queryParameters: {
+        if (query.isNotEmpty) 'q': query,
+        if (type.isNotEmpty && type != 'all') 'type': type,
+      },
+    );
+    final result = await _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+    final list = result['results'] ?? result['data'] ?? result;
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  static Future<Map<String, dynamic>> createHubResource({
+    required int hubId,
+    required String title,
+    required String url,
+    required String resourceType,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/resources/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          'url': url,
+          'resource_type': resourceType,
+        }),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> deleteResource({
+    required int resourceId,
+  }) async {
+    return _authorized(
+      (token) => _client.delete(
+        Uri.parse('$_baseUrl/resources/$resourceId/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
   static Future<Map<String, dynamic>> getHubMembers({
     required int hubId,
   }) async {

@@ -249,8 +249,20 @@ class Broadcast(models.Model):
 
 
 class Resource(models.Model):
+    RESOURCE_TYPE_CHOICES = [
+        ("pdf", "PDF"),
+        ("document", "Document"),
+        ("video", "Video"),
+        ("link", "Link"),
+        ("other", "Other"),
+    ]
+
     title = models.CharField(max_length=200)
-    resource_type = models.CharField(max_length=50)  # 'pdf', 'link', 'doc', 'video'
+    resource_type = models.CharField(
+        max_length=50,
+        choices=RESOURCE_TYPE_CHOICES,
+        default="other",
+    )
     url = models.URLField(max_length=1000)
     uploaded_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="uploaded_resources"

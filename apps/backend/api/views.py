@@ -21,6 +21,7 @@ from .models import (
     HubSection,
     Message,
     SMSDelivery,
+    Resource,
     UserProfile,
 )
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
@@ -35,6 +36,8 @@ from .serializers import (
     HubSectionSerializer,
     HubSerializer,
     MessageSerializer,
+    ResourceCreateSerializer,
+    ResourceSerializer,
     OTP_RESEND_COOLDOWN_SECONDS,
     ProfileSetupSerializer,
     RequestOTPSerializer,
@@ -507,6 +510,130 @@ class BroadcastViewSet(viewsets.ReadOnlyModelViewSet):
         if self.request.user.is_superuser:
             return qs
         return qs.filter(hub__hub_members__user=self.request.user).distinct()
+
+
+class ResourceViewSet(viewsets.ModelViewSet):
+    queryset = Resource.objects.all()
+    serializer_class = ResourceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = (
+            Resource.objects.select_related(
+                "hub",
+                "hub__creator",
+                "hub__creator__profile",
+                "uploaded_by",
+                "uploaded_by__profile",
+            )
+            .order_by("-upload_date", "-id")
+        )
+
+        if self.request.user.is_superuser:
+            return self._apply_filters(qs)
+
+        qs = qs.filter(hub__hub_members__user=self.request.user).distinct()
+        return self._apply_filters(qs)
+
+    def _apply_filters(self, qs):
+        hub_id = self.kwargs.get("hub_id")
+        if hub_id:
+            qs = qs.filter(hub_id=hub_id)
+        query = self.request.query_params.get("q", "").strip()
+        resource_type = self.request.query_params.get("type", "").strip().lower()
+        if query:
+            qs = qs.filter(
+                Q(title__icontains=query)
+                | Q(url__icontains=query)
+                | Q(resource_type__icontains=query)
+            )
+        if resource_type and resource_type != "all":
+            qs = qs.filter(resource_type=resource_type)
+        return qs
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def _ensure_membership(self, hub_id: int):
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_member(self.request.user, hub_id)
+
+    def _ensure_admin(self, hub_id: int):
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_admin(self.request.user, hub_id)
+
+    def list(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id")
+        if hub_id and not self._ensure_membership(int(hub_id)):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        return super().list(request, *args, **kwargs)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_membership(instance.hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        return super().retrieve(request, *args, **kwargs)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id") or request.data.get("hub")
+        if not hub_id:
+            return Response(
+                {"error": "hub_id is required in the URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        hub = self._hub_or_404(int(hub_id))
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not self._ensure_admin(int(hub_id)):
+            return Response(
+                {"error": "Only Hub admins can upload resources."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = ResourceCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        resource = Resource.objects.create(
+            hub=hub,
+            uploaded_by=request.user,
+            title=serializer.validated_data["title"],
+            url=serializer.validated_data["url"],
+            resource_type=serializer.validated_data["resource_type"],
+        )
+        read_serializer = ResourceSerializer(resource, context={"request": request})
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update resources."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update resources."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can delete resources."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class HubBroadcastView(APIView):
