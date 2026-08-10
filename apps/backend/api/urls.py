@@ -51,6 +51,11 @@ urlpatterns = [
         views.HubMessageView.as_view(),
         name="hub-messages",
     ),
+    path(
+        "webhooks/sms/delivery/",
+        views.SMSDeliveryWebhookView.as_view(),
+        name="sms-delivery-webhook",
+    ),
 
     path("", include(router.urls)),
 ]

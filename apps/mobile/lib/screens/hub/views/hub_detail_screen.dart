@@ -260,7 +260,11 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
     Widget screen;
     switch (sectionType) {
       case 'general':
-        screen = SectionGeneralScreen(hubId: hubId, section: section);
+        screen = SectionGeneralScreen(
+          hubId: hubId,
+          section: section,
+          hub: widget.hub,
+        );
         break;
       case 'announcements':
         screen = SectionAnnouncementsScreen(hubId: hubId, section: section);

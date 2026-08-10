@@ -1,4 +1,5 @@
 import uuid
+import logging
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -11,7 +12,16 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re-exported
 
-from .models import DirectConversation, DirectMessage, Hub, HubMember, HubSection, Message, UserProfile
+from .models import (
+    DirectConversation,
+    DirectMessage,
+    Hub,
+    HubMember,
+    HubSection,
+    Message,
+    SMSDelivery,
+    UserProfile,
+)
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
 from .serializers import (
     CampuzUserSerializer,
@@ -30,7 +40,9 @@ from .serializers import (
     _clear_otp,
     _mark_otp_requested,
 )
-from .services import sms_service
+from .services import hub_sms_service, sms_service
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -62,6 +74,23 @@ def _is_hub_admin(user: User, hub_id: int) -> bool:
 
 def _admin_count(hub_id: int) -> int:
     return HubMember.objects.filter(hub_id=hub_id, role="admin").count()
+
+
+def _request_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _normalize_sms_status(raw_status: str | None) -> tuple[str, str]:
+    status = (raw_status or "").strip().upper()
+    if status in {"DELIVERED", "SUBMITTED", "QUEUED"}:
+        return SMSDelivery.STATUS_SENT, status
+    if status in {"NOT_DELIVERED", "PROHIBITED", "EXPIRED", "FAILED"}:
+        return SMSDelivery.STATUS_FAILED, status
+    return SMSDelivery.STATUS_SENT, status or "UNKNOWN"
 
 
 class HubMessagePagination(PageNumberPagination):
@@ -701,9 +730,105 @@ class HubMessageView(APIView):
             )
 
         message = Message.objects.create(hub=hub, sender=request.user, content=content)
+        send_as_sms = _request_bool(request.data.get("send_as_sms"))
+        eligible_sms_recipients = 0
+        if send_as_sms:
+            eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
+            hub_sms_service.queue_hub_sms_broadcast(message.id)
         return Response(
-            MessageSerializer(message, context={"request": request}).data,
+            {
+                **MessageSerializer(message, context={"request": request}).data,
+                "send_as_sms": send_as_sms,
+                "sms_delivery_queued": send_as_sms,
+                "sms_tracking_enabled": bool(
+                    send_as_sms and eligible_sms_recipients > 0
+                ),
+                "sms_eligible_recipients": eligible_sms_recipients,
+            },
             status=status.HTTP_201_CREATED,
+        )
+
+
+class SMSDeliveryWebhookView(APIView):
+    """
+    Public Arkesel delivery callback endpoint.
+
+    Arkesel sends sms_id and status in the query string. The endpoint must stay
+    open so the provider can reach it.
+    """
+
+    permission_classes = (permissions.AllowAny,)
+
+    def _payload_value(self, request, key: str) -> str:
+        if request.method.upper() == "POST":
+            value = request.data.get(key)
+        else:
+            value = request.query_params.get(key)
+        return str(value or "").strip()
+
+    @transaction.atomic
+    def get(self, request):
+        return self._handle(request)
+
+    @transaction.atomic
+    def post(self, request):
+        return self._handle(request)
+
+    def _handle(self, request):
+        sms_id = self._payload_value(request, "sms_id")
+        raw_status = self._payload_value(request, "status")
+
+        if not sms_id:
+            return Response(
+                {"received": False, "error": "sms_id is required."},
+                status=status.HTTP_200_OK,
+            )
+
+        if not raw_status:
+            return Response(
+                {"received": False, "error": "status is required."},
+                status=status.HTTP_200_OK,
+            )
+
+        delivery = SMSDelivery.objects.select_for_update().filter(
+            provider_message_id=sms_id
+        ).first()
+        if delivery is None:
+            logger.warning(
+                "[SMSDeliveryWebhookView] Unknown sms_id received: %s (%s)",
+                sms_id,
+                raw_status,
+            )
+            return Response({"received": True, "ignored": True}, status=status.HTTP_200_OK)
+
+        normalized_status, provider_status = _normalize_sms_status(raw_status)
+        delivery.provider_status = provider_status
+        delivery.provider_status_at = timezone.now()
+        delivery.provider_message_id = delivery.provider_message_id or sms_id
+
+        if normalized_status == SMSDelivery.STATUS_FAILED:
+            delivery.status = SMSDelivery.STATUS_FAILED
+        elif delivery.status != SMSDelivery.STATUS_FAILED:
+            delivery.status = SMSDelivery.STATUS_SENT
+
+        update_fields = [
+            "provider_status",
+            "provider_status_at",
+            "provider_message_id",
+            "status",
+            "updated_at",
+        ]
+        delivery.save(update_fields=update_fields)
+
+        return Response(
+            {
+                "received": True,
+                "message_id": delivery.message_id,
+                "recipient_id": delivery.recipient_id,
+                "local_status": delivery.status,
+                "provider_status": delivery.provider_status,
+            },
+            status=status.HTTP_200_OK,
         )
 
 
