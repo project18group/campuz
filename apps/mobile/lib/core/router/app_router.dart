@@ -118,11 +118,27 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: "/hub-chat",
-      builder: (context, state) => const HubChatScreen(),
+      builder: (context, state) {
+        final extra = state.extra;
+        if (extra is Map<String, dynamic>) {
+          return HubChatScreen(hub: extra);
+        }
+        if (extra is int) {
+          return HubChatScreen(hubId: extra);
+        }
+        if (extra is String) {
+          final hubId = int.tryParse(extra);
+          return HubChatScreen(hubId: hubId);
+        }
+        return const HubChatScreen();
+      },
     ),
     GoRoute(
       path: "/hub-info",
-      builder: (context, state) => const HubInfoScreen(),
+      builder: (context, state) {
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: hub);
+      },
     ),
 
     // -----------------------------------------------------------------------

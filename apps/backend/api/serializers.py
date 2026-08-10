@@ -282,10 +282,31 @@ class UserSerializer(serializers.ModelSerializer):
 
 class HubMemberSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    is_admin = serializers.SerializerMethodField()
+    is_self = serializers.SerializerMethodField()
 
     class Meta:
         model = HubMember
-        fields = ["user", "role", "joined_at", "muted"]
+        fields = ["user", "role", "joined_at", "muted", "is_admin", "is_self"]
+
+    def get_is_admin(self, obj):
+        return obj.role == "admin"
+
+    def get_is_self(self, obj):
+        request = self.context.get("request")
+        return bool(request and obj.user_id == request.user.id)
+
+
+class HubMembershipActionSerializer(serializers.Serializer):
+    ACTION_CHOICES = [
+        ("promote", "Promote to admin"),
+        ("demote", "Demote to member"),
+        ("remove", "Remove member"),
+        ("leave", "Leave hub"),
+    ]
+
+    action = serializers.ChoiceField(choices=ACTION_CHOICES)
+    user_id = serializers.IntegerField(required=False, min_value=1)
 
 
 class HubSectionSerializer(serializers.ModelSerializer):
@@ -309,6 +330,8 @@ class HubSerializer(serializers.ModelSerializer):
     members = HubMemberSerializer(source="hub_members", many=True, read_only=True)
     members_count = serializers.SerializerMethodField()
     sections = HubSectionSerializer(many=True, read_only=True)
+    current_user_role = serializers.SerializerMethodField()
+    can_manage_members = serializers.SerializerMethodField()
 
     class Meta:
         model = Hub
@@ -321,6 +344,8 @@ class HubSerializer(serializers.ModelSerializer):
             "members",
             "members_count",
             "sections",
+            "current_user_role",
+            "can_manage_members",
             "created_at",
         ]
         read_only_fields = ["creator", "members", "sections"]
@@ -328,11 +353,59 @@ class HubSerializer(serializers.ModelSerializer):
     def get_members_count(self, obj):
         return obj.hub_members.count()
 
+    def _current_membership(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return None
+        return obj.hub_members.filter(user=request.user).first()
+
+    def get_current_user_role(self, obj):
+        membership = self._current_membership(obj)
+        request = self.context.get("request")
+        if membership is not None:
+            return membership.role
+        if request and request.user.is_authenticated and obj.creator_id == request.user.id:
+            return "admin"
+        return None
+
+    def get_can_manage_members(self, obj):
+        membership = self._current_membership(obj)
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        return bool(membership and membership.role == "admin")
+
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
+    sender_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ["id", "hub", "sender", "content", "timestamp"]
-        read_only_fields = ["sender"]
+        fields = [
+            "id",
+            "hub",
+            "sender",
+            "sender_name",
+            "is_mine",
+            "content",
+            "timestamp",
+        ]
+        read_only_fields = ["sender", "sender_name", "is_mine"]
+
+    def get_sender_name(self, obj):
+        profile = getattr(obj.sender, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.sender_id == request.user.id)

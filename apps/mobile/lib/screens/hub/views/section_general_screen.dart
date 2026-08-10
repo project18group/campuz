@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
@@ -19,9 +22,15 @@ class SectionGeneralScreen extends StatefulWidget {
 class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  List<Map<String, dynamic>> _messages = [];
+  final List<Map<String, dynamic>> _messages = [];
+
   bool _isLoading = true;
+  bool _isSending = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
   String? _error;
+  int _nextPage = 1;
+  Timer? _pollTimer;
 
   String get _sectionTitle =>
       (widget.section['title'] as String? ?? 'General').trim();
@@ -29,109 +38,281 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
   @override
   void initState() {
     super.initState();
-    _loadMessages();
+    _scrollController.addListener(_onScroll);
+    _loadMessages(reset: true);
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _loadMessages(reset: false, silent: true),
+    );
   }
 
   @override
   void dispose() {
+    _pollTimer?.cancel();
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
 
-    // TODO: Call API to fetch section messages
-    await Future.delayed(const Duration(milliseconds: 500));
+    if (_scrollController.position.pixels <= 140) {
+      _loadOlderMessages();
+    }
+  }
 
-    if (mounted) {
+  Future<void> _loadMessages({
+    required bool reset,
+    bool silent = false,
+  }) async {
+    if (reset) {
       setState(() {
-        _messages = [
-          {
-            'id': 1,
-            'sender_name': 'Dr. Mensah',
-            'content': 'Welcome to the general discussion area!',
-            'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
-            'is_mine': false,
-          },
-          {
-            'id': 2,
-            'sender_name': 'You',
-            'content': 'Thank you!',
-            'timestamp': DateTime.now().subtract(const Duration(hours: 1)),
-            'is_mine': true,
-          },
-        ];
-        _isLoading = false;
+        _isLoading = true;
+        _error = null;
+        _messages.clear();
+        _hasMore = true;
+        _nextPage = 1;
       });
+    }
+
+    try {
+      final previousIds = _messages.map((message) => message['id']).toSet();
+      final response = await AuthApiService.getHubMessages(
+        hubId: widget.hubId,
+        page: 1,
+      );
+      final results = _extractResults(response).reversed.toList();
+      final fresh = results
+          .where((message) => !previousIds.contains(message['id']))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        if (reset) {
+          _messages
+            ..clear()
+            ..addAll(results);
+        } else if (fresh.isNotEmpty) {
+          _messages.addAll(fresh);
+        }
+        _hasMore = response['next'] != null;
+        _nextPage = 2;
+        _isLoading = false;
+        _error = null;
+      });
+
+      if (reset || fresh.isNotEmpty) {
+        _scrollToBottom();
+      }
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _isLoading = false;
+          _error = error.message;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Unable to load messages right now.';
+        });
+      }
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    if (_isLoading || _isLoadingMore || !_hasMore) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      final response = await AuthApiService.getHubMessages(
+        hubId: widget.hubId,
+        page: _nextPage,
+      );
+      final results = _extractResults(response).reversed.toList();
+      final existingIds = _messages.map((message) => message['id']).toSet();
+      final older = results
+          .where((message) => !existingIds.contains(message['id']))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _messages.insertAll(0, older);
+        _hasMore = response['next'] != null;
+        _nextPage += 1;
+        _isLoadingMore = false;
+      });
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
     }
   }
 
   Future<void> _sendMessage() async {
     final content = _messageController.text.trim();
-    if (content.isEmpty) return;
+    if (content.isEmpty || _isSending) return;
 
-    _messageController.clear();
+    setState(() => _isSending = true);
+    try {
+      final message = await AuthApiService.sendHubMessage(
+        hubId: widget.hubId,
+        content: content,
+      );
 
-    // TODO: Call API to send message
-    await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
 
-    if (mounted) {
+      _messageController.clear();
       setState(() {
-        _messages.add({
-          'id': _messages.length + 1,
-          'sender_name': 'You',
-          'content': content,
-          'timestamp': DateTime.now(),
-          'is_mine': true,
-        });
+        _messages.add(Map<String, dynamic>.from(message));
+        _isSending = false;
       });
       _scrollToBottom();
-    }
-  }
-
-  void _scrollToBottom() {
-    if (_scrollController.hasClients) {
-      _scrollController.animateTo(
-        _scrollController.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeOut,
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to send message right now')),
       );
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
+  List<Map<String, dynamic>> _extractResults(Map<String, dynamic> response) {
+    final raw = response['results'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _displayName(Map<String, dynamic> message) {
+    final sender = message['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderName = (message['sender_name'] as String? ?? '').trim();
+    if (senderName.isNotEmpty) return senderName;
+    final displayName = (profile['display_name'] as String? ?? '').trim();
+    if (displayName.isNotEmpty) return displayName;
+    final fullName = (profile['full_name'] as String? ?? '').trim();
+    return fullName.isNotEmpty ? fullName : 'Campuz user';
+  }
+
+  DateTime? _parseTimestamp(Map<String, dynamic> message) {
+    final raw = message['timestamp'];
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  String _formatTimestamp(DateTime? time) {
+    if (time == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    }
+    return '${time.day}/${time.month} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildMessageBubble(Map<String, dynamic> message) {
+    final isMine = message['is_mine'] == true;
+    final content = (message['content'] as String? ?? '').trim();
+    final senderName = isMine ? 'You' : _displayName(message);
+    final timestamp = _formatTimestamp(_parseTimestamp(message));
+
+    return Align(
+      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 340),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: isMine ? AppColors.primaryDeep : AppColors.surface,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(18),
+            topRight: const Radius.circular(18),
+            bottomLeft: Radius.circular(isMine ? 18 : 4),
+            bottomRight: Radius.circular(isMine ? 4 : 18),
+          ),
+          border: isMine ? null : Border.all(color: AppColors.border),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x0D000000),
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_sectionTitle, style: AppTextStyles.label),
             Text(
-              'General Discussion',
-              style: AppTextStyles.body.copyWith(
+              senderName,
+              style: AppTextStyles.label.copyWith(
+                color: isMine ? Colors.white70 : AppColors.primaryDeep,
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              content,
+              style: AppTextStyles.body.copyWith(
+                color: isMine ? Colors.white : AppColors.textPrimary,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Text(
+                timestamp,
+                style: AppTextStyles.caption.copyWith(
+                  color: isMine ? Colors.white60 : AppColors.textSecondary,
+                ),
               ),
             ),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          Expanded(child: _buildMessageList()),
-          _buildMessageInput(),
-        ],
-      ),
     );
   }
 
-  Widget _buildMessageList() {
+  Widget _buildMessages() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -143,17 +324,28 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.error_outline,
-                size: 48,
+              const Icon(
+                Icons.cloud_off_outlined,
+                size: 52,
                 color: AppColors.textSecondary,
               ),
-              const SizedBox(height: 16),
-              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 12),
+              Text(
+                'Unable to load messages',
+                style: AppTextStyles.heading,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _loadMessages,
-                child: const Text('Retry'),
+                onPressed: () => _loadMessages(reset: true),
+                child: const Text('Try again'),
               ),
             ],
           ),
@@ -169,9 +361,9 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                Icons.chat_bubble_outline,
+                Icons.forum_outlined,
                 size: 64,
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
+                color: AppColors.textSecondary.withValues(alpha: 0.45),
               ),
               const SizedBox(height: 16),
               Text(
@@ -180,7 +372,8 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Start the conversation',
+                'Be the first to start the discussion.',
+                textAlign: TextAlign.center,
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
@@ -191,60 +384,93 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
       );
     }
 
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      itemCount: _messages.length,
-      itemBuilder: (context, index) => _buildMessageBubble(_messages[index]),
+    final itemCount = _messages.length + (_hasMore ? 1 : 0);
+    return RefreshIndicator(
+      onRefresh: () => _loadMessages(reset: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (_hasMore && index == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Center(
+                child: _isLoadingMore
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      )
+                    : TextButton(
+                        onPressed: _loadOlderMessages,
+                        child: Text(
+                          'Load older messages',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+              ),
+            );
+          }
+
+          final messageIndex = index - (_hasMore ? 1 : 0);
+          return _buildMessageBubble(_messages[messageIndex]);
+        },
+      ),
     );
   }
 
-  Widget _buildMessageBubble(Map<String, dynamic> message) {
-    final isMine = message['is_mine'] as bool;
-    final content = message['content'] as String;
-    final senderName = message['sender_name'] as String;
-    final timestamp = message['timestamp'] as DateTime;
-
-    return Align(
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+  Widget _buildComposer() {
+    return SafeArea(
+      top: false,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.7,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+        decoration: const BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        decoration: BoxDecoration(
-          color: isMine ? AppColors.primary : AppColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            if (!isMine)
-              Text(
-                senderName,
-                style: AppTextStyles.label.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.primaryDeep,
+            Expanded(
+              child: TextField(
+                controller: _messageController,
+                textCapitalization: TextCapitalization.sentences,
+                minLines: 1,
+                maxLines: 5,
+                decoration: InputDecoration(
+                  hintText: 'Write a message',
+                  hintStyle: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.surfaceMuted,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
                 ),
-              ),
-            if (!isMine) const SizedBox(height: 4),
-            Text(
-              content,
-              style: AppTextStyles.body.copyWith(
-                color: isMine ? Colors.white : AppColors.text,
+                onSubmitted: (_) => _sendMessage(),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              _formatTime(timestamp),
-              style: TextStyle(
-                fontSize: 10,
-                color: isMine
-                    ? Colors.white.withValues(alpha: 0.7)
-                    : AppColors.textSecondary,
-              ),
+            const SizedBox(width: 8),
+            IconButton.filled(
+              onPressed: _isSending ? null : _sendMessage,
+              icon: _isSending
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Icon(Icons.send_rounded),
             ),
           ],
         ),
@@ -252,67 +478,41 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
     );
   }
 
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                hintStyle: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-                filled: true,
-                fillColor: AppColors.surfaceMuted,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(999),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 12,
-                ),
+  @override
+  Widget build(BuildContext context) {
+    final title = (_sectionTitle.isNotEmpty ? _sectionTitle : 'General').trim();
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        titleSpacing: 0,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(title, style: AppTextStyles.label),
+            Text(
+              'General discussion',
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
               ),
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: null,
-              keyboardType: TextInputType.multiline,
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filled(
-            onPressed: _sendMessage,
-            icon: const Icon(Icons.send, size: 20),
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              foregroundColor: Colors.white,
-            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => _loadMessages(reset: true),
+            icon: const Icon(Icons.refresh_rounded),
           ),
         ],
       ),
+      body: Column(
+        children: [
+          Expanded(child: _buildMessages()),
+          _buildComposer(),
+        ],
+      ),
     );
-  }
-
-  String _formatTime(DateTime time) {
-    final now = DateTime.now();
-    final difference = now.difference(time);
-
-    if (difference.inMinutes < 1) {
-      return 'just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
-      return '${difference.inHours}h ago';
-    } else {
-      return '${time.day}/${time.month} ${time.hour}:${time.minute.toString().padLeft(2, '0')}';
-    }
   }
 }

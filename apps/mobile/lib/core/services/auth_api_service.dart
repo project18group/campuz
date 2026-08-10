@@ -205,6 +205,87 @@ class AuthApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> getHubMessages({
+    required int hubId,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/hubs/$hubId/messages/').replace(
+      queryParameters: {'page': '$page'},
+    );
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
+  static Future<Map<String, dynamic>> sendHubMessage({
+    required int hubId,
+    required String content,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
+        headers: _headers(token),
+        body: jsonEncode({'content': content}),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> getHubMembers({
+    required int hubId,
+  }) async {
+    return _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/hubs/$hubId/members/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> updateHubMembership({
+    required int hubId,
+    required String action,
+    int? userId,
+  }) async {
+    final body = <String, dynamic>{'action': action};
+    if (userId != null) {
+      body['user_id'] = userId;
+    }
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/members/'),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> promoteHubMember({
+    required int hubId,
+    required int userId,
+  }) {
+    return updateHubMembership(hubId: hubId, action: 'promote', userId: userId);
+  }
+
+  static Future<Map<String, dynamic>> demoteHubMember({
+    required int hubId,
+    required int userId,
+  }) {
+    return updateHubMembership(hubId: hubId, action: 'demote', userId: userId);
+  }
+
+  static Future<Map<String, dynamic>> removeHubMember({
+    required int hubId,
+    required int userId,
+  }) {
+    return updateHubMembership(hubId: hubId, action: 'remove', userId: userId);
+  }
+
+  static Future<Map<String, dynamic>> leaveHub({
+    required int hubId,
+  }) {
+    return updateHubMembership(hubId: hubId, action: 'leave');
+  }
+
   // ---------------------------------------------------------------------------
   // Session management
   // ---------------------------------------------------------------------------
@@ -400,4 +481,22 @@ class AuthApiService {
     }
     return null;
   }
+}
+
+Future<Map<String, dynamic>> getHubMembers({
+  required int hubId,
+}) {
+  return AuthApiService.getHubMembers(hubId: hubId);
+}
+
+Future<Map<String, dynamic>> updateHubMembership({
+  required int hubId,
+  required String action,
+  int? userId,
+}) {
+  return AuthApiService.updateHubMembership(
+    hubId: hubId,
+    action: action,
+    userId: userId,
+  );
 }
