@@ -163,6 +163,15 @@ class SMSDelivery(models.Model):
         Message,
         on_delete=models.CASCADE,
         related_name="sms_deliveries",
+        null=True,
+        blank=True,
+    )
+    broadcast = models.ForeignKey(
+        "Broadcast",
+        on_delete=models.CASCADE,
+        related_name="sms_deliveries",
+        null=True,
+        blank=True,
     )
     recipient = models.ForeignKey(
         User,
@@ -194,13 +203,24 @@ class SMSDelivery(models.Model):
 
     class Meta:
         ordering = ["-created_at", "-id"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    (models.Q(message__isnull=False) & models.Q(broadcast__isnull=True))
+                    | (models.Q(message__isnull=True) & models.Q(broadcast__isnull=False))
+                ),
+                name="smsdelivery_exactly_one_target",
+            )
+        ]
         indexes = [
             models.Index(fields=["message", "status"]),
+            models.Index(fields=["broadcast", "status"]),
             models.Index(fields=["recipient", "status"]),
         ]
 
     def __str__(self):
-        return f"{self.message_id} -> {self.recipient_id} ({self.status})"
+        target = self.message_id or self.broadcast_id
+        return f"{target} -> {self.recipient_id} ({self.status})"
 
 
 class Broadcast(models.Model):
@@ -209,6 +229,11 @@ class Broadcast(models.Model):
         ("normal", "Normal"),
         ("high", "High"),
     ]
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="broadcasts",
+    )
     sender = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="broadcasts"
     )

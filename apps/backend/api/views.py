@@ -3,7 +3,7 @@ import logging
 
 from django.contrib.auth.models import User
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
@@ -15,6 +15,7 @@ from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re
 from .models import (
     DirectConversation,
     DirectMessage,
+    Broadcast,
     Hub,
     HubMember,
     HubSection,
@@ -24,6 +25,8 @@ from .models import (
 )
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
 from .serializers import (
+    BroadcastCreateSerializer,
+    BroadcastSerializer,
     CampuzUserSerializer,
     DirectConversationSerializer,
     DirectMessageSerializer,
@@ -40,7 +43,7 @@ from .serializers import (
     _clear_otp,
     _mark_otp_requested,
 )
-from .services import hub_sms_service, sms_service
+from .services import broadcast_sms_service, hub_sms_service, sms_service
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +97,12 @@ def _normalize_sms_status(raw_status: str | None) -> tuple[str, str]:
 
 
 class HubMessagePagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class BroadcastPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 50
@@ -470,6 +479,123 @@ class HubViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             defaults={"role": "admin"},
         )
+
+
+class BroadcastViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Broadcast.objects.all()
+    serializer_class = BroadcastSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = (
+            Broadcast.objects.select_related(
+                "hub",
+                "sender",
+                "sender__profile",
+            ).prefetch_related("sms_deliveries")
+            .annotate(
+                priority_rank=Case(
+                    When(priority="high", then=Value(0)),
+                    When(priority="normal", then=Value(1)),
+                    When(priority="low", then=Value(2)),
+                    default=Value(3),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("priority_rank", "-timestamp", "-id")
+        )
+        if self.request.user.is_superuser:
+            return qs
+        return qs.filter(hub__hub_members__user=self.request.user).distinct()
+
+
+class HubBroadcastView(APIView):
+    """
+    Hub-scoped announcements / broadcasts.
+
+    GET /api/hubs/<hub_id>/broadcasts/
+    POST /api/hubs/<hub_id>/broadcasts/
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = BroadcastPagination
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def get(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        qs = (
+            Broadcast.objects.select_related(
+                "hub",
+                "sender",
+                "sender__profile",
+            ).prefetch_related("sms_deliveries")
+            .filter(hub_id=hub_id)
+            .annotate(
+                priority_rank=Case(
+                    When(priority="high", then=Value(0)),
+                    When(priority="normal", then=Value(1)),
+                    When(priority="low", then=Value(2)),
+                    default=Value(3),
+                    output_field=IntegerField(),
+                )
+            )
+            .order_by("priority_rank", "-timestamp", "-id")
+        )
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = BroadcastSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @transaction.atomic
+    def post(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not _is_hub_admin(request.user, hub_id):
+            return Response(
+                {"error": "Only Hub admins can create broadcasts."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = BroadcastCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        broadcast = Broadcast.objects.create(
+            hub=hub,
+            sender=request.user,
+            title=serializer.validated_data["title"],
+            content=serializer.validated_data["content"],
+            priority=serializer.validated_data["priority"],
+        )
+        send_as_sms = bool(serializer.validated_data.get("send_as_sms"))
+        eligible_sms_recipients = 0
+        if send_as_sms:
+            eligible_sms_recipients = broadcast_sms_service.count_eligible_recipients(
+                broadcast
+            )
+            broadcast_sms_service.queue_broadcast_sms_delivery(broadcast.id)
+
+        response = BroadcastSerializer(broadcast, context={"request": request}).data
+        response.update(
+            {
+                "send_as_sms": send_as_sms,
+                "sms_delivery_queued": send_as_sms,
+                "sms_tracking_enabled": bool(send_as_sms and eligible_sms_recipients > 0),
+                "sms_eligible_recipients": eligible_sms_recipients,
+            }
+        )
+        return Response(response, status=status.HTTP_201_CREATED)
 
 
 class HubSectionViewSet(viewsets.ModelViewSet):

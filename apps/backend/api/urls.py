@@ -8,6 +8,7 @@ router = routers.DefaultRouter()
 router.register(r"users", views.UserViewSet)
 router.register(r"hubs", views.HubViewSet)
 router.register(r"messages", views.MessageViewSet)
+router.register(r"broadcasts", views.BroadcastViewSet)
 router.register(r"sections", views.HubSectionViewSet, basename="section")
 
 urlpatterns = [
@@ -50,6 +51,11 @@ urlpatterns = [
         "hubs/<int:hub_id>/messages/",
         views.HubMessageView.as_view(),
         name="hub-messages",
+    ),
+    path(
+        "hubs/<int:hub_id>/broadcasts/",
+        views.HubBroadcastView.as_view(),
+        name="hub-broadcasts",
     ),
     path(
         "webhooks/sms/delivery/",

@@ -8,6 +8,7 @@ from .models import (
     AdminInvitationCode,
     DirectConversation,
     DirectMessage,
+    Broadcast,
     Hub,
     HubMember,
     HubSection,
@@ -376,6 +377,90 @@ class HubSerializer(serializers.ModelSerializer):
         if request.user.is_superuser:
             return True
         return bool(membership and membership.role == "admin")
+
+
+class BroadcastCreateSerializer(serializers.Serializer):
+    PRIORITY_CHOICES = [
+        ("low", "Low"),
+        ("normal", "Normal"),
+        ("high", "High"),
+    ]
+
+    title = serializers.CharField(max_length=200)
+    content = serializers.CharField()
+    priority = serializers.ChoiceField(choices=PRIORITY_CHOICES, default="normal")
+    send_as_sms = serializers.BooleanField(required=False, default=False)
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Title cannot be blank.")
+        return value
+
+    def validate_content(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Content cannot be blank.")
+        return value
+
+
+class BroadcastSerializer(serializers.ModelSerializer):
+    sender = UserSerializer(read_only=True)
+    sender_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+    sms_delivery_count = serializers.SerializerMethodField()
+    sms_sent_count = serializers.SerializerMethodField()
+    sms_failed_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Broadcast
+        fields = [
+            "id",
+            "hub",
+            "sender",
+            "sender_name",
+            "is_mine",
+            "title",
+            "content",
+            "priority",
+            "timestamp",
+            "sms_delivery_count",
+            "sms_sent_count",
+            "sms_failed_count",
+        ]
+        read_only_fields = [
+            "hub",
+            "sender",
+            "sender_name",
+            "is_mine",
+            "timestamp",
+            "sms_delivery_count",
+            "sms_sent_count",
+            "sms_failed_count",
+        ]
+
+    def get_sender_name(self, obj):
+        profile = getattr(obj.sender, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.sender_id == request.user.id)
+
+    def get_sms_delivery_count(self, obj):
+        return obj.sms_deliveries.count()
+
+    def get_sms_sent_count(self, obj):
+        return obj.sms_deliveries.filter(status="sent").count()
+
+    def get_sms_failed_count(self, obj):
+        return obj.sms_deliveries.filter(status="failed").count()
 
 
 class MessageSerializer(serializers.ModelSerializer):

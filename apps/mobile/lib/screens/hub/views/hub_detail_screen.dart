@@ -267,7 +267,11 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         );
         break;
       case 'announcements':
-        screen = SectionAnnouncementsScreen(hubId: hubId, section: section);
+        screen = SectionAnnouncementsScreen(
+          hubId: hubId,
+          section: section,
+          hub: widget.hub,
+        );
         break;
       case 'resources':
         screen = SectionResourcesScreen(hubId: hubId, section: section);

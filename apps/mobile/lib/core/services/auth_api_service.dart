@@ -234,6 +234,53 @@ class AuthApiService {
     );
   }
 
+  static Future<List<Map<String, dynamic>>> getBroadcasts() async {
+    final result = await _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/broadcasts/'),
+        headers: _headers(token),
+      ),
+    );
+    final list = result['results'] ?? result['data'] ?? result;
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
+  static Future<Map<String, dynamic>> getHubBroadcasts({
+    required int hubId,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/hubs/$hubId/broadcasts/').replace(
+      queryParameters: {'page': '$page'},
+    );
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
+  static Future<Map<String, dynamic>> createHubBroadcast({
+    required int hubId,
+    required String title,
+    required String content,
+    String priority = 'normal',
+    bool sendAsSms = false,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/broadcasts/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          'content': content,
+          'priority': priority,
+          'send_as_sms': sendAsSms,
+        }),
+      ),
+    );
+  }
+
   static Future<Map<String, dynamic>> getHubMembers({
     required int hubId,
   }) async {

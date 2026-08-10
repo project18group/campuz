@@ -1,15 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
 class SectionAnnouncementsScreen extends StatefulWidget {
   final int hubId;
   final Map<String, dynamic> section;
+  final Map<String, dynamic>? hub;
 
   const SectionAnnouncementsScreen({
     super.key,
     required this.hubId,
     required this.section,
+    this.hub,
   });
 
   @override
@@ -19,62 +24,112 @@ class SectionAnnouncementsScreen extends StatefulWidget {
 
 class _SectionAnnouncementsScreenState
     extends State<SectionAnnouncementsScreen> {
-  List<Map<String, dynamic>> _announcements = [];
+  final _titleController = TextEditingController();
+  final _contentController = TextEditingController();
+  final List<Map<String, dynamic>> _announcements = [];
+
   bool _isLoading = true;
+  bool _isCreating = false;
+  bool _sendAsSms = false;
+  String _priority = 'normal';
   String? _error;
+  Timer? _pollTimer;
 
   String get _sectionTitle =>
       (widget.section['title'] as String? ?? 'Announcements').trim();
+
+  bool get _canCreateBroadcasts => widget.hub?['can_manage_members'] == true;
 
   @override
   void initState() {
     super.initState();
     _loadAnnouncements();
+    _pollTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _loadAnnouncements(silent: true),
+    );
   }
 
-  Future<void> _loadAnnouncements() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    _titleController.dispose();
+    _contentController.dispose();
+    super.dispose();
+  }
 
-    // TODO: Call API to fetch announcements
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (mounted) {
+  Future<void> _loadAnnouncements({bool silent = false}) async {
+    if (!silent) {
       setState(() {
-        _announcements = [
-          {
-            'id': 1,
-            'title': 'Midterm Exam Schedule',
-            'content':
-                'The midterm examination will be held on Friday, August 15th at 9:00 AM in Room 204. Please arrive 15 minutes early.',
-            'sender_name': 'Dr. Mensah',
-            'timestamp': DateTime.now().subtract(const Duration(hours: 5)),
-            'priority': 'high',
-          },
-          {
-            'id': 2,
-            'title': 'Project Submission Reminder',
-            'content':
-                'Don\'t forget to submit your group projects by next Monday. Late submissions will incur a penalty.',
-            'sender_name': 'Prof. Asante',
-            'timestamp': DateTime.now().subtract(const Duration(days: 1)),
-            'priority': 'normal',
-          },
-          {
-            'id': 3,
-            'title': 'Guest Lecture Next Week',
-            'content':
-                'We have a special guest lecturer from Google coming next Wednesday. Attendance is highly encouraged.',
-            'sender_name': 'Dr. Mensah',
-            'timestamp': DateTime.now().subtract(const Duration(days: 2)),
-            'priority': 'normal',
-          },
-        ];
-        _isLoading = false;
+        _isLoading = true;
+        _error = null;
       });
     }
+
+    try {
+      final response = await AuthApiService.getHubBroadcasts(hubId: widget.hubId);
+      final items = _extractResults(response);
+      if (!mounted) return;
+      setState(() {
+        _announcements
+          ..clear()
+          ..addAll(items);
+        _isLoading = false;
+        _error = null;
+      });
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _error = error.message;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _error = 'Unable to load announcements right now.';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  List<Map<String, dynamic>> _extractResults(Map<String, dynamic> response) {
+    final raw = response['results'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  String _senderName(Map<String, dynamic> broadcast) {
+    final sender = broadcast['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderName = (broadcast['sender_name'] as String? ?? '').trim();
+    if (senderName.isNotEmpty) return senderName;
+    final displayName = (profile['display_name'] as String? ?? '').trim();
+    if (displayName.isNotEmpty) return displayName;
+    final fullName = (profile['full_name'] as String? ?? '').trim();
+    return fullName.isNotEmpty ? fullName : 'Campuz user';
+  }
+
+  DateTime? _parseTimestamp(Map<String, dynamic> broadcast) {
+    final raw = broadcast['timestamp'];
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  String _formatTimestamp(DateTime? time) {
+    if (time == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(time);
+    if (difference.inMinutes < 1) return 'just now';
+    if (difference.inHours < 1) return '${difference.inMinutes}m ago';
+    if (difference.inDays < 1) return '${difference.inHours}h ago';
+    return '${time.day}/${time.month}/${time.year}';
   }
 
   Color _priorityColor(String priority) {
@@ -99,106 +154,12 @@ class _SectionAnnouncementsScreenState
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_sectionTitle, style: AppTextStyles.label),
-            Text(
-              'Important Updates',
-              style: AppTextStyles.body.copyWith(
-                fontSize: 12,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: _buildBody(),
-    );
-  }
-
-  Widget _buildBody() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.error_outline,
-                size: 48,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(height: 16),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: _loadAnnouncements,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_announcements.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.campaign_outlined,
-                size: 64,
-                color: AppColors.textSecondary.withValues(alpha: 0.5),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No announcements',
-                style: AppTextStyles.heading.copyWith(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Check back later for updates',
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadAnnouncements,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: _announcements.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 16),
-        itemBuilder: (context, index) =>
-            _buildAnnouncementCard(_announcements[index]),
-      ),
-    );
-  }
-
-  Widget _buildAnnouncementCard(Map<String, dynamic> announcement) {
-    final title = announcement['title'] as String;
-    final content = announcement['content'] as String;
-    final senderName = announcement['sender_name'] as String;
-    final timestamp = announcement['timestamp'] as DateTime;
-    final priority = announcement['priority'] as String;
+  Widget _buildCard(Map<String, dynamic> broadcast) {
+    final title = (broadcast['title'] as String? ?? '').trim();
+    final content = (broadcast['content'] as String? ?? '').trim();
+    final senderName = _senderName(broadcast);
+    final timestamp = _formatTimestamp(_parseTimestamp(broadcast));
+    final priority = (broadcast['priority'] as String? ?? 'normal').trim();
 
     return Card(
       elevation: 0,
@@ -254,13 +215,25 @@ class _SectionAnnouncementsScreenState
                     ],
                   ),
                 ),
+                if (priority == 'high')
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryDeep,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      'URGENT',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
-            Text(
-              content,
-              style: AppTextStyles.body,
-            ),
+            Text(content, style: AppTextStyles.body),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -271,7 +244,7 @@ class _SectionAnnouncementsScreenState
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  _formatTimestamp(timestamp),
+                  timestamp,
                   style: AppTextStyles.body.copyWith(
                     fontSize: 12,
                     color: AppColors.textSecondary,
@@ -285,20 +258,270 @@ class _SectionAnnouncementsScreenState
     );
   }
 
-  String _formatTimestamp(DateTime time) {
-    final now = DateTime.now();
-    final difference = now.difference(time);
+  Future<void> _createBroadcast(
+    BuildContext sheetContext,
+    StateSetter setSheetState,
+  ) async {
+    final title = _titleController.text.trim();
+    final content = _contentController.text.trim();
+    if (title.isEmpty || content.isEmpty || _isCreating) return;
 
-    if (difference.inMinutes < 1) {
-      return 'just now';
-    } else if (difference.inHours < 1) {
-      return '${difference.inMinutes} minutes ago';
-    } else if (difference.inHours < 24) {
-      return '${difference.inHours} hours ago';
-    } else if (difference.inDays < 7) {
-      return '${difference.inDays} days ago';
-    } else {
-      return '${time.day}/${time.month}/${time.year}';
+    setSheetState(() {
+      _isCreating = true;
+    });
+    try {
+      final result = await AuthApiService.createHubBroadcast(
+        hubId: widget.hubId,
+        title: title,
+        content: content,
+        priority: _priority,
+        sendAsSms: _sendAsSms && _canCreateBroadcasts,
+      );
+      if (!mounted) return;
+      final broadcast = result;
+      setState(() {
+        if (broadcast is Map<String, dynamic>) {
+          _announcements.insert(0, Map<String, dynamic>.from(broadcast));
+        }
+        _isCreating = false;
+      });
+      _titleController.clear();
+      _contentController.clear();
+      _priority = 'normal';
+      _sendAsSms = false;
+      if (Navigator.of(sheetContext).canPop()) {
+        Navigator.of(sheetContext).pop();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Announcement posted successfully.')),
+      );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setSheetState(() {
+        _isCreating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setSheetState(() {
+        _isCreating = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to create announcement right now')),
+      );
     }
+  }
+
+  void _openComposer() {
+    if (!_canCreateBroadcasts) return;
+
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 12,
+                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Create broadcast',
+                        style: AppTextStyles.heading.copyWith(fontSize: 20),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _titleController,
+                        decoration: const InputDecoration(
+                          labelText: 'Title',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _contentController,
+                        maxLines: 5,
+                        decoration: const InputDecoration(
+                          labelText: 'Content',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        value: _priority,
+                        decoration: const InputDecoration(
+                          labelText: 'Priority',
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'low', child: Text('Low')),
+                          DropdownMenuItem(value: 'normal', child: Text('Normal')),
+                          DropdownMenuItem(value: 'high', child: Text('High')),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setSheetState(() => _priority = value);
+                          setState(() => _priority = value);
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Send as SMS',
+                              style: AppTextStyles.body.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                          Switch(
+                            value: _sendAsSms,
+                            onChanged: (value) {
+                              setSheetState(() => _sendAsSms = value);
+                              setState(() => _sendAsSms = value);
+                            },
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _isCreating
+                              ? null
+                              : () => _createBroadcast(sheetContext, setSheetState),
+                          child: _isCreating
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Publish broadcast'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+              const SizedBox(height: 16),
+              Text(_error!, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: _loadAnnouncements,
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_announcements.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.campaign_outlined,
+                size: 64,
+                color: AppColors.textSecondary.withValues(alpha: 0.5),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'No announcements',
+                style: AppTextStyles.heading.copyWith(fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Check back later for updates',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadAnnouncements,
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: _announcements.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 16),
+        itemBuilder: (context, index) => _buildCard(_announcements[index]),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(_sectionTitle, style: AppTextStyles.label),
+            Text(
+              'Important Updates',
+              style: AppTextStyles.body.copyWith(
+                fontSize: 12,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            onPressed: _isLoading ? null : _loadAnnouncements,
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+        ],
+      ),
+      floatingActionButton: _canCreateBroadcasts
+          ? FloatingActionButton.extended(
+              onPressed: _openComposer,
+              icon: const Icon(Icons.add_alert_outlined),
+              label: const Text('New broadcast'),
+            )
+          : null,
+      body: _buildBody(),
+    );
   }
 }
