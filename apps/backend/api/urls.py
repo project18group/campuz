@@ -10,6 +10,7 @@ router.register(r"hubs", views.HubViewSet)
 router.register(r"messages", views.MessageViewSet)
 router.register(r"broadcasts", views.BroadcastViewSet)
 router.register(r"resources", views.ResourceViewSet)
+router.register(r"tasks", views.TaskViewSet)
 router.register(r"sections", views.HubSectionViewSet, basename="section")
 
 urlpatterns = [
@@ -57,6 +58,11 @@ urlpatterns = [
         "hubs/<int:hub_id>/resources/",
         views.ResourceViewSet.as_view({"get": "list", "post": "create"}),
         name="hub-resources",
+    ),
+    path(
+        "hubs/<int:hub_id>/tasks/",
+        views.TaskViewSet.as_view({"get": "list", "post": "create"}),
+        name="hub-tasks",
     ),
     path(
         "hubs/<int:hub_id>/broadcasts/",

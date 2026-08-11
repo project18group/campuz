@@ -6,6 +6,7 @@ from django.db import transaction
 from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 from rest_framework import generics, permissions, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,6 +23,7 @@ from .models import (
     Message,
     SMSDelivery,
     Resource,
+    TaskItem,
     UserProfile,
 )
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
@@ -34,6 +36,10 @@ from .serializers import (
     HubMembershipActionSerializer,
     HubMemberSerializer,
     HubSectionSerializer,
+    TaskCreateSerializer,
+    TaskGradeSerializer,
+    TaskSerializer,
+    TaskSubmitSerializer,
     HubSerializer,
     MessageSerializer,
     ResourceCreateSerializer,
@@ -106,6 +112,12 @@ class HubMessagePagination(PageNumberPagination):
 
 
 class BroadcastPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class TaskPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 50
@@ -634,6 +646,221 @@ class ResourceViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
         return super().destroy(request, *args, **kwargs)
+
+
+class TaskViewSet(viewsets.ModelViewSet):
+    queryset = TaskItem.objects.all()
+    serializer_class = TaskSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = TaskPagination
+
+    def get_queryset(self):
+        qs = (
+            TaskItem.objects.select_related(
+                "hub",
+                "hub__creator",
+                "hub__creator__profile",
+                "assigned_to",
+                "assigned_to__profile",
+                "graded_by",
+                "graded_by__profile",
+            )
+            .order_by("due_date", "-updated_at", "-id")
+        )
+        hub_id = self.kwargs.get("hub_id")
+        if hub_id:
+            hub_id_int = int(hub_id)
+            if not _is_hub_member(self.request.user, hub_id_int):
+                return qs.none()
+            if not _is_hub_admin(self.request.user, hub_id_int):
+                return qs.filter(hub_id=hub_id_int, assigned_to=self.request.user)
+            qs = qs.filter(hub_id=hub_id_int)
+        status_filter = self.request.query_params.get("status", "").strip().lower()
+        if status_filter and status_filter != "all":
+            qs = qs.filter(status=status_filter)
+        mine = self.request.query_params.get("mine", "").strip().lower()
+        if mine in {"1", "true", "yes", "on"}:
+            qs = qs.filter(assigned_to=self.request.user)
+        elif not self.request.user.is_superuser and not hub_id:
+            qs = qs.filter(assigned_to=self.request.user)
+        return qs
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def _ensure_membership(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_member(self.request.user, hub_id)
+
+    def _ensure_admin(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_admin(self.request.user, hub_id)
+
+    def list(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id")
+        if hub_id and not self._ensure_membership(int(hub_id)):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        qs = self.get_queryset()
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.hub_id and not self._ensure_membership(instance.hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not request.user.is_superuser:
+            membership = (
+                instance.hub.hub_members.filter(user=request.user).first()
+                if instance.hub_id
+                else None
+            )
+            if membership is None and instance.assigned_to_id != request.user.id:
+                return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        return super().retrieve(request, *args, **kwargs)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id") or request.data.get("hub")
+        if not hub_id:
+            return Response(
+                {"error": "hub_id is required in the URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        hub = self._hub_or_404(int(hub_id))
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not self._ensure_admin(int(hub_id)):
+            return Response(
+                {"error": "Only Hub admins can create tasks."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = TaskCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            assignee = User.objects.select_related("profile").get(
+                pk=serializer.validated_data["assigned_to_id"]
+            )
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Assigned user not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not _is_hub_member(assignee, int(hub_id)):
+            return Response(
+                {"error": "Assigned user is not a member of this hub."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        task = TaskItem.objects.create(
+            hub=hub,
+            title=serializer.validated_data["title"],
+            description=serializer.validated_data.get("description", ""),
+            course_name=serializer.validated_data["course_name"],
+            due_date=serializer.validated_data["due_date"],
+            status="pending",
+            assigned_to=assignee,
+        )
+        return Response(
+            TaskSerializer(task, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update tasks."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update tasks."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can delete tasks."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def submit(self, request, pk=None):
+        task = self.get_object()
+        if task.assigned_to_id != request.user.id and not request.user.is_superuser:
+            return Response(
+                {"error": "You can only submit tasks assigned to you."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = TaskSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        task.submission_text = serializer.validated_data.get("submission_text", "")
+        task.submission_link = serializer.validated_data.get("submission_link", "")
+        task.status = "submitted"
+        task.submitted_at = timezone.now()
+        task.save(
+            update_fields=[
+                "submission_text",
+                "submission_link",
+                "status",
+                "submitted_at",
+                "updated_at",
+            ]
+        )
+        return Response(
+            TaskSerializer(task, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"])
+    @transaction.atomic
+    def grade(self, request, pk=None):
+        task = self.get_object()
+        if not self._ensure_admin(task.hub_id):
+            return Response(
+                {"error": "Only Hub admins can grade tasks."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = TaskGradeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        task.grade = serializer.validated_data["grade"]
+        task.feedback = serializer.validated_data.get("feedback", "")
+        task.status = "graded"
+        task.graded_by = request.user
+        task.graded_at = timezone.now()
+        task.save(
+            update_fields=[
+                "grade",
+                "feedback",
+                "status",
+                "graded_by",
+                "graded_at",
+                "updated_at",
+            ]
+        )
+        return Response(
+            TaskSerializer(task, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
 
 
 class HubBroadcastView(APIView):

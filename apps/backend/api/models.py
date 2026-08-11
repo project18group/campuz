@@ -282,16 +282,70 @@ class TaskItem(models.Model):
         ("submitted", "Submitted"),
         ("graded", "Graded"),
     ]
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="tasks",
+        null=True,
+        blank=True,
+    )
     title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
     course_name = models.CharField(max_length=100)
     due_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
     assigned_to = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="tasks"
+        User,
+        on_delete=models.CASCADE,
+        related_name="tasks",
     )
+    submission_text = models.TextField(blank=True, null=True)
+    submission_link = models.URLField(max_length=1000, blank=True, null=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    graded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="graded_tasks",
+    )
+    graded_at = models.DateTimeField(null=True, blank=True)
+    grade = models.CharField(max_length=50, blank=True, null=True)
+    feedback = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.title} ({self.status})"
+
+
+class HubMeeting(models.Model):
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="meetings",
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    meeting_url = models.URLField(max_length=1000)
+    scheduled_for = models.DateTimeField()
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="created_hub_meetings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_for", "id"]
+        indexes = [
+            models.Index(fields=["hub", "scheduled_for"]),
+            models.Index(fields=["hub", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.hub.name}"
 
 
 class HubSection(models.Model):

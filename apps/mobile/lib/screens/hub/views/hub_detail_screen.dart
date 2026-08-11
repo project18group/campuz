@@ -281,7 +281,11 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         );
         break;
       case 'tasks':
-        screen = SectionTasksScreen(hubId: hubId, section: section);
+        screen = SectionTasksScreen(
+          hubId: hubId,
+          section: section,
+          hub: widget.hub,
+        );
         break;
       case 'meetings':
         ScaffoldMessenger.of(context).showSnackBar(

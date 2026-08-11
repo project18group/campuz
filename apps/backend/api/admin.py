@@ -50,4 +50,16 @@ admin.site.register(HubMember)
 admin.site.register(Message)
 admin.site.register(Broadcast)
 admin.site.register(Resource)
-admin.site.register(TaskItem)
+
+
+@admin.register(TaskItem)
+class TaskItemAdmin(admin.ModelAdmin):
+    list_display = ["title", "hub", "assigned_to", "status", "due_date", "grade"]
+    search_fields = [
+        "title",
+        "course_name",
+        "hub__name",
+        "assigned_to__username",
+        "assigned_to__profile__display_name",
+    ]
+    list_filter = ["hub", "status", "due_date"]

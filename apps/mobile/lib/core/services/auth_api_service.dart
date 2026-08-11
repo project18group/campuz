@@ -281,6 +281,146 @@ class AuthApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> getHubTasks({
+    required int hubId,
+    int page = 1,
+    String status = 'all',
+    bool mine = false,
+  }) async {
+    final query = <String, String>{'page': '$page'};
+    if (status.isNotEmpty && status != 'all') {
+      query['status'] = status;
+    }
+    if (mine) {
+      query['mine'] = 'true';
+    }
+    final uri = Uri.parse('$_baseUrl/hubs/$hubId/tasks/').replace(
+      queryParameters: query,
+    );
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
+  static Future<Map<String, dynamic>> getTasks({
+    int page = 1,
+    String status = 'all',
+    bool mine = true,
+  }) async {
+    final query = <String, String>{'page': '$page'};
+    if (status.isNotEmpty && status != 'all') {
+      query['status'] = status;
+    }
+    if (mine) {
+      query['mine'] = 'true';
+    }
+    final uri = Uri.parse('$_baseUrl/tasks/').replace(queryParameters: query);
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
+  static Future<Map<String, dynamic>> createHubTask({
+    required int hubId,
+    required String title,
+    required String courseName,
+    required DateTime dueDate,
+    required int assignedToId,
+    String? description,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/tasks/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          'course_name': courseName,
+          'due_date': dueDate.toUtc().toIso8601String(),
+          'assigned_to_id': assignedToId,
+          if (description != null) 'description': description,
+        }),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> updateHubTask({
+    required int taskId,
+    String? title,
+    String? description,
+    String? courseName,
+    DateTime? dueDate,
+    int? assignedToId,
+    String? status,
+    String? submissionText,
+    String? submissionLink,
+    String? grade,
+    String? feedback,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (courseName != null) body['course_name'] = courseName;
+    if (dueDate != null) body['due_date'] = dueDate.toUtc().toIso8601String();
+    if (assignedToId != null) body['assigned_to_id'] = assignedToId;
+    if (status != null) body['status'] = status;
+    if (submissionText != null) body['submission_text'] = submissionText;
+    if (submissionLink != null) body['submission_link'] = submissionLink;
+    if (grade != null) body['grade'] = grade;
+    if (feedback != null) body['feedback'] = feedback;
+    return _authorized(
+      (token) => _client.patch(
+        Uri.parse('$_baseUrl/tasks/$taskId/'),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> deleteHubTask({
+    required int taskId,
+  }) async {
+    return _authorized(
+      (token) => _client.delete(
+        Uri.parse('$_baseUrl/tasks/$taskId/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> submitHubTask({
+    required int taskId,
+    String? submissionText,
+    String? submissionLink,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/tasks/$taskId/submit/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          if (submissionText != null) 'submission_text': submissionText,
+          if (submissionLink != null) 'submission_link': submissionLink,
+        }),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> gradeHubTask({
+    required int taskId,
+    required String grade,
+    String? feedback,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/tasks/$taskId/grade/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'grade': grade,
+          if (feedback != null) 'feedback': feedback,
+        }),
+      ),
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> getResources({
     int? hubId,
     String query = '',

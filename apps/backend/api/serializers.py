@@ -14,6 +14,7 @@ from .models import (
     HubSection,
     Message,
     Resource,
+    TaskItem,
     UserProfile,
 )
 
@@ -538,6 +539,176 @@ class ResourceSerializer(serializers.ModelSerializer):
             return True
         membership = obj.hub.hub_members.filter(user=request.user).first()
         return bool(membership and membership.role == "admin")
+
+
+class TaskCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    course_name = serializers.CharField(max_length=100)
+    due_date = serializers.DateTimeField()
+    assigned_to_id = serializers.IntegerField(min_value=1)
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Title cannot be blank.")
+        return value
+
+    def validate_course_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Course name cannot be blank.")
+        return value
+
+    def validate_description(self, value):
+        if value is None:
+            return ""
+        return value.strip()
+
+
+class TaskSubmitSerializer(serializers.Serializer):
+    submission_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    submission_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_submission_text(self, value):
+        if value is None:
+            return ""
+        return value.strip()
+
+    def validate_submission_link(self, value):
+        if value is None:
+            return ""
+        return value.strip()
+
+
+class TaskGradeSerializer(serializers.Serializer):
+    grade = serializers.CharField(max_length=50)
+    feedback = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    def validate_grade(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Grade cannot be blank.")
+        return value
+
+    def validate_feedback(self, value):
+        if value is None:
+            return ""
+        return value.strip()
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    assigned_to = UserSerializer(read_only=True)
+    assigned_to_name = serializers.SerializerMethodField()
+    graded_by_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+    can_manage = serializers.SerializerMethodField()
+    can_submit = serializers.SerializerMethodField()
+    can_grade = serializers.SerializerMethodField()
+    is_overdue = serializers.SerializerMethodField()
+    is_submitted = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TaskItem
+        fields = [
+            "id",
+            "hub",
+            "title",
+            "description",
+            "course_name",
+            "due_date",
+            "status",
+            "assigned_to",
+            "assigned_to_name",
+            "submission_text",
+            "submission_link",
+            "submitted_at",
+            "graded_by_name",
+            "graded_at",
+            "grade",
+            "feedback",
+            "is_mine",
+            "can_manage",
+            "can_submit",
+            "can_grade",
+            "is_overdue",
+            "is_submitted",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "hub",
+            "assigned_to",
+            "assigned_to_name",
+            "graded_by_name",
+            "is_mine",
+            "can_manage",
+            "can_submit",
+            "can_grade",
+            "is_overdue",
+            "is_submitted",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_assigned_to_name(self, obj):
+        profile = getattr(obj.assigned_to, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_graded_by_name(self, obj):
+        if obj.graded_by is None:
+            return None
+        profile = getattr(obj.graded_by, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def _request_user(self):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return None
+        return request.user
+
+    def _is_admin(self, obj):
+        user = self._request_user()
+        if user is None:
+            return False
+        if user.is_superuser:
+            return True
+        if obj.hub_id is None:
+            return False
+        membership = obj.hub.hub_members.filter(user=user).first()
+        return bool(membership and membership.role == "admin")
+
+    def get_is_mine(self, obj):
+        user = self._request_user()
+        return bool(user and obj.assigned_to_id == user.id)
+
+    def get_can_manage(self, obj):
+        return self._is_admin(obj)
+
+    def get_can_submit(self, obj):
+        user = self._request_user()
+        return bool(user and obj.assigned_to_id == user.id and obj.status in {"pending", "submitted"})
+
+    def get_can_grade(self, obj):
+        return self._is_admin(obj)
+
+    def get_is_overdue(self, obj):
+        return obj.status == "pending" and obj.due_date < timezone.now()
+
+    def get_is_submitted(self, obj):
+        return obj.status in {"submitted", "graded"}
 
 
 class MessageSerializer(serializers.ModelSerializer):
