@@ -17,6 +17,7 @@ from .models import (
     DirectMessage,
     Broadcast,
     Hub,
+    HubMeeting,
     HubMember,
     HubSection,
     Message,
@@ -32,6 +33,8 @@ from .serializers import (
     DirectConversationSerializer,
     DirectMessageSerializer,
     HubMembershipActionSerializer,
+    HubMeetingCreateSerializer,
+    HubMeetingSerializer,
     HubMemberSerializer,
     HubSectionSerializer,
     HubSerializer,
@@ -107,6 +110,12 @@ class HubMessagePagination(PageNumberPagination):
 
 class BroadcastPagination(PageNumberPagination):
     page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class HubMeetingPagination(PageNumberPagination):
+    page_size = 10
     page_size_query_param = "page_size"
     max_page_size = 50
 
@@ -510,6 +519,122 @@ class BroadcastViewSet(viewsets.ReadOnlyModelViewSet):
         if self.request.user.is_superuser:
             return qs
         return qs.filter(hub__hub_members__user=self.request.user).distinct()
+
+
+class HubMeetingViewSet(viewsets.ModelViewSet):
+    queryset = HubMeeting.objects.all()
+    serializer_class = HubMeetingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = HubMeetingPagination
+
+    def get_queryset(self):
+        qs = (
+            HubMeeting.objects.select_related(
+                "hub",
+                "hub__creator",
+                "hub__creator__profile",
+                "created_by",
+                "created_by__profile",
+            )
+            .order_by("scheduled_for", "id")
+        )
+        hub_id = self.kwargs.get("hub_id")
+        if hub_id:
+            qs = qs.filter(hub_id=hub_id)
+        if self.request.user.is_superuser:
+            return qs
+        qs = qs.filter(hub__hub_members__user=self.request.user).distinct()
+        return qs
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def _ensure_membership(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_member(self.request.user, hub_id)
+
+    def _ensure_admin(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_admin(self.request.user, hub_id)
+
+    def list(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id")
+        if hub_id and not self._ensure_membership(int(hub_id)):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        qs = self.get_queryset().filter(scheduled_for__gte=timezone.now())
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(qs, request, view=self)
+        serializer = self.get_serializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id") or request.data.get("hub")
+        if not hub_id:
+            return Response(
+                {"error": "hub_id is required in the URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        hub = self._hub_or_404(int(hub_id))
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not self._ensure_membership(int(hub_id)):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if not self._ensure_admin(int(hub_id)):
+            return Response(
+                {"error": "Only Hub admins can create meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = HubMeetingCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        meeting = HubMeeting.objects.create(
+            hub=hub,
+            created_by=request.user,
+            title=serializer.validated_data["title"],
+            description=serializer.validated_data.get("description", ""),
+            meeting_url=serializer.validated_data["meeting_url"],
+            scheduled_for=serializer.validated_data["scheduled_for"],
+        )
+        return Response(
+            HubMeetingSerializer(meeting, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can delete meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class ResourceViewSet(viewsets.ModelViewSet):

@@ -6,6 +6,7 @@ from .models import (
     DirectConversation,
     DirectMessage,
     Hub,
+    HubMeeting,
     HubMember,
     Message,
     Resource,
@@ -51,3 +52,23 @@ admin.site.register(Message)
 admin.site.register(Broadcast)
 admin.site.register(Resource)
 admin.site.register(TaskItem)
+
+
+@admin.register(HubMeeting)
+class HubMeetingAdmin(admin.ModelAdmin):
+    list_display = [
+        "title",
+        "hub",
+        "scheduled_for",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
+    search_fields = [
+        "title",
+        "description",
+        "hub__name",
+        "created_by__username",
+    ]
+    list_filter = ["hub", "created_at", "scheduled_for"]
+    readonly_fields = ["created_at", "updated_at"]
