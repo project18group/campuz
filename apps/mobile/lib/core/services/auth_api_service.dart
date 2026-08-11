@@ -1,6 +1,8 @@
 import 'dart:convert';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+import 'package:path/path.dart' as p;
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/services/secure_token_storage.dart';
 
@@ -143,24 +145,64 @@ class AuthApiService {
 
   static Future<List<Map<String, dynamic>>> getDirectMessages({
     required int conversationId,
+    int page = 1,
   }) async {
-    final result = await _authorized(
-      (token) => _client.get(
-        Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
-        headers: _headers(token),
-      ),
+    final result = await getDirectMessagesPage(
+      conversationId: conversationId,
+      page: page,
     );
-    final list = result['data'];
+    final list = result['results'] ?? result['data'] ?? result;
     if (list is List) {
       return list.whereType<Map<String, dynamic>>().toList();
     }
     return <Map<String, dynamic>>[];
   }
 
+  static Future<Map<String, dynamic>> getDirectMessagesPage({
+    required int conversationId,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/')
+        .replace(queryParameters: {'page': '$page'});
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
   static Future<Map<String, dynamic>> sendDirectMessage({
     required int conversationId,
     required String content,
+    List<PlatformFile> attachments = const <PlatformFile>[],
   }) async {
+    if (attachments.isNotEmpty) {
+      return _authorizedMultipart(
+        (token) async {
+          final request = http.MultipartRequest(
+            'POST',
+            Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
+          );
+          if (token != null && token.isNotEmpty) {
+            request.headers['Authorization'] = 'Bearer $token';
+          }
+          request.headers['Accept'] = 'application/json';
+          if (content.trim().isNotEmpty) {
+            request.fields['content'] = content.trim();
+          }
+          for (final file in attachments) {
+            final path = file.path;
+            if (path == null || path.isEmpty) continue;
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'attachments',
+                path,
+                filename: file.name.isNotEmpty ? file.name : p.basename(path),
+              ),
+            );
+          }
+          return request.send();
+        },
+      );
+    }
     return _authorized(
       (token) => _client.post(
         Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
@@ -258,6 +300,22 @@ class AuthApiService {
     return _authorized(
       (token) => _client.get(uri, headers: _headers(token)),
     );
+  }
+
+  static Future<List<Map<String, dynamic>>> getMeetings({
+    int? hubId,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/meetings/').replace(
+      queryParameters: hubId != null ? {'hub': '$hubId'} : null,
+    );
+    final result = await _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+    final list = result['data'] ?? result['results'] ?? result;
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
   }
 
   static Future<Map<String, dynamic>> createHubBroadcast({
@@ -649,6 +707,44 @@ class AuthApiService {
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         // For list responses, wrap in {"data": [...]} for a uniform return type.
+        if (decoded is List) return <String, dynamic>{'data': decoded};
+        return decoded is Map<String, dynamic>
+            ? decoded
+            : <String, dynamic>{'data': decoded};
+      }
+      throw AuthApiException(
+        _extractErrorMessage(decoded) ??
+            'Request failed with status ${response.statusCode}',
+      );
+    } on http.ClientException catch (error) {
+      throw AuthApiException(
+        'Unable to reach the backend at $_baseUrl. ${error.message}',
+      );
+    } catch (error) {
+      if (error is AuthApiException) rethrow;
+      throw AuthApiException('Unexpected auth error: $error');
+    }
+  }
+
+  static Future<Map<String, dynamic>> _authorizedMultipart(
+    Future<http.StreamedResponse> Function(String? token) send, {
+    String? overrideToken,
+  }) async {
+    var token =
+        overrideToken ??
+        AuthSession.accessToken ??
+        await SecureTokenStorage.readAccessToken();
+    try {
+      var streamed = await send(token);
+      if (streamed.statusCode == 401 && overrideToken == null) {
+        if (await refreshSession()) {
+          token = AuthSession.accessToken;
+          streamed = await send(token);
+        }
+      }
+      final response = await http.Response.fromStream(streamed);
+      final decoded = _decodeResponse(response);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         if (decoded is List) return <String, dynamic>{'data': decoded};
         return decoded is Map<String, dynamic>
             ? decoded

@@ -4,8 +4,10 @@ from .models import (
     AdminInvitationCode,
     Broadcast,
     DirectConversation,
+    DirectMessageAttachment,
     DirectMessage,
     Hub,
+    HubMeeting,
     HubMember,
     Message,
     Resource,
@@ -45,10 +47,18 @@ class DirectMessageAdmin(admin.ModelAdmin):
     readonly_fields = ["timestamp"]
 
 
+@admin.register(DirectMessageAttachment)
+class DirectMessageAttachmentAdmin(admin.ModelAdmin):
+    list_display = ["file_name", "message", "mime_type", "size_bytes", "created_at"]
+    search_fields = ["file_name", "message__sender__username", "message__conversation__id"]
+    readonly_fields = ["created_at"]
+
+
 admin.site.register(Hub)
 admin.site.register(HubMember)
 admin.site.register(Message)
 admin.site.register(Broadcast)
+admin.site.register(HubMeeting)
 admin.site.register(Resource)
 
 

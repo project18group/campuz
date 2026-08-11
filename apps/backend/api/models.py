@@ -525,4 +525,27 @@ class DirectMessage(models.Model):
         ordering = ["timestamp"]
 
     def __str__(self):
-        return f"{self.sender.username} → {self.content[:30]}"
+        return f"{self.sender.username} -> {self.content[:30]}"
+
+
+class DirectMessageAttachment(models.Model):
+    """
+    A file attached to a direct message.
+    """
+
+    message = models.ForeignKey(
+        DirectMessage,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="direct_messages/%Y/%m/%d/")
+    file_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return self.file_name

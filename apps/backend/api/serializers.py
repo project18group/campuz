@@ -7,9 +7,11 @@ from rest_framework import serializers
 from .models import (
     AdminInvitationCode,
     DirectConversation,
+    DirectMessageAttachment,
     DirectMessage,
     Broadcast,
     Hub,
+    HubMeeting,
     HubMember,
     HubSection,
     Message,
@@ -184,6 +186,9 @@ class DirectMessageSerializer(serializers.ModelSerializer):
     sender_id = serializers.IntegerField(source="sender.id", read_only=True)
     sender_name = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
+    has_attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = DirectMessage
@@ -195,6 +200,9 @@ class DirectMessageSerializer(serializers.ModelSerializer):
             "content",
             "timestamp",
             "is_read",
+            "attachments",
+            "attachment_count",
+            "has_attachments",
         ]
         read_only_fields = [
             "sender_id",
@@ -202,6 +210,9 @@ class DirectMessageSerializer(serializers.ModelSerializer):
             "is_mine",
             "timestamp",
             "is_read",
+            "attachments",
+            "attachment_count",
+            "has_attachments",
         ]
 
     def get_sender_name(self, obj):
@@ -210,6 +221,59 @@ class DirectMessageSerializer(serializers.ModelSerializer):
     def get_is_mine(self, obj):
         request = self.context.get("request")
         return bool(request and obj.sender_id == request.user.id)
+
+    def get_attachments(self, obj):
+        request = self.context.get("request")
+        return DirectMessageAttachmentSerializer(
+            obj.attachments.all(),
+            many=True,
+            context={"request": request},
+        ).data
+
+    def get_attachment_count(self, obj):
+        return obj.attachments.count()
+
+    def get_has_attachments(self, obj):
+        return obj.attachments.exists()
+
+
+class DirectMessageAttachmentSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    extension = serializers.SerializerMethodField()
+    is_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DirectMessageAttachment
+        fields = [
+            "id",
+            "file_name",
+            "mime_type",
+            "size_bytes",
+            "url",
+            "extension",
+            "is_image",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if not obj.file:
+            return None
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_extension(self, obj):
+        name = obj.file_name or ""
+        if "." not in name:
+            return ""
+        return name.rsplit(".", 1)[-1].lower()
+
+    def get_is_image(self, obj):
+        mime_type = (obj.mime_type or "").lower()
+        if mime_type.startswith("image/"):
+            return True
+        return self.get_extension(obj) in {"jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"}
 
 
 class DirectConversationSerializer(serializers.ModelSerializer):
@@ -378,6 +442,62 @@ class HubSerializer(serializers.ModelSerializer):
             return False
         if request.user.is_superuser:
             return True
+        return bool(membership and membership.role == "admin")
+
+
+class HubMeetingSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+    can_manage = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HubMeeting
+        fields = [
+            "id",
+            "hub",
+            "title",
+            "description",
+            "meeting_url",
+            "scheduled_for",
+            "created_by",
+            "created_by_name",
+            "is_mine",
+            "can_manage",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "hub",
+            "created_by",
+            "created_by_name",
+            "is_mine",
+            "can_manage",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_created_by_name(self, obj):
+        profile = getattr(obj.created_by, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.created_by_id == request.user.id)
+
+    def get_can_manage(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        membership = obj.hub.hub_members.filter(user=request.user).first()
         return bool(membership and membership.role == "admin")
 
 

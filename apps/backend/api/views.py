@@ -15,9 +15,11 @@ from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re
 
 from .models import (
     DirectConversation,
+    DirectMessageAttachment,
     DirectMessage,
     Broadcast,
     Hub,
+    HubMeeting,
     HubMember,
     HubSection,
     Message,
@@ -36,6 +38,7 @@ from .serializers import (
     HubMembershipActionSerializer,
     HubMemberSerializer,
     HubSectionSerializer,
+    HubMeetingSerializer,
     TaskCreateSerializer,
     TaskGradeSerializer,
     TaskSerializer,
@@ -118,6 +121,12 @@ class BroadcastPagination(PageNumberPagination):
 
 
 class TaskPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
+class DirectMessagePagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "page_size"
     max_page_size = 50
@@ -350,7 +359,7 @@ class DirectConversationView(APIView):
         me = request.user
         conversations = DirectConversation.objects.filter(
             Q(user_1=me) | Q(user_2=me)
-        ).select_related("user_1__profile", "user_2__profile").prefetch_related("messages")
+        ).select_related("user_1__profile", "user_2__profile").order_by("-updated_at")
         serializer = DirectConversationSerializer(
             conversations, many=True, context={"request": request}
         )
@@ -402,6 +411,7 @@ class DirectConversationView(APIView):
 
 class DirectMessageView(APIView):
     permission_classes = (permissions.IsAuthenticated,)
+    pagination_class = DirectMessagePagination
 
     def _conversation(self, request, conversation_id):
         return DirectConversation.objects.filter(
@@ -416,16 +426,14 @@ class DirectMessageView(APIView):
                 {"error": "Conversation not found."},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        messages = conversation.messages.select_related("sender__profile")
+        messages = conversation.messages.select_related("sender__profile").order_by(
+            "-timestamp", "-id"
+        ).prefetch_related("attachments")
         messages.exclude(sender=request.user).filter(is_read=False).update(is_read=True)
-        return Response(
-            DirectMessageSerializer(
-                messages,
-                many=True,
-                context={"request": request},
-            ).data,
-            status=status.HTTP_200_OK,
-        )
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(messages, request, view=self)
+        serializer = DirectMessageSerializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
 
     @transaction.atomic
     def post(self, request, conversation_id):
@@ -436,9 +444,10 @@ class DirectMessageView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
         content = str(request.data.get("content", "")).strip()
-        if not content:
+        attachments = request.FILES.getlist("attachments")
+        if not content and not attachments:
             return Response(
-                {"error": "Message content is required."},
+                {"error": "Message content or an attachment is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         message = DirectMessage.objects.create(
@@ -446,6 +455,15 @@ class DirectMessageView(APIView):
             sender=request.user,
             content=content,
         )
+        for upload in attachments:
+            DirectMessageAttachment.objects.create(
+                message=message,
+                file=upload,
+                file_name=getattr(upload, "name", "attachment"),
+                mime_type=getattr(upload, "content_type", None),
+                size_bytes=getattr(upload, "size", None),
+            )
+        conversation.updated_at = timezone.now()
         conversation.save(update_fields=["updated_at"])
         return Response(
             DirectMessageSerializer(
@@ -522,6 +540,113 @@ class BroadcastViewSet(viewsets.ReadOnlyModelViewSet):
         if self.request.user.is_superuser:
             return qs
         return qs.filter(hub__hub_members__user=self.request.user).distinct()
+
+
+class HubMeetingViewSet(viewsets.ModelViewSet):
+    queryset = HubMeeting.objects.all()
+    serializer_class = HubMeetingSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        qs = (
+            HubMeeting.objects.select_related(
+                "hub",
+                "hub__creator",
+                "hub__creator__profile",
+                "created_by",
+                "created_by__profile",
+            )
+            .order_by("scheduled_for", "-created_at", "-id")
+        )
+        qs = qs.filter(scheduled_for__gte=timezone.now())
+        hub_id = self.kwargs.get("hub_id") or self.request.query_params.get("hub")
+        if hub_id:
+            return qs.filter(hub_id=int(hub_id))
+        if self.request.user.is_superuser:
+            return qs
+        return qs.filter(hub__hub_members__user=self.request.user).distinct()
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def _ensure_admin(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_admin(self.request.user, hub_id)
+
+    def _ensure_member(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_member(self.request.user, hub_id)
+
+    def list(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id")
+        if hub_id and not self._ensure_member(int(hub_id)):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_member(instance.hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        return super().retrieve(request, *args, **kwargs)
+
+    @transaction.atomic
+    def create(self, request, *args, **kwargs):
+        hub_id = kwargs.get("hub_id") or request.data.get("hub")
+        if not hub_id:
+            return Response(
+                {"error": "hub_id is required in the URL."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        hub = self._hub_or_404(int(hub_id))
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not self._ensure_admin(int(hub_id)):
+            return Response(
+                {"error": "Only Hub admins can create meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        meeting = serializer.save(hub=hub, created_by=request.user)
+        return Response(
+            self.get_serializer(meeting, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @transaction.atomic
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can update meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().partial_update(request, *args, **kwargs)
+
+    @transaction.atomic
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if not self._ensure_admin(instance.hub_id):
+            return Response(
+                {"error": "Only Hub admins can delete meetings."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
 
 
 class ResourceViewSet(viewsets.ModelViewSet):
