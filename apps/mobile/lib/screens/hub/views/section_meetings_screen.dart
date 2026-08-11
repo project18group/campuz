@@ -293,7 +293,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
               setSheetState(() => sending = true);
               try {
                 if (isEditing) {
-                  final meetingId = meeting?['id'];
+                  final meetingId = meeting['id'];
                   final id = meetingId is int ? meetingId : int.tryParse('$meetingId');
                   if (id == null) {
                     throw const AuthApiException('Invalid meeting id.');

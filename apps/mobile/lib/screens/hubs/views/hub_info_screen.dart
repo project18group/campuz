@@ -70,7 +70,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     });
 
     try {
-      final result = await getHubMembers(hubId: _hubId);
+      final result = await AuthApiService.getHubMembers(hubId: _hubId);
       final hub = result['hub'];
       final members = result['members'];
 
@@ -114,7 +114,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     setState(() => _isUpdating = true);
 
     try {
-      await updateHubMembership(
+      await AuthApiService.updateHubMembership(
         hubId: _hubId,
         action: action,
         userId: userId,
@@ -450,7 +450,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                             : () async {
                                 setModalState(() => submitting = true);
                                 try {
-                                  await updateHubMembership(
+                                  await AuthApiService.updateHubMembership(
                                     hubId: _hubId,
                                     action: 'add',
                                     userIds: selectedIds.toList(),

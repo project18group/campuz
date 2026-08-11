@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 
 /// Sprint 15 — Notification architecture (mock, no plugin dependencies).
 ///
@@ -210,31 +211,59 @@ class NotificationService {
   }
 
   // ---------------------------------------------------------------------
-  // Django integration placeholders — NOT implemented yet.
+  // Django integration
   // ---------------------------------------------------------------------
 
   /// Registers this device's push token with the Django backend.
-  ///
-  /// TODO(django): POST the token to /api/devices/register/ with the auth
-  /// header, so the server can target this device via FCM/APNs.
   Future<void> registerDeviceToken(String token) async {
-    // TODO(django): implement server-side device token registration.
+    try {
+      await AuthApiService.registerDeviceToken(token: token);
+    } catch (e) {
+      debugPrint('Failed to register device token: $e');
+    }
   }
 
   /// Pulls the notification history from the Django backend and replaces the
   /// local mock list.
-  ///
-  /// TODO(django): GET /api/notifications/ and map the JSON payload into
-  /// [AppNotification] objects, then publish them to [notifications].
   Future<void> fetchNotificationsFromServer() async {
-    // TODO(django): implement server fetch + local merge.
+    try {
+      final data = await AuthApiService.getNotifications();
+      // data might be a list directly or a paginated response with a "results" key.
+      // Assuming it's a list or has a "results" key.
+      final List results = data;
+      
+      final parsed = results.map((n) {
+        return AppNotification(
+          id: n['id'].toString(),
+          hubId: n['hub']?.toString() ?? '',
+          hubName: 'Hub ${n['hub']}', // Ideally this comes from the API
+          title: n['title'] ?? '',
+          body: n['body'] ?? '',
+          timestamp: DateTime.parse(n['created_at']),
+          isRead: n['is_read'] ?? false,
+        );
+      }).toList();
+
+      notifications.value = parsed;
+    } catch (e) {
+      debugPrint('Failed to fetch notifications: $e');
+    }
   }
 
   /// Pushes local read/unread state back to the Django backend.
-  ///
-  /// TODO(django): PATCH /api/notifications/read-status/ with the ids of
-  /// locally read notifications so state stays consistent across devices.
   Future<void> syncReadStatus() async {
-    // TODO(django): implement read-status sync.
+    final readIds = notifications.value
+        .where((n) => n.isRead)
+        .map((n) => int.tryParse(n.id))
+        .where((id) => id != null)
+        .cast<int>()
+        .toList();
+    if (readIds.isEmpty) return;
+
+    try {
+      await AuthApiService.markNotificationsAsRead(notificationIds: readIds);
+    } catch (e) {
+      debugPrint('Failed to sync notification read status: $e');
+    }
   }
 }

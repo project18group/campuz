@@ -322,7 +322,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _pickAttachments() async {
     if (_isSending) return;
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: false,
       type: FileType.any,

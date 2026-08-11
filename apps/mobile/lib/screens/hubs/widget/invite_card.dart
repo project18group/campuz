@@ -70,6 +70,31 @@ class _InviteCardState extends State<InviteCard> {
     }
   }
 
+  Future<void> _revokeInvite() async {
+    setState(() => _isRefreshing = true);
+    try {
+      await AuthApiService.revokeHubInvite(hubId: widget.hubId);
+      if (!mounted) return;
+      setState(() {
+        _invite = null;
+        _isRefreshing = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite revoked')));
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _error = error.message;
+        _isRefreshing = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Unable to revoke invite right now.';
+        _isRefreshing = false;
+      });
+    }
+  }
+
   String _inviteUrl() {
     final invite = _invite ?? const {};
     final url = (invite['invite_url'] as String? ?? '').trim();
@@ -188,8 +213,13 @@ class _InviteCardState extends State<InviteCard> {
                     ),
                     _InviteAction(
                       icon: Icons.refresh,
-                      label: 'Refresh',
+                      label: 'Regenerate',
                       onTap: () => _loadInvite(refresh: true),
+                    ),
+                    _InviteAction(
+                      icon: Icons.block,
+                      label: 'Revoke',
+                      onTap: _revokeInvite,
                     ),
                   ],
                 ),

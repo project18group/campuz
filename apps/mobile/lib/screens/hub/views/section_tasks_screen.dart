@@ -34,7 +34,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
 
   bool _isLoading = true;
   bool _isSaving = false;
-  bool _isSubmitting = false;
+  final bool _isSubmitting = false;
   String? _error;
   String _filter = 'all';
   Timer? _pollTimer;
@@ -356,7 +356,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
               setSheetState(() => sending = true);
               try {
                 if (isEditing) {
-                  final id = task!['id'] is int ? task['id'] as int : int.tryParse('${task['id']}');
+                  final id = task['id'] is int ? task['id'] as int : int.tryParse('${task['id']}');
                   if (id == null) throw const AuthApiException('Invalid task id.');
                   await AuthApiService.updateHubTask(
                     taskId: id,

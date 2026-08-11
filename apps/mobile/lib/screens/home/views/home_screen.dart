@@ -54,12 +54,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ]);
       if (mounted) {
         setState(() {
-          _hubs = results[0];
-          _conversations = results[1];
-          _broadcasts = results[2];
-          _resources = results[3];
-          _tasks = results[4];
-          _meetings = results[5];
+          _hubs = (results[0] as List).cast<Map<String, dynamic>>();
+          _conversations = (results[1] as List).cast<Map<String, dynamic>>();
+          _broadcasts = (results[2] as List).cast<Map<String, dynamic>>();
+          _resources = (results[3] as List).cast<Map<String, dynamic>>();
+          _tasks = (results[4] as List).cast<Map<String, dynamic>>();
+          _meetings = (results[5] as List).cast<Map<String, dynamic>>();
           _isLoading = false;
         });
       }

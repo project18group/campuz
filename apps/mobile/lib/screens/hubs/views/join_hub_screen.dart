@@ -140,12 +140,12 @@ class _JoinHubScreenState extends State<JoinHubScreen> {
                 width: double.infinity,
                 height: 56,
                 child: OutlinedButton.icon(
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('QR scanning will plug into the same invite join flow.'),
-                      ),
-                    );
+                  onPressed: () async {
+                    final code = await context.push<String>('/scan-qr');
+                    if (code != null && code.isNotEmpty && mounted) {
+                      _inviteController.text = code;
+                      _joinHub();
+                    }
                   },
                   icon: const Icon(Icons.qr_code_scanner),
                   label: const Text('Scan QR Code'),

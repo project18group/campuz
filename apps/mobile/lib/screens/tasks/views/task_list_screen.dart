@@ -18,7 +18,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
   final _submissionTextController = TextEditingController();
   final _submissionLinkController = TextEditingController();
   bool _isLoading = true;
-  bool _isSubmitting = false;
+  final bool _isSubmitting = false;
   String? _error;
   String _filter = 'all';
   Timer? _pollTimer;
