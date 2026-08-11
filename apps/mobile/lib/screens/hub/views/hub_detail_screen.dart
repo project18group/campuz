@@ -4,6 +4,7 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hub/views/section_general_screen.dart';
 import 'package:mobile/screens/hub/views/section_announcements_screen.dart';
+import 'package:mobile/screens/hub/views/section_meetings_screen.dart';
 import 'package:mobile/screens/hub/views/section_resources_screen.dart';
 import 'package:mobile/screens/hub/views/section_tasks_screen.dart';
 
@@ -288,10 +289,12 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         );
         break;
       case 'meetings':
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Meetings section coming soon...')),
+        screen = SectionMeetingsScreen(
+          hubId: hubId,
+          section: section,
+          hub: widget.hub,
         );
-        return;
+        break;
       default:
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Unknown section type: $sectionType')),

@@ -339,6 +339,7 @@ class AuthApiService {
     );
   }
 
+<<<<<<< HEAD
   static Future<Map<String, dynamic>> getHubTasks({
     required int hubId,
     int page = 1,
@@ -354,12 +355,21 @@ class AuthApiService {
     }
     final uri = Uri.parse('$_baseUrl/hubs/$hubId/tasks/').replace(
       queryParameters: query,
+=======
+  static Future<Map<String, dynamic>> getHubMeetings({
+    required int hubId,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/hubs/$hubId/meetings/').replace(
+      queryParameters: {'page': '$page'},
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
     );
     return _authorized(
       (token) => _client.get(uri, headers: _headers(token)),
     );
   }
 
+<<<<<<< HEAD
   static Future<Map<String, dynamic>> getTasks({
     int page = 1,
     String status = 'all',
@@ -396,11 +406,30 @@ class AuthApiService {
           'due_date': dueDate.toUtc().toIso8601String(),
           'assigned_to_id': assignedToId,
           if (description != null) 'description': description,
+=======
+  static Future<Map<String, dynamic>> createHubMeeting({
+    required int hubId,
+    required String title,
+    String? description,
+    required String meetingUrl,
+    required String scheduledFor,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/meetings/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          if (description != null) 'description': description,
+          'meeting_url': meetingUrl,
+          'scheduled_for': scheduledFor,
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
         }),
       ),
     );
   }
 
+<<<<<<< HEAD
   static Future<Map<String, dynamic>> updateHubTask({
     required int taskId,
     String? title,
@@ -413,10 +442,19 @@ class AuthApiService {
     String? submissionLink,
     String? grade,
     String? feedback,
+=======
+  static Future<Map<String, dynamic>> updateHubMeeting({
+    required int meetingId,
+    String? title,
+    String? description,
+    String? meetingUrl,
+    String? scheduledFor,
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
   }) async {
     final body = <String, dynamic>{};
     if (title != null) body['title'] = title;
     if (description != null) body['description'] = description;
+<<<<<<< HEAD
     if (courseName != null) body['course_name'] = courseName;
     if (dueDate != null) body['due_date'] = dueDate.toUtc().toIso8601String();
     if (assignedToId != null) body['assigned_to_id'] = assignedToId;
@@ -428,23 +466,40 @@ class AuthApiService {
     return _authorized(
       (token) => _client.patch(
         Uri.parse('$_baseUrl/tasks/$taskId/'),
+=======
+    if (meetingUrl != null) body['meeting_url'] = meetingUrl;
+    if (scheduledFor != null) body['scheduled_for'] = scheduledFor;
+    return _authorized(
+      (token) => _client.patch(
+        Uri.parse('$_baseUrl/meetings/$meetingId/'),
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
         headers: _headers(token),
         body: jsonEncode(body),
       ),
     );
   }
 
+<<<<<<< HEAD
   static Future<Map<String, dynamic>> deleteHubTask({
     required int taskId,
   }) async {
     return _authorized(
       (token) => _client.delete(
         Uri.parse('$_baseUrl/tasks/$taskId/'),
+=======
+  static Future<Map<String, dynamic>> deleteHubMeeting({
+    required int meetingId,
+  }) async {
+    return _authorized(
+      (token) => _client.delete(
+        Uri.parse('$_baseUrl/meetings/$meetingId/'),
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
         headers: _headers(token),
       ),
     );
   }
 
+<<<<<<< HEAD
   static Future<Map<String, dynamic>> submitHubTask({
     required int taskId,
     String? submissionText,
@@ -479,6 +534,8 @@ class AuthApiService {
     );
   }
 
+=======
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db
   static Future<List<Map<String, dynamic>>> getResources({
     int? hubId,
     String query = '',

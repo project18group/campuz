@@ -60,6 +60,7 @@ admin.site.register(Message)
 admin.site.register(Broadcast)
 admin.site.register(HubMeeting)
 admin.site.register(Resource)
+<<<<<<< HEAD
 
 
 @admin.register(TaskItem)
@@ -73,3 +74,26 @@ class TaskItemAdmin(admin.ModelAdmin):
         "assigned_to__profile__display_name",
     ]
     list_filter = ["hub", "status", "due_date"]
+=======
+admin.site.register(TaskItem)
+
+
+@admin.register(HubMeeting)
+class HubMeetingAdmin(admin.ModelAdmin):
+    list_display = [
+        "title",
+        "hub",
+        "scheduled_for",
+        "created_by",
+        "created_at",
+        "updated_at",
+    ]
+    search_fields = [
+        "title",
+        "description",
+        "hub__name",
+        "created_by__username",
+    ]
+    list_filter = ["hub", "created_at", "scheduled_for"]
+    readonly_fields = ["created_at", "updated_at"]
+>>>>>>> 343590307ed9467c90e946c21e941298f07899db

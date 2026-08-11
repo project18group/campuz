@@ -71,6 +71,11 @@ urlpatterns = [
         name="hub-broadcasts",
     ),
     path(
+        "hubs/<int:hub_id>/meetings/",
+        views.HubMeetingViewSet.as_view({"get": "list", "post": "create"}),
+        name="hub-meetings",
+    ),
+    path(
         "webhooks/sms/delivery/",
         views.SMSDeliveryWebhookView.as_view(),
         name="sms-delivery-webhook",

@@ -276,6 +276,35 @@ class Resource(models.Model):
         return self.title
 
 
+class HubMeeting(models.Model):
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="meetings",
+    )
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True, null=True)
+    meeting_url = models.URLField(max_length=1000)
+    scheduled_for = models.DateTimeField()
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="created_hub_meetings",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["scheduled_for", "id"]
+        indexes = [
+            models.Index(fields=["hub", "scheduled_for"]),
+            models.Index(fields=["hub", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.title} - {self.hub.name}"
+
+
 class TaskItem(models.Model):
     STATUS_CHOICES = [
         ("pending", "Pending"),

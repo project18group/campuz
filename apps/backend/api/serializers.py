@@ -585,6 +585,86 @@ class BroadcastSerializer(serializers.ModelSerializer):
         return obj.sms_deliveries.filter(status="failed").count()
 
 
+class HubMeetingCreateSerializer(serializers.Serializer):
+    title = serializers.CharField(max_length=200)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    meeting_url = serializers.URLField(max_length=1000)
+    scheduled_for = serializers.DateTimeField()
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Title cannot be blank.")
+        return value
+
+    def validate_description(self, value):
+        if value is None:
+            return ""
+        return value.strip()
+
+
+class HubMeetingSerializer(serializers.ModelSerializer):
+    created_by = UserSerializer(read_only=True)
+    created_by_name = serializers.SerializerMethodField()
+    is_mine = serializers.SerializerMethodField()
+    can_manage = serializers.SerializerMethodField()
+    is_upcoming = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HubMeeting
+        fields = [
+            "id",
+            "hub",
+            "created_by",
+            "created_by_name",
+            "is_mine",
+            "can_manage",
+            "title",
+            "description",
+            "meeting_url",
+            "scheduled_for",
+            "created_at",
+            "updated_at",
+            "is_upcoming",
+        ]
+        read_only_fields = [
+            "hub",
+            "created_by",
+            "created_by_name",
+            "is_mine",
+            "can_manage",
+            "created_at",
+            "updated_at",
+            "is_upcoming",
+        ]
+
+    def get_created_by_name(self, obj):
+        profile = getattr(obj.created_by, "profile", None)
+        if profile is None:
+            return "Campuz user"
+        display_name = (profile.display_name or "").strip()
+        if display_name:
+            return display_name
+        full_name = (profile.full_name or "").strip()
+        return full_name or "Campuz user"
+
+    def get_is_mine(self, obj):
+        request = self.context.get("request")
+        return bool(request and request.user.is_authenticated and obj.created_by_id == request.user.id)
+
+    def get_can_manage(self, obj):
+        request = self.context.get("request")
+        if request is None or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser:
+            return True
+        membership = obj.hub.hub_members.filter(user=request.user).first()
+        return bool(membership and membership.role == "admin")
+
+    def get_is_upcoming(self, obj):
+        return obj.scheduled_for >= timezone.now()
+
+
 class ResourceCreateSerializer(serializers.Serializer):
     RESOURCE_TYPE_CHOICES = [
         ("pdf", "PDF"),
