@@ -281,6 +281,71 @@ class AuthApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> getHubMeetings({
+    required int hubId,
+    int page = 1,
+  }) async {
+    final uri = Uri.parse('$_baseUrl/hubs/$hubId/meetings/').replace(
+      queryParameters: {'page': '$page'},
+    );
+    return _authorized(
+      (token) => _client.get(uri, headers: _headers(token)),
+    );
+  }
+
+  static Future<Map<String, dynamic>> createHubMeeting({
+    required int hubId,
+    required String title,
+    String? description,
+    required String meetingUrl,
+    required String scheduledFor,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/meetings/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          if (description != null) 'description': description,
+          'meeting_url': meetingUrl,
+          'scheduled_for': scheduledFor,
+        }),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> updateHubMeeting({
+    required int meetingId,
+    String? title,
+    String? description,
+    String? meetingUrl,
+    String? scheduledFor,
+  }) async {
+    final body = <String, dynamic>{};
+    if (title != null) body['title'] = title;
+    if (description != null) body['description'] = description;
+    if (meetingUrl != null) body['meeting_url'] = meetingUrl;
+    if (scheduledFor != null) body['scheduled_for'] = scheduledFor;
+    return _authorized(
+      (token) => _client.patch(
+        Uri.parse('$_baseUrl/meetings/$meetingId/'),
+        headers: _headers(token),
+        body: jsonEncode(body),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> deleteHubMeeting({
+    required int meetingId,
+  }) async {
+    return _authorized(
+      (token) => _client.delete(
+        Uri.parse('$_baseUrl/meetings/$meetingId/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
   static Future<List<Map<String, dynamic>>> getResources({
     int? hubId,
     String query = '',

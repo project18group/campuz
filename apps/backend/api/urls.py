@@ -9,6 +9,7 @@ router.register(r"users", views.UserViewSet)
 router.register(r"hubs", views.HubViewSet)
 router.register(r"messages", views.MessageViewSet)
 router.register(r"broadcasts", views.BroadcastViewSet)
+router.register(r"meetings", views.HubMeetingViewSet)
 router.register(r"resources", views.ResourceViewSet)
 router.register(r"sections", views.HubSectionViewSet, basename="section")
 
@@ -62,6 +63,11 @@ urlpatterns = [
         "hubs/<int:hub_id>/broadcasts/",
         views.HubBroadcastView.as_view(),
         name="hub-broadcasts",
+    ),
+    path(
+        "hubs/<int:hub_id>/meetings/",
+        views.HubMeetingViewSet.as_view({"get": "list", "post": "create"}),
+        name="hub-meetings",
     ),
     path(
         "webhooks/sms/delivery/",
