@@ -1,6 +1,13 @@
+import os
+import uuid
+from urllib.parse import quote_plus
+
 from django.db import transaction
 
 from django.contrib.auth.models import User
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -11,6 +18,7 @@ from .models import (
     DirectMessage,
     Broadcast,
     Hub,
+    HubInvite,
     HubMeeting,
     HubMember,
     HubSection,
@@ -90,10 +98,12 @@ class ProfileSetupSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Optional admin invitation code (e.g., KNUST-CS-2026)",
     )
+    avatar_file = serializers.ImageField(required=False, write_only=True)
+    remove_avatar = serializers.BooleanField(required=False, write_only=True, default=False)
 
     class Meta:
         model = UserProfile
-        fields = ["display_name", "avatar_url", "admin_code"]
+        fields = ["display_name", "avatar_url", "avatar_file", "remove_avatar", "admin_code"]
 
     def validate_display_name(self, value):
         value = value.strip()
@@ -119,10 +129,46 @@ class ProfileSetupSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("This invitation code has expired.")
         return code
 
+    def _default_avatar_url(self, instance: UserProfile) -> str:
+        seed = (
+            instance.display_name
+            or instance.full_name
+            or instance.user.username
+            or f"user-{instance.user_id}"
+        ).strip()
+        return (
+            "https://api.dicebear.com/10.x/initials/svg"
+            f"?seed={quote_plus(seed)}"
+        )
+
     @transaction.atomic
     def update(self, instance, validated_data):
         admin_code = validated_data.pop("admin_code", None)
+        avatar_file = validated_data.pop("avatar_file", None)
+        remove_avatar = validated_data.pop("remove_avatar", False)
+
         instance = super().update(instance, validated_data)
+
+        if remove_avatar:
+            instance.avatar_url = self._default_avatar_url(instance)
+            instance.save(update_fields=["avatar_url"])
+
+        if avatar_file is not None:
+            ext = os.path.splitext(getattr(avatar_file, "name", "") or "")[1].lower()
+            if ext not in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".heic", ".heif"}:
+                ext = ".png"
+            filename = f"avatars/{instance.user_id}-{uuid.uuid4().hex}{ext}"
+            saved_path = default_storage.save(filename, ContentFile(avatar_file.read()))
+            avatar_url = default_storage.url(saved_path)
+            request = self.context.get("request")
+            if request is not None:
+                avatar_url = request.build_absolute_uri(avatar_url)
+            instance.avatar_url = avatar_url
+            instance.save(update_fields=["avatar_url"])
+        elif not (instance.avatar_url or "").strip():
+            instance.avatar_url = self._default_avatar_url(instance)
+            instance.save(update_fields=["avatar_url"])
+
         if admin_code:
             invite = (
                 AdminInvitationCode.objects.select_for_update()
@@ -366,6 +412,7 @@ class HubMemberSerializer(serializers.ModelSerializer):
 
 class HubMembershipActionSerializer(serializers.Serializer):
     ACTION_CHOICES = [
+        ("add", "Add member"),
         ("promote", "Promote to admin"),
         ("demote", "Demote to member"),
         ("remove", "Remove member"),
@@ -374,6 +421,48 @@ class HubMembershipActionSerializer(serializers.Serializer):
 
     action = serializers.ChoiceField(choices=ACTION_CHOICES)
     user_id = serializers.IntegerField(required=False, min_value=1)
+    user_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1),
+        required=False,
+        allow_empty=False,
+    )
+
+
+class HubInviteSerializer(serializers.ModelSerializer):
+    invite_url = serializers.SerializerMethodField()
+    qr_data = serializers.SerializerMethodField()
+    is_expired = serializers.BooleanField(read_only=True)
+    is_consumed = serializers.BooleanField(read_only=True)
+
+    class Meta:
+        model = HubInvite
+        fields = [
+            "id",
+            "hub",
+            "code",
+            "invite_url",
+            "qr_data",
+            "created_at",
+            "expires_at",
+            "is_active",
+            "max_uses",
+            "use_count",
+            "is_expired",
+            "is_consumed",
+        ]
+        read_only_fields = fields
+
+    def _invite_url(self, obj):
+        base = getattr(settings, "CAMPUZ_INVITE_BASE_URL", "").strip()
+        if not base:
+            base = "https://campuz.app/join"
+        return f"{base}?code={obj.code}"
+
+    def get_invite_url(self, obj):
+        return self._invite_url(obj)
+
+    def get_qr_data(self, obj):
+        return self._invite_url(obj)
 
 
 class HubSectionSerializer(serializers.ModelSerializer):
@@ -442,62 +531,6 @@ class HubSerializer(serializers.ModelSerializer):
             return False
         if request.user.is_superuser:
             return True
-        return bool(membership and membership.role == "admin")
-
-
-class HubMeetingSerializer(serializers.ModelSerializer):
-    created_by = UserSerializer(read_only=True)
-    created_by_name = serializers.SerializerMethodField()
-    is_mine = serializers.SerializerMethodField()
-    can_manage = serializers.SerializerMethodField()
-
-    class Meta:
-        model = HubMeeting
-        fields = [
-            "id",
-            "hub",
-            "title",
-            "description",
-            "meeting_url",
-            "scheduled_for",
-            "created_by",
-            "created_by_name",
-            "is_mine",
-            "can_manage",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = [
-            "hub",
-            "created_by",
-            "created_by_name",
-            "is_mine",
-            "can_manage",
-            "created_at",
-            "updated_at",
-        ]
-
-    def get_created_by_name(self, obj):
-        profile = getattr(obj.created_by, "profile", None)
-        if profile is None:
-            return "Campuz user"
-        display_name = (profile.display_name or "").strip()
-        if display_name:
-            return display_name
-        full_name = (profile.full_name or "").strip()
-        return full_name or "Campuz user"
-
-    def get_is_mine(self, obj):
-        request = self.context.get("request")
-        return bool(request and request.user.is_authenticated and obj.created_by_id == request.user.id)
-
-    def get_can_manage(self, obj):
-        request = self.context.get("request")
-        if request is None or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser:
-            return True
-        membership = obj.hub.hub_members.filter(user=request.user).first()
         return bool(membership and membership.role == "admin")
 
 

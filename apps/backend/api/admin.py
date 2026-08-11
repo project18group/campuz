@@ -7,6 +7,7 @@ from .models import (
     DirectMessageAttachment,
     DirectMessage,
     Hub,
+    HubInvite,
     HubMeeting,
     HubMember,
     Message,
@@ -30,6 +31,14 @@ class AdminInvitationCodeAdmin(admin.ModelAdmin):
     search_fields = ["code"]
     list_filter = ["is_active", "is_used"]
     readonly_fields = ["used_by", "used_at", "created_at"]
+
+
+@admin.register(HubInvite)
+class HubInviteAdmin(admin.ModelAdmin):
+    list_display = ["hub", "code", "created_by", "is_active", "use_count", "max_uses", "created_at", "expires_at"]
+    search_fields = ["code", "hub__name", "created_by__username"]
+    list_filter = ["is_active", "created_at", "expires_at"]
+    readonly_fields = ["created_at", "use_count"]
 
 
 @admin.register(DirectConversation)
@@ -58,26 +67,7 @@ admin.site.register(Hub)
 admin.site.register(HubMember)
 admin.site.register(Message)
 admin.site.register(Broadcast)
-admin.site.register(HubMeeting)
 admin.site.register(Resource)
-<<<<<<< HEAD
-
-
-@admin.register(TaskItem)
-class TaskItemAdmin(admin.ModelAdmin):
-    list_display = ["title", "hub", "assigned_to", "status", "due_date", "grade"]
-    search_fields = [
-        "title",
-        "course_name",
-        "hub__name",
-        "assigned_to__username",
-        "assigned_to__profile__display_name",
-    ]
-    list_filter = ["hub", "status", "due_date"]
-=======
-admin.site.register(TaskItem)
-
-
 @admin.register(HubMeeting)
 class HubMeetingAdmin(admin.ModelAdmin):
     list_display = [
@@ -96,4 +86,16 @@ class HubMeetingAdmin(admin.ModelAdmin):
     ]
     list_filter = ["hub", "created_at", "scheduled_for"]
     readonly_fields = ["created_at", "updated_at"]
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
+
+
+@admin.register(TaskItem)
+class TaskItemAdmin(admin.ModelAdmin):
+    list_display = ["title", "hub", "assigned_to", "status", "due_date", "grade"]
+    search_fields = [
+        "title",
+        "course_name",
+        "hub__name",
+        "assigned_to__username",
+        "assigned_to__profile__display_name",
+    ]
+    list_filter = ["hub", "status", "due_date"]

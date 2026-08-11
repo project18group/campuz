@@ -51,6 +51,11 @@ urlpatterns = [
         name="hub-members",
     ),
     path(
+        "hubs/<int:hub_id>/invites/",
+        views.HubInviteView.as_view(),
+        name="hub-invites",
+    ),
+    path(
         "hubs/<int:hub_id>/messages/",
         views.HubMessageView.as_view(),
         name="hub-messages",
@@ -79,6 +84,11 @@ urlpatterns = [
         "webhooks/sms/delivery/",
         views.SMSDeliveryWebhookView.as_view(),
         name="sms-delivery-webhook",
+    ),
+    path(
+        "hub-invites/join/",
+        views.HubInviteJoinView.as_view(),
+        name="hub-invite-join",
     ),
 
     path("", include(router.urls)),

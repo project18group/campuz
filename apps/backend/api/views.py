@@ -1,5 +1,6 @@
 import uuid
 import logging
+from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.db import transaction
@@ -19,6 +20,7 @@ from .models import (
     DirectMessage,
     Broadcast,
     Hub,
+    HubInvite,
     HubMeeting,
     HubMember,
     HubSection,
@@ -38,9 +40,9 @@ from .serializers import (
     HubMembershipActionSerializer,
     HubMeetingCreateSerializer,
     HubMeetingSerializer,
+    HubInviteSerializer,
     HubMemberSerializer,
     HubSectionSerializer,
-    HubMeetingSerializer,
     TaskCreateSerializer,
     TaskGradeSerializer,
     TaskSerializer,
@@ -101,6 +103,10 @@ def _request_bool(value) -> bool:
     return str(value).strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _make_invite_code() -> str:
+    return uuid.uuid4().hex[:12].upper()
+
+
 def _normalize_sms_status(raw_status: str | None) -> tuple[str, str]:
     status = (raw_status or "").strip().upper()
     if status in {"DELIVERED", "SUBMITTED", "QUEUED"}:
@@ -121,8 +127,6 @@ class BroadcastPagination(PageNumberPagination):
     page_size_query_param = "page_size"
     max_page_size = 50
 
-
-<<<<<<< HEAD
 class TaskPagination(PageNumberPagination):
     page_size = 20
     page_size_query_param = "page_size"
@@ -131,10 +135,10 @@ class TaskPagination(PageNumberPagination):
 
 class DirectMessagePagination(PageNumberPagination):
     page_size = 20
-=======
+
+
 class HubMeetingPagination(PageNumberPagination):
     page_size = 10
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
     page_size_query_param = "page_size"
     max_page_size = 50
 
@@ -553,10 +557,33 @@ class HubMeetingViewSet(viewsets.ModelViewSet):
     queryset = HubMeeting.objects.all()
     serializer_class = HubMeetingSerializer
     permission_classes = [permissions.IsAuthenticated]
-<<<<<<< HEAD
-=======
     pagination_class = HubMeetingPagination
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
+
+    def _ensure_admin(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_admin(self.request.user, hub_id)
+
+    def _ensure_member(self, hub_id: int) -> bool:
+        if self.request.user.is_superuser:
+            return True
+        return _is_hub_member(self.request.user, hub_id)
+
+    def _requested_hub_id(self) -> int | None:
+        raw_hub_id = (
+            self.kwargs.get("hub_id")
+            or self.request.query_params.get("hub")
+            or self.request.query_params.get("hub_id")
+        )
+        if raw_hub_id in (None, ""):
+            return None
+        try:
+            return int(raw_hub_id)
+        except (TypeError, ValueError):
+            return None
 
     def get_queryset(self):
         qs = (
@@ -567,74 +594,36 @@ class HubMeetingViewSet(viewsets.ModelViewSet):
                 "created_by",
                 "created_by__profile",
             )
-<<<<<<< HEAD
+            .filter(scheduled_for__gte=timezone.now())
             .order_by("scheduled_for", "-created_at", "-id")
         )
-        qs = qs.filter(scheduled_for__gte=timezone.now())
-        hub_id = self.kwargs.get("hub_id") or self.request.query_params.get("hub")
-        if hub_id:
-            return qs.filter(hub_id=int(hub_id))
+
+        hub_id = self._requested_hub_id()
+        if hub_id is not None:
+            if not self._ensure_member(hub_id):
+                return qs.none()
+            return qs.filter(hub_id=hub_id)
+
         if self.request.user.is_superuser:
             return qs
+
         return qs.filter(hub__hub_members__user=self.request.user).distinct()
-=======
-            .order_by("scheduled_for", "id")
-        )
-        hub_id = self.kwargs.get("hub_id")
-        if hub_id:
-            qs = qs.filter(hub_id=hub_id)
-        if self.request.user.is_superuser:
-            return qs
-        qs = qs.filter(hub__hub_members__user=self.request.user).distinct()
-        return qs
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
-
-    def _hub_or_404(self, hub_id: int) -> Hub | None:
-        return Hub.objects.select_related("creator", "creator__profile").filter(pk=hub_id).first()
-
-<<<<<<< HEAD
-=======
-    def _ensure_membership(self, hub_id: int) -> bool:
-        if self.request.user.is_superuser:
-            return True
-        return _is_hub_member(self.request.user, hub_id)
-
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
-    def _ensure_admin(self, hub_id: int) -> bool:
-        if self.request.user.is_superuser:
-            return True
-        return _is_hub_admin(self.request.user, hub_id)
-
-<<<<<<< HEAD
-    def _ensure_member(self, hub_id: int) -> bool:
-        if self.request.user.is_superuser:
-            return True
-        return _is_hub_member(self.request.user, hub_id)
 
     def list(self, request, *args, **kwargs):
-        hub_id = kwargs.get("hub_id")
-        if hub_id and not self._ensure_member(int(hub_id)):
+        hub_id = self._requested_hub_id()
+        if hub_id is not None and not self._ensure_member(hub_id):
             return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
         queryset = self.get_queryset()
-        serializer = self.get_serializer(queryset, many=True, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(queryset, request, view=self)
+        serializer = self.get_serializer(page, many=True, context={"request": request})
+        return paginator.get_paginated_response(serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if not self._ensure_member(instance.hub_id):
             return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
         return super().retrieve(request, *args, **kwargs)
-=======
-    def list(self, request, *args, **kwargs):
-        hub_id = kwargs.get("hub_id")
-        if hub_id and not self._ensure_membership(int(hub_id)):
-            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
-        qs = self.get_queryset().filter(scheduled_for__gte=timezone.now())
-        paginator = self.pagination_class()
-        page = paginator.paginate_queryset(qs, request, view=self)
-        serializer = self.get_serializer(page, many=True, context={"request": request})
-        return paginator.get_paginated_response(serializer.data)
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
 
     @transaction.atomic
     def create(self, request, *args, **kwargs):
@@ -644,33 +633,27 @@ class HubMeetingViewSet(viewsets.ModelViewSet):
                 {"error": "hub_id is required in the URL."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-<<<<<<< HEAD
-        hub = self._hub_or_404(int(hub_id))
+
+        try:
+            hub_id = int(hub_id)
+        except (TypeError, ValueError):
+            return Response(
+                {"error": "hub_id must be a valid integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        hub = self._hub_or_404(hub_id)
         if hub is None:
             return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
-=======
 
-        hub = self._hub_or_404(int(hub_id))
-        if hub is None:
+        if not self._ensure_member(hub_id):
             return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
-
-        if not self._ensure_membership(int(hub_id)):
-            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
-
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
-        if not self._ensure_admin(int(hub_id)):
+        if not self._ensure_admin(hub_id):
             return Response(
                 {"error": "Only Hub admins can create meetings."},
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-<<<<<<< HEAD
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        meeting = serializer.save(hub=hub, created_by=request.user)
-        return Response(
-            self.get_serializer(meeting, context={"request": request}).data,
-=======
         serializer = HubMeetingCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         meeting = HubMeeting.objects.create(
@@ -683,7 +666,6 @@ class HubMeetingViewSet(viewsets.ModelViewSet):
         )
         return Response(
             HubMeetingSerializer(meeting, context={"request": request}).data,
->>>>>>> 343590307ed9467c90e946c21e941298f07899db
             status=status.HTTP_201_CREATED,
         )
 
@@ -1283,12 +1265,52 @@ class HubMembershipView(APIView):
                     {"error": "Only Hub admins can manage members."},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-            if user_id is None:
+            if action != "add" and user_id is None:
                 return Response(
                     {"error": "user_id is required for this action."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             target_user_id = user_id
+
+        if action == "add":
+            requested_ids = serializer.validated_data.get("user_ids") or (
+                [target_user_id] if target_user_id is not None else []
+            )
+            if not requested_ids:
+                return Response(
+                    {"error": "At least one user_id is required for this action."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            users = (
+                User.objects.select_related("profile")
+                .filter(pk__in=requested_ids, profile__is_verified=True, profile__profile_setup_completed=True)
+            )
+            found_ids = {user.id for user in users}
+            missing_ids = [user_id for user_id in requested_ids if user_id not in found_ids]
+            if missing_ids:
+                return Response(
+                    {"error": "One or more users could not be added.", "missing_user_ids": missing_ids},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            for user in users:
+                HubMember.objects.get_or_create(hub=hub, user=user, defaults={"role": "member"})
+
+            members = (
+                HubMember.objects.select_related("user", "user__profile")
+                .filter(hub_id=hub_id)
+                .order_by("-role", "user__profile__full_name", "user__profile__display_name", "user_id")
+            )
+            return Response(
+                {
+                    "message": "Members added successfully.",
+                    "hub": HubSerializer(hub, context={"request": request}).data,
+                    "members": HubMemberSerializer(
+                        members, many=True, context={"request": request}
+                    ).data,
+                },
+                status=status.HTTP_200_OK,
+            )
 
         membership = self._member_or_404(hub_id, target_user_id)
         if membership is None:
@@ -1342,6 +1364,138 @@ class HubMembershipView(APIView):
                 "members": HubMemberSerializer(
                     members, many=True, context={"request": request}
                 ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class HubInviteView(APIView):
+    """
+    GET /api/hubs/<hub_id>/invites/
+    POST /api/hubs/<hub_id>/invites/
+
+    Hub admins can create or fetch a shareable invite link/QR payload.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def _hub_or_404(self, hub_id: int) -> Hub | None:
+        return Hub.objects.filter(pk=hub_id).first()
+
+    def _require_admin(self, request, hub_id: int):
+        if not _is_hub_admin(request.user, hub_id):
+            return Response(
+                {"error": "Only Hub admins can manage invitations."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return None
+
+    def _current_invite(self, hub: Hub, request):
+        invite = (
+            HubInvite.objects.filter(
+                hub=hub,
+                is_active=True,
+            )
+            .order_by("-created_at", "-id")
+            .first()
+        )
+        if invite is not None and not invite.is_expired and not invite.is_consumed:
+            return invite
+        return HubInvite.objects.create(
+            hub=hub,
+            code=_make_invite_code(),
+            created_by=request.user,
+            expires_at=timezone.now() + timedelta(days=30),
+            is_active=True,
+        )
+
+    def get(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        if not _is_hub_member(request.user, hub_id):
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        invite = self._current_invite(hub, request)
+        serializer = HubInviteSerializer(invite, context={"request": request})
+        return Response(
+            {
+                "hub": HubSerializer(hub, context={"request": request}).data,
+                "invite": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @transaction.atomic
+    def post(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        error = self._require_admin(request, hub_id)
+        if error is not None:
+            return error
+
+        invite = HubInvite.objects.create(
+            hub=hub,
+            code=_make_invite_code(),
+            created_by=request.user,
+            expires_at=timezone.now() + timedelta(days=30),
+            is_active=True,
+        )
+        serializer = HubInviteSerializer(invite, context={"request": request})
+        return Response(
+            {
+                "message": "Invite created successfully.",
+                "hub": HubSerializer(hub, context={"request": request}).data,
+                "invite": serializer.data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HubInviteJoinView(APIView):
+    """
+    POST /api/hub-invites/join/
+
+    Body: {"code": "ABC123..."}
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    @transaction.atomic
+    def post(self, request):
+        code = str(request.data.get("code", "")).strip().upper()
+        if not code:
+            return Response({"error": "Invite code is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        invite = (
+            HubInvite.objects.select_related("hub")
+            .filter(code=code, is_active=True)
+            .first()
+        )
+        if invite is None:
+            return Response({"error": "This invite code is invalid."}, status=status.HTTP_404_NOT_FOUND)
+        if invite.is_expired:
+            return Response({"error": "This invite code has expired."}, status=status.HTTP_400_BAD_REQUEST)
+        if invite.is_consumed:
+            return Response({"error": "This invite code has already been used."}, status=status.HTTP_400_BAD_REQUEST)
+
+        membership, created = HubMember.objects.get_or_create(
+            hub=invite.hub,
+            user=request.user,
+            defaults={"role": "member"},
+        )
+        if not created and membership.role not in {"admin", "member"}:
+            membership.role = "member"
+            membership.save(update_fields=["role"])
+
+        if created:
+            invite.use_count += 1
+            invite.save(update_fields=["use_count"])
+
+        return Response(
+            {
+                "message": "You joined the hub successfully.",
+                "hub": HubSerializer(invite.hub, context={"request": request}).data,
             },
             status=status.HTTP_200_OK,
         )

@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -66,6 +69,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  String _defaultAvatarUrl(Map<String, dynamic>? user) {
+    final profile = user?['profile'] as Map<String, dynamic>? ?? const {};
+    final seed = (profile['display_name'] as String? ?? '').trim().isNotEmpty
+        ? (profile['display_name'] as String).trim()
+        : ((profile['full_name'] as String? ?? '').trim().isNotEmpty
+            ? (profile['full_name'] as String).trim()
+            : 'Campuz Student');
+    return Uri.https('api.dicebear.com', '/10.x/initials/svg', {
+      'seed': seed,
+    }).toString();
+  }
+
+  Future<void> _changeAvatar() async {
+    try {
+      final image = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 75,
+      );
+      if (image == null) return;
+      await AuthApiService.profileSetup(
+        avatarFile: File(image.path),
+      );
+      if (!mounted) return;
+      await _loadProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated')),
+      );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update your photo right now')),
+      );
+    }
+  }
+
+  Future<void> _removeAvatar() async {
+    try {
+      await AuthApiService.profileSetup(removeAvatar: true);
+      if (!mounted) return;
+      await _loadProfile();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo removed')),
+      );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to remove your photo right now')),
+      );
+    }
+  }
+
+  void _showAvatarActions() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Change photo'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _changeAvatar();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                title: const Text(
+                  'Remove photo',
+                  style: TextStyle(color: AppColors.error),
+                ),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _removeAvatar();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = _userData;
@@ -75,6 +174,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profileDisplayName = (profile?['display_name'] as String? ?? '')
         .trim();
     final avatarUrl = (profile?['avatar_url'] as String? ?? '').trim();
+    final avatarImage = avatarUrl.isNotEmpty
+        ? NetworkImage(avatarUrl)
+        : NetworkImage(_defaultAvatarUrl(user));
     final displayName = profileDisplayName.isNotEmpty
         ? profileDisplayName
         : (fullName.isNotEmpty ? fullName : 'Your profile');
@@ -107,23 +209,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
-                      child: Column(
-                        children: [
-                          CircleAvatar(
-                            radius: 54,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.14,
-                            ),
-                            backgroundImage: avatarUrl.isNotEmpty
-                                ? NetworkImage(avatarUrl)
-                                : null,
-                            child: avatarUrl.isEmpty
-                                ? const Icon(
-                                    Icons.person,
-                                    size: 54,
+                        child: Column(
+                          children: [
+                          GestureDetector(
+                            onTap: _showAvatarActions,
+                            child: Stack(
+                              alignment: Alignment.bottomRight,
+                              children: [
+                                CircleAvatar(
+                                  radius: 54,
+                                  backgroundColor: Colors.white.withValues(
+                                    alpha: 0.14,
+                                  ),
+                                  backgroundImage: avatarImage,
+                                ),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.35),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: Colors.white.withValues(alpha: 0.5),
+                                      width: 2,
+                                    ),
+                                  ),
+                                  padding: const EdgeInsets.all(8),
+                                  child: const Icon(
+                                    Icons.camera_alt_outlined,
+                                    size: 16,
                                     color: Colors.white,
-                                  )
-                                : null,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -153,6 +270,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                           ],
+                          const SizedBox(height: 14),
+                          TextButton.icon(
+                            onPressed: _showAvatarActions,
+                            style: TextButton.styleFrom(
+                              foregroundColor: Colors.white,
+                            ),
+                            icon: const Icon(Icons.manage_accounts_outlined),
+                            label: const Text('Manage photo'),
+                          ),
                         ],
                       ),
                     ),

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/screens/hubs/widget/invite_card.dart';
 
 class HubInfoScreen extends StatefulWidget {
   const HubInfoScreen({super.key, this.hub});
@@ -255,6 +258,255 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     );
   }
 
+  Future<void> _showAddMembersSheet() async {
+    final searchController = TextEditingController();
+    final selectedIds = <int>{};
+    List<Map<String, dynamic>> results = const [];
+    bool loading = true;
+    bool submitting = false;
+    String? error;
+    Timer? debounce;
+    bool initialSearchStarted = false;
+
+    Future<void> searchUsers(
+      String query,
+      void Function(void Function()) setModalState,
+    ) async {
+      setModalState(() {
+        loading = true;
+        error = null;
+      });
+
+      try {
+        final users = await AuthApiService.searchUsers(query: query);
+        if (!mounted) return;
+        setModalState(() {
+          results = users;
+          selectedIds.removeWhere(
+            (id) => !users.any((user) => user['id'] == id),
+          );
+          loading = false;
+        });
+      } on AuthApiException catch (authError) {
+        if (!mounted) return;
+        setModalState(() {
+          error = authError.message;
+          loading = false;
+        });
+      } catch (_) {
+        if (!mounted) return;
+        setModalState(() {
+          error = 'Unable to search Campuz users right now.';
+          loading = false;
+        });
+      }
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (sheetContext, setModalState) {
+            if (!initialSearchStarted) {
+              initialSearchStarted = true;
+              Future.microtask(() => searchUsers('', setModalState));
+            }
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: 20,
+                  right: 20,
+                  top: 8,
+                  bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      'Add members',
+                      style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Search Campuz users and add them to this hub.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search by name or phone number',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (value) {
+                        debounce?.cancel();
+                        debounce = Timer(
+                          const Duration(milliseconds: 300),
+                          () => searchUsers(value.trim(), setModalState),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 14),
+                    if (error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: Text(
+                          error!,
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ),
+                    if (loading)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 24),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (results.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          'No users found.',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 380),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: results.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, indent: 72),
+                          itemBuilder: (context, index) {
+                            final user = results[index];
+                            final id = user['id'];
+                            final userId = id is int ? id : int.tryParse('$id');
+                            if (userId == null) {
+                              return const SizedBox.shrink();
+                            }
+                            final avatar = (user['avatar_url'] as String? ?? '').trim();
+                            final displayName = _userDisplayName(user);
+                            final phone = (user['phone_number'] as String? ?? '').trim();
+                            return CheckboxListTile(
+                              contentPadding: EdgeInsets.zero,
+                              value: selectedIds.contains(userId),
+                              onChanged: (value) {
+                                setModalState(() {
+                                  if (value == true) {
+                                    selectedIds.add(userId);
+                                  } else {
+                                    selectedIds.remove(userId);
+                                  }
+                                });
+                              },
+                              secondary: CircleAvatar(
+                                backgroundColor: AppColors.surfaceMuted,
+                                backgroundImage: avatar.isNotEmpty
+                                    ? NetworkImage(avatar)
+                                    : null,
+                                child: avatar.isEmpty
+                                    ? Text(
+                                        displayName.characters.first.toUpperCase(),
+                                        style: AppTextStyles.label.copyWith(
+                                          color: AppColors.primaryDeep,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              title: Text(displayName),
+                              subtitle: Text(phone),
+                            );
+                          },
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: selectedIds.isEmpty || submitting
+                            ? null
+                            : () async {
+                                setModalState(() => submitting = true);
+                                try {
+                                  await updateHubMembership(
+                                    hubId: _hubId,
+                                    action: 'add',
+                                    userIds: selectedIds.toList(),
+                                  );
+                                  if (!mounted) return;
+                                  Navigator.pop(sheetContext);
+                                  await _loadMembers();
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Members added to the hub'),
+                                    ),
+                                  );
+                                } on AuthApiException catch (error) {
+                                  if (!mounted) return;
+                                  setModalState(() => submitting = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(error.message)),
+                                  );
+                                } catch (_) {
+                                  if (!mounted) return;
+                                  setModalState(() => submitting = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Unable to add members right now'),
+                                    ),
+                                  );
+                                }
+                              },
+                        icon: submitting
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.person_add_alt_1_outlined),
+                        label: Text(
+                          selectedIds.isEmpty
+                              ? 'Select users to add'
+                              : 'Add ${selectedIds.length} selected',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    debounce?.cancel();
+    searchController.dispose();
+  }
+
   int? _memberUserId(Map<String, dynamic> member) {
     final user = member['user'];
     if (user is Map<String, dynamic>) {
@@ -279,6 +531,14 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     final user = member['user'] as Map<String, dynamic>? ?? const {};
     final profile = user['profile'] as Map<String, dynamic>? ?? const {};
     return (profile['phone_number'] as String? ?? '').trim();
+  }
+
+  String _userDisplayName(Map<String, dynamic> user) {
+    final displayName = (user['display_name'] as String? ?? '').trim();
+    if (displayName.isNotEmpty) return displayName;
+    final fullName = (user['full_name'] as String? ?? '').trim();
+    if (fullName.isNotEmpty) return fullName;
+    return 'Campuz user';
   }
 
   Widget _buildRoleChip(String role) {
@@ -437,6 +697,11 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _buildHeader(),
+          if (_canManageMembers)
+            InviteCard(
+              hubId: _hubId,
+              hubName: _hubName,
+            ),
           _buildAdminsSection(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
@@ -497,14 +762,28 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: OutlinedButton.icon(
-                onPressed: _isUpdating ? null : _confirmLeaveHub,
-                icon: const Icon(Icons.logout_rounded),
-                label: const Text('Leave hub'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.error,
-                  side: const BorderSide(color: AppColors.error),
-                ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isUpdating ? null : _showAddMembersSheet,
+                      icon: const Icon(Icons.person_add_alt_1_outlined),
+                      label: const Text('Add members'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _isUpdating ? null : _confirmLeaveHub,
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text('Leave hub'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.error,
+                        side: const BorderSide(color: AppColors.error),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -22,6 +22,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   String? _imagePath;
   bool _isLoading = false;
   bool _showAdminCode = false;
+  bool _removeAvatar = false;
 
   @override
   void dispose() {
@@ -37,7 +38,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         imageQuality: 70,
       );
       if (image != null && mounted) {
-        setState(() => _imagePath = image.path);
+        setState(() {
+          _imagePath = image.path;
+          _removeAvatar = false;
+        });
       }
     } catch (_) {
       if (mounted) {
@@ -46,6 +50,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         );
       }
     }
+  }
+
+  void _removePhoto() {
+    setState(() {
+      _imagePath = null;
+      _removeAvatar = true;
+    });
+  }
+
+  String _defaultAvatarUrl() {
+    final seed = _displayNameController.text.trim().isNotEmpty
+        ? _displayNameController.text.trim()
+        : 'Campuz Student';
+    return Uri.https('api.dicebear.com', '/10.x/initials/svg', {
+      'seed': seed,
+    }).toString();
   }
 
   Future<void> _saveProfile() async {
@@ -64,6 +84,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       await AuthApiService.profileSetup(
         displayName: displayName,
+        avatarFile: _imagePath == null ? null : File(_imagePath!),
+        removeAvatar: _removeAvatar,
         adminCode: adminCode.isEmpty ? null : adminCode,
       );
 
@@ -119,15 +141,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       radius: 55,
                       backgroundColor: AppColors.surfaceMuted,
                       backgroundImage: _imagePath == null
-                          ? null
-                          : FileImage(File(_imagePath!)),
-                      child: _imagePath == null
-                          ? const Icon(
-                              Icons.person_outline,
-                              size: 50,
-                              color: AppColors.primaryDeep,
-                            )
-                          : null,
+                          ? NetworkImage(_defaultAvatarUrl())
+                          : FileImage(File(_imagePath!)) as ImageProvider,
                     ),
                     Positioned(
                       right: 0,
@@ -144,6 +159,30 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  TextButton.icon(
+                    onPressed: _pickImage,
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Change photo'),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: _removePhoto,
+                    icon: const Icon(Icons.delete_outline),
+                    label: const Text('Remove'),
+                  ),
+                ],
+              ),
+              Text(
+                'If you do not upload a picture, Campuz will use a network avatar.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 32),
@@ -188,7 +227,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               if (_imagePath != null) ...[
                 const SizedBox(height: 12),
                 Text(
-                  'Your selected photo is ready. Upload support will be enabled when media storage is connected.',
+                  'Your selected photo will be uploaded to the backend when you finish setup.',
                   textAlign: TextAlign.center,
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.textSecondary,

@@ -14,14 +14,16 @@ except ImportError:
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-o-v42%72)$lnjkcr-hnp4!7xenw(!&)rt!-mw_6$dk0fnzw(g4",
-)
-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() in ("1", "true", "yes")
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = "django-insecure-o-v42%72)$lnjkcr-hnp4!7xenw(!&)rt!-mw_6$dk0fnzw(g4"
+    else:
+        raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false.")
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -97,25 +99,6 @@ DATABASES = {
         "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
-print("=" * 60)
-print("DB_NAME =", os.getenv("DB_NAME"))
-print("DB_USER =", os.getenv("DB_USER"))
-print("DB_HOST =", os.getenv("DB_HOST"))
-print("DB_PORT =", os.getenv("DB_PORT"))
-print("DB_PASSWORD exists =", os.getenv("DB_PASSWORD") is not None)
-print("=" * 60)
-
-
-
-# Configure the database using dj_database_url for flexibility in different environments
-# DATABASES = {
-#     "default": dj_database_url.config(
-#         default=os.getenv(
-#             "DATABASE_URL", "postgresql://postgres:pgadmin4@localhost:5432/campuz"
-#         ),
-#         conn_max_age=600,
-#     )
-# }
 
 
 # Password validation
@@ -192,6 +175,15 @@ CSRF_TRUSTED_ORIGINS = [
 
 # Security settings for production, especially when behind a reverse proxy or load balancer
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    SECURE_REFERRER_POLICY = "same-origin"
 
 
 # Connection String

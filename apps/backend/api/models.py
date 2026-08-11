@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 
 class UserProfile(models.Model):
@@ -134,6 +135,50 @@ class HubMember(models.Model):
 
     def __str__(self):
         return f"{self.user.username} ({self.role}) - {self.hub.name}"
+
+
+class HubInvite(models.Model):
+    """
+    A hub-scoped invitation code used to generate shareable join links and QR
+    codes for existing Campuz users or future signups.
+    """
+
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="invites",
+    )
+    code = models.CharField(max_length=64, unique=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_hub_invites",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    use_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(fields=["hub", "is_active"]),
+            models.Index(fields=["code"]),
+        ]
+
+    def __str__(self):
+        return f"{self.hub.name} invite ({self.code})"
+
+    @property
+    def is_expired(self) -> bool:
+        return bool(self.expires_at and self.expires_at <= timezone.now())
+
+    @property
+    def is_consumed(self) -> bool:
+        return self.max_uses is not None and self.use_count >= self.max_uses
 
 
 class Message(models.Model):
@@ -346,35 +391,6 @@ class TaskItem(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.status})"
-
-
-class HubMeeting(models.Model):
-    hub = models.ForeignKey(
-        Hub,
-        on_delete=models.CASCADE,
-        related_name="meetings",
-    )
-    title = models.CharField(max_length=200)
-    description = models.TextField(blank=True, null=True)
-    meeting_url = models.URLField(max_length=1000)
-    scheduled_for = models.DateTimeField()
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="created_hub_meetings",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        ordering = ["scheduled_for", "id"]
-        indexes = [
-            models.Index(fields=["hub", "scheduled_for"]),
-            models.Index(fields=["hub", "created_at"]),
-        ]
-
-    def __str__(self):
-        return f"{self.title} - {self.hub.name}"
 
 
 class HubSection(models.Model):

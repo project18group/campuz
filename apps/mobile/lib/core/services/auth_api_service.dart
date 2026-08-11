@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 
 import 'package:file_picker/file_picker.dart';
@@ -66,8 +67,11 @@ class AuthApiService {
   static Future<Map<String, dynamic>> profileSetup({
     String? displayName,
     String? avatarUrl,
+    File? avatarFile,
+    bool removeAvatar = false,
     String? adminCode,
   }) async {
+    final needsMultipart = avatarFile != null || removeAvatar;
     final body = <String, dynamic>{};
     if (displayName != null && displayName.isNotEmpty) {
       body['display_name'] = displayName;
@@ -78,12 +82,40 @@ class AuthApiService {
     if (adminCode != null && adminCode.isNotEmpty) {
       body['admin_code'] = adminCode.trim().toUpperCase();
     }
-    return _authorized(
-      (token) => _client.patch(
-        Uri.parse('$_baseUrl/auth/profile-setup/'),
-        headers: _headers(token),
-        body: jsonEncode(body),
-      ),
+    if (!needsMultipart) {
+      return _authorized(
+        (token) => _client.patch(
+          Uri.parse('$_baseUrl/auth/profile-setup/'),
+          headers: _headers(token),
+          body: jsonEncode(body),
+        ),
+      );
+    }
+
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'PATCH',
+          Uri.parse('$_baseUrl/auth/profile-setup/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields.addAll(
+          body.map((key, value) => MapEntry(key, value.toString())),
+        );
+        if (removeAvatar) {
+          request.fields['remove_avatar'] = 'true';
+        }
+        if (avatarFile != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'avatar_file',
+              avatarFile.path,
+              filename: p.basename(avatarFile.path),
+            ),
+          );
+        }
+        return request.send();
+      },
     );
   }
 
@@ -605,16 +637,54 @@ class AuthApiService {
     required int hubId,
     required String action,
     int? userId,
+    List<int>? userIds,
   }) async {
     final body = <String, dynamic>{'action': action};
     if (userId != null) {
       body['user_id'] = userId;
+    }
+    if (userIds != null && userIds.isNotEmpty) {
+      body['user_ids'] = userIds;
     }
     return _authorized(
       (token) => _client.post(
         Uri.parse('$_baseUrl/hubs/$hubId/members/'),
         headers: _headers(token),
         body: jsonEncode(body),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> getHubInvite({
+    required int hubId,
+  }) async {
+    return _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/hubs/$hubId/invites/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> createHubInvite({
+    required int hubId,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/invites/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> joinHubWithInviteCode({
+    required String code,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hub-invites/join/'),
+        headers: _headers(token),
+        body: jsonEncode({'code': code.trim().toUpperCase()}),
       ),
     );
   }
@@ -716,11 +786,15 @@ class AuthApiService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  static Map<String, String> _headers(String? token) => {
-    'Content-Type': 'application/json',
+  static Map<String, String> _headers(
+    String? token, {
+    bool includeContentType = true,
+  }) =>
+      {
+        if (includeContentType) 'Content-Type': 'application/json',
     'Accept': 'application/json',
     if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
-  };
+      };
 
   static Future<void> _persistTokens(Map<String, dynamic> response) async {
     final access = response['access'] as String?;
@@ -891,10 +965,12 @@ Future<Map<String, dynamic>> updateHubMembership({
   required int hubId,
   required String action,
   int? userId,
+  List<int>? userIds,
 }) {
   return AuthApiService.updateHubMembership(
     hubId: hubId,
     action: action,
     userId: userId,
+    userIds: userIds,
   );
 }
