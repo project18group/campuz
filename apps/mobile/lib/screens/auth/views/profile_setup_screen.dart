@@ -1,8 +1,6 @@
-import 'dart:io';
-
+import 'package:avatar_plus/avatar_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
@@ -19,53 +17,24 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _displayNameController = TextEditingController();
   final _adminCodeController = TextEditingController();
-  String? _imagePath;
   bool _isLoading = false;
   bool _showAdminCode = false;
-  bool _removeAvatar = false;
+  String _selectedSeed = 'Felix'; // Default avatar
+
+  final List<String> _defaultSeeds = [
+    'Felix',
+    'Aneka',
+    'Molly',
+    'Jude',
+    'Tinkerbell',
+    'Lucky',
+  ];
 
   @override
   void dispose() {
     _displayNameController.dispose();
     _adminCodeController.dispose();
     super.dispose();
-  }
-
-  Future<void> _pickImage() async {
-    try {
-      final image = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 70,
-      );
-      if (image != null && mounted) {
-        setState(() {
-          _imagePath = image.path;
-          _removeAvatar = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Unable to select that image')),
-        );
-      }
-    }
-  }
-
-  void _removePhoto() {
-    setState(() {
-      _imagePath = null;
-      _removeAvatar = true;
-    });
-  }
-
-  String _defaultAvatarUrl() {
-    final seed = _displayNameController.text.trim().isNotEmpty
-        ? _displayNameController.text.trim()
-        : 'Campuz Student';
-    return Uri.https('api.dicebear.com', '/10.x/initials/svg', {
-      'seed': seed,
-    }).toString();
   }
 
   Future<void> _saveProfile() async {
@@ -84,8 +53,8 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       await AuthApiService.profileSetup(
         displayName: displayName,
-        avatarFile: _imagePath == null ? null : File(_imagePath!),
-        removeAvatar: _removeAvatar,
+        avatarUrl: 'seed:$_selectedSeed',
+        removeAvatar: false,
         adminCode: adminCode.isEmpty ? null : adminCode,
       );
 
@@ -128,61 +97,57 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               Text('Make Campuz yours', style: AppTextStyles.heading),
               const SizedBox(height: 8),
               Text(
-                'Choose the name classmates will see.',
+                'Choose your default avatar and display name.',
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 32),
               Center(
-                child: Stack(
-                  children: [
-                    CircleAvatar(
-                      radius: 55,
-                      backgroundColor: AppColors.surfaceMuted,
-                      backgroundImage: _imagePath == null
-                          ? NetworkImage(_defaultAvatarUrl())
-                          : FileImage(File(_imagePath!)) as ImageProvider,
-                    ),
-                    Positioned(
-                      right: 0,
-                      bottom: 0,
-                      child: CircleAvatar(
-                        radius: 20,
-                        backgroundColor: AppColors.primary,
-                        child: IconButton(
-                          iconSize: 18,
-                          onPressed: _pickImage,
-                          color: Colors.white,
-                          icon: const Icon(Icons.add_a_photo_outlined),
-                        ),
-                      ),
-                    ),
-                  ],
+                child: ClipOval(
+                  child: AvatarPlus(
+                    _selectedSeed,
+                    height: 110,
+                    width: 110,
+                  ),
                 ),
               ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  TextButton.icon(
-                    onPressed: _pickImage,
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Change photo'),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton.icon(
-                    onPressed: _removePhoto,
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Remove'),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 24),
               Text(
-                'If you do not upload a picture, Campuz will use a network avatar.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textSecondary,
+                'Select an Avatar',
+                style: AppTextStyles.label,
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 70,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _defaultSeeds.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 12),
+                  itemBuilder: (context, index) {
+                    final seed = _defaultSeeds[index];
+                    final isSelected = seed == _selectedSeed;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _selectedSeed = seed);
+                      },
+                      child: Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: isSelected
+                              ? Border.all(color: AppColors.primary, width: 3)
+                              : null,
+                        ),
+                        child: ClipOval(
+                          child: AvatarPlus(
+                            seed,
+                            height: 60,
+                            width: 60,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 32),
@@ -224,16 +189,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       text: 'Finish Setup',
                       onPressed: _saveProfile,
                     ),
-              if (_imagePath != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  'Your selected photo will be uploaded to the backend when you finish setup.',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.caption.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
             ],
           ),
         ),

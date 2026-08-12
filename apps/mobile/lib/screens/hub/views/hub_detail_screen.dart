@@ -1,3 +1,4 @@
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -112,17 +113,7 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 32,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: Text(
-                  _hubName.characters.first.toUpperCase(),
-                  style: AppTextStyles.heading.copyWith(
-                    color: AppColors.primaryDeep,
-                    fontSize: 28,
-                  ),
-                ),
-              ),
+              AppAvatar(avatarUrl: '', fallbackName: _hubName, size: 64),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

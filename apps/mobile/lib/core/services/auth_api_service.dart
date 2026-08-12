@@ -324,7 +324,7 @@ class AuthApiService {
     );
   }
 
-  static Future<Map<String, dynamic>> getTasks({
+  static Future<List<Map<String, dynamic>>> getTasks({
     int page = 1,
     String status = 'all',
     bool mine = true,
@@ -337,9 +337,14 @@ class AuthApiService {
       query['mine'] = 'true';
     }
     final uri = Uri.parse('$_baseUrl/tasks/').replace(queryParameters: query);
-    return _authorized(
+    final result = await _authorized(
       (token) => _client.get(uri, headers: _headers(token)),
     );
+    final list = result['results'] ?? result['data'] ?? result;
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
   }
 
   static Future<Map<String, dynamic>> createHubTask({
@@ -670,11 +675,11 @@ class AuthApiService {
         AuthSession.accessToken ??
         await SecureTokenStorage.readAccessToken();
     try {
-      var response = await send(token);
+      var response = await send(token).timeout(const Duration(seconds: 60));
       if (response.statusCode == 401 && overrideToken == null) {
         if (await refreshSession()) {
           token = AuthSession.accessToken;
-          response = await send(token);
+          response = await send(token).timeout(const Duration(seconds: 60));
         }
       }
       final decoded = _decodeResponse(response);
@@ -708,11 +713,11 @@ class AuthApiService {
         AuthSession.accessToken ??
         await SecureTokenStorage.readAccessToken();
     try {
-      var streamed = await send(token);
+      var streamed = await send(token).timeout(const Duration(seconds: 60));
       if (streamed.statusCode == 401 && overrideToken == null) {
         if (await refreshSession()) {
           token = AuthSession.accessToken;
-          streamed = await send(token);
+          streamed = await send(token).timeout(const Duration(seconds: 60));
         }
       }
       final response = await http.Response.fromStream(streamed);
@@ -750,7 +755,7 @@ class AuthApiService {
           'Accept': 'application/json',
         },
         body: jsonEncode(body),
-      );
+      ).timeout(const Duration(seconds: 60));
       final decoded = _decodeResponse(response);
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return decoded is Map<String, dynamic>

@@ -29,6 +29,8 @@ from .models import (
     Resource,
     TaskItem,
     UserProfile,
+    DeviceToken,
+    AppNotification,
 )
 from .permissions import CanCreateHubs, IsHubCreatorOrReadOnly
 from .serializers import (
@@ -56,6 +58,8 @@ from .serializers import (
     RequestOTPSerializer,
     UserSerializer,
     VerifyOTPSerializer,
+    DeviceTokenSerializer,
+    AppNotificationSerializer,
     _clear_otp,
     _mark_otp_requested,
 )
@@ -1451,6 +1455,21 @@ class HubInviteView(APIView):
             status=status.HTTP_201_CREATED,
         )
 
+    def delete(self, request, hub_id):
+        hub = self._hub_or_404(hub_id)
+        if hub is None:
+            return Response({"error": "Hub not found."}, status=status.HTTP_404_NOT_FOUND)
+        error = self._require_admin(request, hub_id)
+        if error is not None:
+            return error
+
+        invites = HubInvite.objects.filter(hub=hub, is_active=True)
+        count = invites.update(is_active=False)
+        return Response(
+            {"message": f"Revoked {count} active invite(s)."},
+            status=status.HTTP_200_OK,
+        )
+
 
 class HubInviteJoinView(APIView):
     """
@@ -1675,3 +1694,39 @@ class MessageViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(sender=self.request.user)
+
+
+class DeviceTokenRegisterView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get("token")
+        if not token:
+            return Response({"error": "Token is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        DeviceToken.objects.update_or_create(
+            user=request.user, token=token
+        )
+        return Response({"message": "Device token registered successfully."}, status=status.HTTP_200_OK)
+
+
+class NotificationListView(generics.ListAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AppNotificationSerializer
+
+    def get_queryset(self):
+        return AppNotification.objects.filter(user=self.request.user).order_by("-created_at")
+
+
+class NotificationReadStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def patch(self, request):
+        notification_ids = request.data.get("notification_ids", [])
+        if not notification_ids:
+            return Response({"error": "notification_ids is required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        AppNotification.objects.filter(
+            id__in=notification_ids, user=request.user
+        ).update(is_read=True)
+        return Response({"message": "Notifications marked as read."}, status=status.HTTP_200_OK)

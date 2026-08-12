@@ -1,5 +1,5 @@
 import 'dart:io';
-
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
@@ -62,6 +62,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _handleSignOut(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Sign Out'),
+          content: const Text('Are you sure you want to sign out?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(
+                'Sign Out',
+                style: TextStyle(color: AppColors.error),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
     await AuthApiService.signOut();
 
     if (context.mounted) {
@@ -216,12 +241,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Stack(
                               alignment: Alignment.bottomRight,
                               children: [
-                                CircleAvatar(
+                                avatarImage != null ? CircleAvatar(
                                   radius: 54,
                                   backgroundColor: Colors.white.withValues(
                                     alpha: 0.14,
                                   ),
                                   backgroundImage: avatarImage,
+                                ) : ClipOval(
+                                  child: AvatarPlus(
+                                    displayName,
+                                    height: 108,
+                                    width: 108,
+                                  ),
                                 ),
                                 Container(
                                   decoration: BoxDecoration(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -421,20 +422,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                                   }
                                 });
                               },
-                              secondary: CircleAvatar(
-                                backgroundColor: AppColors.surfaceMuted,
-                                backgroundImage: avatar.isNotEmpty
-                                    ? NetworkImage(avatar)
-                                    : null,
-                                child: avatar.isEmpty
-                                    ? Text(
-                                        displayName.characters.first.toUpperCase(),
-                                        style: AppTextStyles.label.copyWith(
-                                          color: AppColors.primaryDeep,
-                                        ),
-                                      )
-                                    : null,
-                              ),
+                              secondary: AppAvatar(avatarUrl: avatar, fallbackName: displayName, size: 40),
                               title: Text(displayName),
                               subtitle: Text(phone),
                             );
@@ -563,29 +551,17 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
 
   Widget _buildMemberTile(Map<String, dynamic> member) {
     final name = _memberDisplayName(member);
+    final user = member['user'] as Map<String, dynamic>? ?? const {};
+    final profile = user['profile'] as Map<String, dynamic>? ?? const {};
+    final avatar = (profile['avatar_url'] as String? ?? '').trim();
+    
     final isSelf = member['is_self'] == true;
     final role = member['role'] as String? ?? 'member';
-    final initials = name
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
 
     return ListTile(
       onTap: _canManageMembers ? () => _showMemberActions(member) : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 2),
-      leading: CircleAvatar(
-        radius: 22,
-        backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-        child: Text(
-          initials.isEmpty ? 'C' : initials,
-          style: AppTextStyles.label.copyWith(
-            color: AppColors.primaryDeep,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+      leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 44),
       title: Row(
         children: [
           Expanded(

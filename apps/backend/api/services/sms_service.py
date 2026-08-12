@@ -36,7 +36,7 @@ _DEV_MOCK_SMS_ID = "mock-sms"
 def send_otp(phone_number: str) -> None:
     """Generate and send a 6-digit OTP to *phone_number* via Arkesel."""
     api_key = os.getenv("ARKESEL_API_KEY", "").strip()
-    sender_id = os.getenv("ARKESEL_SENDER_ID", "TekChat").strip()
+    sender_id = os.getenv("ARKESEL_SENDER_ID", "Campuz").strip()
 
     if not api_key:
         logger.warning(
@@ -51,7 +51,7 @@ def send_otp(phone_number: str) -> None:
         "expiry": 5,
         "length": 6,
         "medium": "sms",
-        "message": "Your TekChat verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
+        "message": "Your Campuz verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
         "number": number,
         "sender_id": sender_id,
         "type": "numeric",

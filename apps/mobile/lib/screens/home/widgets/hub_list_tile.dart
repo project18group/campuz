@@ -1,3 +1,4 @@
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
@@ -29,16 +30,11 @@ class HubListTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar — colored circle with initials.
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: hub.avatarColor.withValues(alpha: 0.12),
-              child: Text(
-                hub.initials,
-                style: AppTextStyles.title.copyWith(
-                  color: hub.avatarColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 17,
-                ),
+            ClipOval(
+              child: AvatarPlus(
+                hub.name,
+                height: 52,
+                width: 52,
               ),
             ),
             const SizedBox(width: 12),

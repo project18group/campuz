@@ -587,6 +587,199 @@ class DirectMessageAttachment(models.Model):
     file_name = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=100, blank=True, null=True)
     size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    """
+    Sections within a Hub organize content by category.
+
+    Each Hub can have multiple sections (e.g., General, Announcements, Resources,
+    Meetings, Tasks). Sections define what content types are available in that area
+    of the Hub and control ordering/visibility.
+    """
+
+    SECTION_TYPE_CHOICES = [
+        ("general", "General"),
+        ("announcements", "Announcements"),
+        ("resources", "Resources"),
+        ("meetings", "Meetings"),
+        ("tasks", "Tasks"),
+    ]
+
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="sections",
+        help_text="The Hub this section belongs to",
+    )
+
+    section_type = models.CharField(
+        max_length=20,
+        choices=SECTION_TYPE_CHOICES,
+        help_text="Type of content this section contains",
+    )
+
+    title = models.CharField(
+        max_length=100,
+        help_text="Display name for this section (e.g., 'Class Updates', 'Assignments')",
+    )
+
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional description explaining what this section is for",
+    )
+
+    order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display order (lower numbers appear first)",
+    )
+
+    is_enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this section is visible to Hub members",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["hub", "section_type"],
+                name="unique_hub_section_type",
+            ),
+        ]
+        ordering = ["hub", "order", "id"]
+        indexes = [
+            models.Index(fields=["hub", "is_enabled"]),
+            models.Index(fields=["hub", "order"]),
+        ]
+
+    def __str__(self):
+        return f"{self.hub.name} → {self.title} ({self.get_section_type_display()})"
+
+
+class AdminInvitationCode(models.Model):
+    """
+    One-time invitation codes issued by system admins to grant hub creation
+    privileges. Each code is unique, single-use, and optionally has an expiry.
+    """
+
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        help_text="Unique invitation code (e.g., KNUST-CS-2026)",
+    )
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_invitation_codes",
+        help_text="Admin who created this code",
+    )
+    is_used = models.BooleanField(default=False)
+    used_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="redeemed_invitation_codes",
+        help_text="User who redeemed this code",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Optional expiration timestamp",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Deactivated codes cannot be redeemed",
+    )
+
+    def __str__(self):
+        return f"{self.code} ({'used' if self.is_used else 'active'})"
+
+    class Meta:
+        verbose_name = "Admin Invitation Code"
+        verbose_name_plural = "Admin Invitation Codes"
+
+
+class DirectConversation(models.Model):
+    """
+    A 1:1 conversation between two users. Ordered users ensure uniqueness.
+    """
+
+    user_1 = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="direct_conversations_as_user1",
+    )
+    user_2 = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="direct_conversations_as_user2",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user_1", "user_2"),
+                name="unique_direct_conversation",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(user_1=models.F("user_2")),
+                name="direct_conversation_distinct_users",
+            ),
+        ]
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Conversation: {self.user_1.username} ↔ {self.user_2.username}"
+
+
+class DirectMessage(models.Model):
+    """
+    Messages within a DirectConversation.
+    """
+
+    conversation = models.ForeignKey(
+        DirectConversation,
+        on_delete=models.CASCADE,
+        related_name="messages",
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="sent_direct_messages",
+    )
+    content = models.TextField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["timestamp"]
+
+    def __str__(self):
+        return f"{self.sender.username} -> {self.content[:30]}"
+
+
+class DirectMessageAttachment(models.Model):
+    """
+    A file attached to a direct message.
+    """
+
+    message = models.ForeignKey(
+        DirectMessage,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="direct_messages/%Y/%m/%d/")
+    file_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -594,3 +787,25 @@ class DirectMessageAttachment(models.Model):
 
     def __str__(self):
         return self.file_name
+
+
+class DeviceToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="device_tokens")
+    token = models.CharField(max_length=255, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.token[:10]}..."
+
+
+class AppNotification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
+    hub = models.ForeignKey(Hub, on_delete=models.CASCADE, related_name="notifications", null=True, blank=True)
+    title = models.CharField(max_length=255)
+    body = models.TextField()
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.title}"

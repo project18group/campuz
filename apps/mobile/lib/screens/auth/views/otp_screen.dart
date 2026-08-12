@@ -25,6 +25,12 @@ class _OtpScreenState extends State<OtpScreen> {
   Timer? _cooldownTimer;
 
   @override
+  void initState() {
+    super.initState();
+    _startCooldown(60);
+  }
+
+  @override
   void dispose() {
     _cooldownTimer?.cancel();
     super.dispose();

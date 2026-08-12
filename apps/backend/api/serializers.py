@@ -26,12 +26,12 @@ from .models import (
     Resource,
     TaskItem,
     UserProfile,
+    DeviceToken,
+    AppNotification,
 )
-
 
 # ---------------------------------------------------------------------------
 # OTP helpers
-# ---------------------------------------------------------------------------
 
 OTP_RESEND_COOLDOWN_SECONDS = 60
 

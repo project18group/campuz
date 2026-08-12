@@ -5,6 +5,10 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/home/widgets/empty_home_state.dart';
 import 'package:mobile/shared/widgets/app_fab.dart';
+import 'package:mobile/shared/widgets/app_avatar.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:avatar_plus/avatar_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -43,6 +47,24 @@ class _HomeScreenState extends State<HomeScreen> {
       _isLoading = true;
       _error = null;
     });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedData = prefs.getString('home_cache');
+      if (cachedData != null && mounted) {
+        final data = jsonDecode(cachedData) as Map<String, dynamic>;
+        setState(() {
+          _hubs = (data['hubs'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _conversations = (data['conversations'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _broadcasts = (data['broadcasts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _resources = (data['resources'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _tasks = (data['tasks'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _meetings = (data['meetings'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _isLoading = false;
+        });
+      }
+    } catch (_) {}
+
     try {
       final results = await Future.wait([
         AuthApiService.getHubs(),
@@ -62,12 +84,31 @@ class _HomeScreenState extends State<HomeScreen> {
           _meetings = (results[5] as List).cast<Map<String, dynamic>>();
           _isLoading = false;
         });
+        
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('home_cache', jsonEncode({
+            'hubs': _hubs,
+            'conversations': _conversations,
+            'broadcasts': _broadcasts,
+            'resources': _resources,
+            'tasks': _tasks,
+            'meetings': _meetings,
+          }));
+        } catch (_) {}
       }
     } on AuthApiException catch (error) {
       if (mounted) {
         setState(() {
           _isLoading = false;
           _error = error.message;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Unexpected error: ';
         });
       }
     }
@@ -477,19 +518,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor: AppColors.surfaceMuted,
-                    backgroundImage: avatar.isEmpty ? null : NetworkImage(avatar),
-                    child: avatar.isEmpty
-                        ? Text(
-                            name.characters.first.toUpperCase(),
-                            style: AppTextStyles.label.copyWith(
-                              color: AppColors.primaryDeep,
-                            ),
-                          )
-                        : null,
-                  ),
+                  AppAvatar(avatarUrl: avatar, fallbackName: name, size: 36),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -920,19 +949,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      leading: CircleAvatar(
-        radius: 26,
-        backgroundColor: AppColors.surfaceMuted,
-        backgroundImage: avatar.isEmpty ? null : NetworkImage(avatar),
-        child: avatar.isEmpty
-            ? Text(
-                name.characters.first.toUpperCase(),
-                style: AppTextStyles.title.copyWith(
-                  color: AppColors.primaryDeep,
-                ),
-              )
-            : null,
-      ),
+      leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 52),
       title: Text(
         name,
         overflow: TextOverflow.ellipsis,

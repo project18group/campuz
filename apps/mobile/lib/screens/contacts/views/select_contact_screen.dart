@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -226,19 +227,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               horizontal: 16,
               vertical: 5,
             ),
-            leading: CircleAvatar(
-              radius: 25,
-              backgroundColor: AppColors.surfaceMuted,
-              backgroundImage: avatar.isEmpty ? null : NetworkImage(avatar),
-              child: avatar.isEmpty
-                  ? Text(
-                      name.characters.first.toUpperCase(),
-                      style: AppTextStyles.title.copyWith(
-                        color: AppColors.primaryDeep,
-                      ),
-                    )
-                  : null,
-            ),
+            leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 50),
             title: Row(
               children: [
                 Flexible(

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -488,16 +489,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         titleSpacing: 0,
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 20,
-              backgroundColor: AppColors.surfaceMuted,
-              child: Text(
-                _hubName.characters.first.toUpperCase(),
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.primaryDeep,
-                ),
-              ),
-            ),
+            AppAvatar(avatarUrl: '', fallbackName: _hubName, size: 40),
             const SizedBox(width: 10),
             Flexible(
               child: Column(

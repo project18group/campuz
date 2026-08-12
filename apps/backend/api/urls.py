@@ -91,5 +91,22 @@ urlpatterns = [
         name="hub-invite-join",
     ),
 
+    # Notifications
+    path(
+        "devices/register/",
+        views.DeviceTokenRegisterView.as_view(),
+        name="device-register",
+    ),
+    path(
+        "notifications/",
+        views.NotificationListView.as_view(),
+        name="notification-list",
+    ),
+    path(
+        "notifications/read-status/",
+        views.NotificationReadStatusView.as_view(),
+        name="notification-read-status",
+    ),
+
     path("", include(router.urls)),
 ]
