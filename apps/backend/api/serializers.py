@@ -975,3 +975,15 @@ class MessageSerializer(serializers.ModelSerializer):
     def get_is_mine(self, obj):
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.sender_id == request.user.id)
+
+
+class DeviceTokenSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DeviceToken
+        fields = ["token"]
+
+
+class AppNotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AppNotification
+        fields = ["id", "title", "body", "is_read", "created_at"]

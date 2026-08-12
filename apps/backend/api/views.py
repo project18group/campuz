@@ -58,6 +58,8 @@ from .serializers import (
     RequestOTPSerializer,
     UserSerializer,
     VerifyOTPSerializer,
+    DeviceTokenSerializer,
+    AppNotificationSerializer,
     _clear_otp,
     _mark_otp_requested,
 )
