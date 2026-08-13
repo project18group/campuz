@@ -6,11 +6,7 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class InviteCard extends StatefulWidget {
-  const InviteCard({
-    super.key,
-    required this.hubId,
-    required this.hubName,
-  });
+  const InviteCard({super.key, required this.hubId, required this.hubName});
 
   final int hubId;
   final String hubName;
@@ -79,7 +75,9 @@ class _InviteCardState extends State<InviteCard> {
         _invite = null;
         _isRefreshing = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invite revoked')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invite revoked')));
     } on AuthApiException catch (error) {
       if (!mounted) return;
       setState(() {
@@ -136,7 +134,10 @@ class _InviteCardState extends State<InviteCard> {
                   child: QrImageView(data: inviteUrl),
                 ),
                 const SizedBox(height: 16),
-                Text(_inviteCode().isEmpty ? inviteUrl : _inviteCode(), style: AppTextStyles.label),
+                Text(
+                  _inviteCode().isEmpty ? inviteUrl : _inviteCode(),
+                  style: AppTextStyles.label,
+                ),
               ],
             ),
           ),
@@ -172,14 +173,16 @@ class _InviteCardState extends State<InviteCard> {
                           Text('Invite Students', style: AppTextStyles.title),
                           const SizedBox(height: 4),
                           Text(
-                            'Share a backend-generated invite link or QR code.',
+                            'Share an invite link or QR code to let students join your hub.',
                             style: AppTextStyles.body,
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      onPressed: _isRefreshing ? null : () => _loadInvite(refresh: true),
+                      onPressed: _isRefreshing
+                          ? null
+                          : () => _loadInvite(refresh: true),
                       icon: _isRefreshing
                           ? const SizedBox(
                               width: 18,
@@ -194,7 +197,9 @@ class _InviteCardState extends State<InviteCard> {
                   const SizedBox(height: 12),
                   Text(
                     _error!,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.error),
+                    style: AppTextStyles.caption.copyWith(
+                      color: AppColors.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 14),
