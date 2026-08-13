@@ -76,10 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
-              child: Text(
-                'Sign Out',
-                style: TextStyle(color: AppColors.error),
-              ),
+              child: Text('Sign Out', style: TextStyle(color: AppColors.error)),
             ),
           ],
         );
@@ -100,28 +97,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final seed = (profile['display_name'] as String? ?? '').trim().isNotEmpty
         ? (profile['display_name'] as String).trim()
         : ((profile['full_name'] as String? ?? '').trim().isNotEmpty
-            ? (profile['full_name'] as String).trim()
-            : 'Campuz Student');
+              ? (profile['full_name'] as String).trim()
+              : 'Campuz Student');
     return Uri.https('api.dicebear.com', '/10.x/initials/svg', {
       'seed': seed,
     }).toString();
   }
 
   Future<void> _changeAvatar(String seed) async {
-    final avatarUrl = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+    final avatarUrl =
+        'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
     try {
-      await AuthApiService.profileSetup(
-        avatarUrl: avatarUrl,
-      );
+      await AuthApiService.profileSetup(avatarUrl: avatarUrl);
       if (!mounted) return;
       await _loadProfile();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo updated')));
     } on AuthApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -136,12 +134,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (!mounted) return;
       await _loadProfile();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo removed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Profile photo removed')));
     } on AuthApiException catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -152,8 +152,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _showAvatarActions() {
     final List<String> defaultSeeds = [
-      'Felix', 'Aneka', 'Molly', 'Jude', 'Tinkerbell', 
-      'Lucky', 'Leo', 'Mia', 'Oliver', 'Chloe'
+      'Felix',
+      'Aneka',
+      'Molly',
+      'Jude',
+      'Tinkerbell',
+      'Lucky',
+      'Leo',
+      'Mia',
+      'Oliver',
+      'Chloe',
     ];
 
     showModalBottomSheet<void>(
@@ -171,24 +179,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Choose an Avatar',
-                  style: AppTextStyles.title,
-                ),
+                Text('Choose an Avatar', style: AppTextStyles.title),
                 const SizedBox(height: 16),
                 SizedBox(
                   height: 180,
                   child: GridView.builder(
                     scrollDirection: Axis.horizontal,
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 16,
-                      crossAxisSpacing: 16,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 16,
+                          crossAxisSpacing: 16,
+                        ),
                     itemCount: defaultSeeds.length,
                     itemBuilder: (context, index) {
                       final seed = defaultSeeds[index];
-                      final url = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+                      final url =
+                          'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
                       return GestureDetector(
                         onTap: () {
                           Navigator.pop(sheetContext);
@@ -204,7 +211,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             url,
                             fit: BoxFit.cover,
                             placeholderBuilder: (_) => const Center(
-                              child: CircularProgressIndicator(),
+                              child: CircularProgressIndicator(
+                                color: AppColors.background,
+                              ),
                             ),
                           ),
                         ),
@@ -214,7 +223,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 24),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                  leading: const Icon(
+                    Icons.delete_outline,
+                    color: AppColors.error,
+                  ),
                   title: const Text(
                     'Remove photo',
                     style: TextStyle(color: AppColors.error),
@@ -273,8 +285,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
-                        child: Column(
-                          children: [
+                      child: Column(
+                        children: [
                           GestureDetector(
                             onTap: _showAvatarActions,
                             child: Stack(

@@ -244,16 +244,47 @@ class AuthApiService {
     required int hubId,
     required String content,
     bool sendAsSms = false,
+    List<PlatformFile>? attachments,
   }) async {
+    final needsMultipart = attachments != null && attachments.isNotEmpty;
+    final body = <String, dynamic>{
+      'content': content,
+      'send_as_sms': sendAsSms,
+    };
+
+    if (!needsMultipart) {
+      return _authorized(
+        (token) => _client.post(
+          Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
+          headers: _headers(token),
+          body: jsonEncode(body),
+        ),
+      );
+    }
+
     return _authorized(
-      (token) => _client.post(
-        Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
-        headers: _headers(token),
-        body: jsonEncode({
-          'content': content,
-          'send_as_sms': sendAsSms,
-        }),
-      ),
+      (token) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields.addAll(
+          body.map((key, value) => MapEntry(key, value.toString())),
+        );
+        for (final file in attachments!) {
+          if (file.path != null) {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'attachments',
+                file.path!,
+                filename: file.name,
+              ),
+            );
+          }
+        }
+        return request.send();
+      },
     );
   }
 
@@ -980,7 +1011,7 @@ class AuthApiService {
             );
           }
         }
-              return request.send();
+        return request.send();
       },
     );
   }

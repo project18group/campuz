@@ -60,8 +60,8 @@ class HubMessageBubble extends StatelessWidget {
                           softWrap: true,
                           style: AppTextStyles.body.copyWith(
                             color: Colors.white,
-                            fontWeight: FontWeight.w500,
-                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
                           ),
                         ),
                         const SizedBox(height: 6),

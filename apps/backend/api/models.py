@@ -193,6 +193,29 @@ class Message(models.Model):
         )
 
 
+class MessageAttachment(models.Model):
+    """
+    A file attached to a hub message.
+    """
+
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name="attachments",
+    )
+    file = models.FileField(upload_to="hub_messages/%Y/%m/%d/")
+    file_name = models.CharField(max_length=255)
+    mime_type = models.CharField(max_length=100, blank=True, null=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return self.file_name
+
+
 class SMSDelivery(models.Model):
     STATUS_PENDING = "pending"
     STATUS_SENT = "sent"

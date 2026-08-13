@@ -23,6 +23,7 @@ from .models import (
     HubMember,
     HubSection,
     Message,
+    MessageAttachment,
     Resource,
     TaskItem,
     UserProfile,
@@ -948,6 +949,9 @@ class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     sender_name = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
+    has_attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -959,8 +963,18 @@ class MessageSerializer(serializers.ModelSerializer):
             "is_mine",
             "content",
             "timestamp",
+            "attachments",
+            "attachment_count",
+            "has_attachments",
         ]
-        read_only_fields = ["sender", "sender_name", "is_mine"]
+        read_only_fields = [
+            "sender",
+            "sender_name",
+            "is_mine",
+            "attachments",
+            "attachment_count",
+            "has_attachments",
+        ]
 
     def get_sender_name(self, obj):
         profile = getattr(obj.sender, "profile", None)
@@ -975,6 +989,59 @@ class MessageSerializer(serializers.ModelSerializer):
     def get_is_mine(self, obj):
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.sender_id == request.user.id)
+
+    def get_attachments(self, obj):
+        request = self.context.get("request")
+        return MessageAttachmentSerializer(
+            obj.attachments.all(),
+            many=True,
+            context={"request": request},
+        ).data
+
+    def get_attachment_count(self, obj):
+        return obj.attachments.count()
+
+    def get_has_attachments(self, obj):
+        return obj.attachments.exists()
+
+
+class MessageAttachmentSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    extension = serializers.SerializerMethodField()
+    is_image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = MessageAttachment
+        fields = [
+            "id",
+            "file_name",
+            "mime_type",
+            "size_bytes",
+            "url",
+            "extension",
+            "is_image",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_url(self, obj):
+        request = self.context.get("request")
+        if not obj.file:
+            return None
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
+
+    def get_extension(self, obj):
+        name = obj.file_name or ""
+        if "." not in name:
+            return ""
+        return name.rsplit(".", 1)[-1].lower()
+
+    def get_is_image(self, obj):
+        mime_type = (obj.mime_type or "").lower()
+        if mime_type.startswith("image/"):
+            return True
+        return self.get_extension(obj) in {"jpg", "jpeg", "png", "gif", "webp", "bmp", "heic"}
 
 
 class DeviceTokenSerializer(serializers.ModelSerializer):

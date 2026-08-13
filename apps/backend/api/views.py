@@ -25,6 +25,7 @@ from .models import (
     HubMember,
     HubSection,
     Message,
+    MessageAttachment,
     SMSDelivery,
     Resource,
     TaskItem,
@@ -51,6 +52,7 @@ from .serializers import (
     TaskSubmitSerializer,
     HubSerializer,
     MessageSerializer,
+    MessageAttachmentSerializer,
     ResourceCreateSerializer,
     ResourceSerializer,
     OTP_RESEND_COOLDOWN_SECONDS,
@@ -1570,13 +1572,22 @@ class HubMessageView(APIView):
             )
 
         content = str(request.data.get("content", "")).strip()
-        if not content:
+        attachments = request.FILES.getlist("attachments")
+        if not content and not attachments:
             return Response(
-                {"error": "Message content is required."},
+                {"error": "Message content or an attachment is required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         message = Message.objects.create(hub=hub, sender=request.user, content=content)
+        for upload in attachments:
+            MessageAttachment.objects.create(
+                message=message,
+                file=upload,
+                file_name=getattr(upload, "name", "attachment"),
+                mime_type=getattr(upload, "content_type", None),
+                size_bytes=getattr(upload, "size", None),
+            )
         send_as_sms = _request_bool(request.data.get("send_as_sms"))
         eligible_sms_recipients = 0
         if send_as_sms:
