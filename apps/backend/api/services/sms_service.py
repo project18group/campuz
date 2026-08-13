@@ -33,20 +33,37 @@ _DEV_MOCK_OTP = "123456"
 _DEV_MOCK_SMS_ID = "mock-sms"
 
 
-def send_otp(phone_number: str) -> None:
-    """Generate and send a 6-digit OTP to *phone_number* via Arkesel."""
+def _normalize_phone_number(phone_number: str) -> str:
+    """Normalize a phone number for Arkesel's API."""
+    return "".join(ch for ch in phone_number.strip() if ch.isdigit())
+
+
+def send_otp(phone_number: str) -> dict:
+    """Generate and send a 6-digit OTP to *phone_number* via Arkesel.
+
+    Returns a structured result so callers can log whether Arkesel accepted the
+    request without ever exposing the OTP itself.
+    """
     api_key = os.getenv("ARKESEL_API_KEY", "").strip()
     sender_id = os.getenv("ARKESEL_SENDER_ID", "Campuz").strip()
+    recipient = phone_number.strip()
 
     if not api_key:
         logger.warning(
             "[sms_service] ARKESEL_API_KEY not set. Using mock OTP for %s",
-            phone_number,
+            recipient,
         )
-        print(f"[DEV] Mock OTP for {phone_number}: {_DEV_MOCK_OTP}")
-        return
+        return {
+            "success": True,
+            "provider_message_id": f"mock-otp-{uuid.uuid4().hex[:12]}",
+            "response": {
+                "status": "success",
+                "data": {"recipient": recipient},
+            },
+            "error_message": None,
+        }
 
-    number = phone_number.lstrip("+")
+    number = _normalize_phone_number(recipient)
     payload = {
         "expiry": 5,
         "length": 6,
@@ -69,11 +86,46 @@ def send_otp(phone_number: str) -> None:
             headers=headers,
             timeout=10,
         )
-        response.raise_for_status()
-        logger.info("[sms_service] OTP dispatched to %s", phone_number)
     except requests.RequestException as exc:
-        logger.error("[sms_service] Failed to send OTP to %s: %s", phone_number, exc)
-        raise
+        logger.error("[sms_service] Failed to send OTP to %s: %s", recipient, exc)
+        return {
+            "success": False,
+            "provider_message_id": None,
+            "response": {},
+            "error_message": str(exc),
+        }
+
+    data = _safe_response_json(response)
+    provider_message_id = None
+    nested = data.get("data")
+    if isinstance(nested, dict):
+        provider_message_id = nested.get("id") or nested.get("message_id")
+    provider_message_id = provider_message_id or data.get("id")
+
+    if 200 <= response.status_code < 300:
+        logger.info(
+            "[sms_service] OTP request accepted for %s (provider_message_id=%s)",
+            recipient,
+            provider_message_id or "unknown",
+        )
+        return {
+            "success": True,
+            "provider_message_id": provider_message_id,
+            "response": data,
+            "error_message": None,
+        }
+
+    error_message = _extract_sms_error_message(
+        data,
+        f"Arkesel OTP request failed with status {response.status_code}.",
+    )
+    logger.error("[sms_service] Failed to send OTP to %s: %s", recipient, error_message)
+    return {
+        "success": False,
+        "provider_message_id": provider_message_id,
+        "response": data,
+        "error_message": error_message,
+    }
 
 
 def verify_otp(phone_number: str, otp_code: str) -> bool:
@@ -89,7 +141,7 @@ def verify_otp(phone_number: str, otp_code: str) -> bool:
         )
         return is_valid
 
-    number = phone_number.lstrip("+")
+    number = _normalize_phone_number(phone_number)
     payload = {
         "code": otp_code,
         "number": number,

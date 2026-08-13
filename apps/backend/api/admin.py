@@ -11,6 +11,7 @@ from .models import (
     HubMeeting,
     HubMember,
     Message,
+    OtpDeliveryLog,
     Resource,
     TaskItem,
     UserProfile,
@@ -23,6 +24,35 @@ class UserProfileAdmin(admin.ModelAdmin):
     search_fields = ["user__username", "full_name", "phone_number", "display_name"]
     list_filter = ["is_verified", "can_create_hubs", "profile_setup_completed"]
     readonly_fields = ["otp_code", "otp_created_at"]
+
+
+@admin.register(OtpDeliveryLog)
+class OtpDeliveryLogAdmin(admin.ModelAdmin):
+    list_display = [
+        "phone_number",
+        "profile",
+        "status",
+        "provider_status",
+        "provider_message_id",
+        "created_at",
+    ]
+    search_fields = [
+        "phone_number",
+        "profile__user__username",
+        "provider_message_id",
+        "provider_status",
+    ]
+    list_filter = ["status", "provider_status", "created_at"]
+    readonly_fields = [
+        "profile",
+        "phone_number",
+        "status",
+        "provider_message_id",
+        "provider_status",
+        "error_message",
+        "response_data",
+        "created_at",
+    ]
 
 
 @admin.register(AdminInvitationCode)

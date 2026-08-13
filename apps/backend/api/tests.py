@@ -17,7 +17,15 @@ from rest_framework.status import (
 from rest_framework.test import APITestCase, APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from api.models import AdminInvitationCode, Hub, HubInvite, HubMember, DirectMessage, Resource
+from api.models import (
+    AdminInvitationCode,
+    DirectMessage,
+    Hub,
+    HubInvite,
+    HubMember,
+    OtpDeliveryLog,
+    Resource,
+)
 
 
 def _auth_client(_, user):
@@ -66,6 +74,13 @@ class OTPAndAuthContractTests(APITestCase):
         profile = UserProfile.objects.get(phone_number=phone)
         self.assertFalse(profile.is_verified)
         self.assertIsNotNone(profile.otp_created_at)
+        self.assertTrue(
+            OtpDeliveryLog.objects.filter(
+                profile=profile,
+                phone_number=phone,
+                status="accepted",
+            ).exists()
+        )
 
     def test_request_otp_resend_is_rate_limited(self):
         phone = "+233201000002"

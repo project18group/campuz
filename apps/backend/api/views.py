@@ -26,6 +26,7 @@ from .models import (
     HubSection,
     Message,
     MessageAttachment,
+    OtpDeliveryLog,
     SMSDelivery,
     Resource,
     TaskItem,
@@ -210,7 +211,53 @@ class RequestOTPView(APIView):
 
         _mark_otp_requested(profile)
         try:
-            sms_service.send_otp(phone)
+            result = sms_service.send_otp(phone)
+            if not isinstance(result, dict):
+                result = {
+                    "success": True,
+                    "provider_message_id": None,
+                    "response": {},
+                    "error_message": None,
+                }
+            response_data = result.get("response")
+            if not isinstance(response_data, dict):
+                response_data = {}
+            provider_status = None
+            nested = response_data.get("data")
+            if isinstance(nested, dict):
+                provider_status = (
+                    response_data.get("status")
+                    or response_data.get("code")
+                    or nested.get("status")
+                    or None
+                )
+            provider_message_id = result.get("provider_message_id")
+            if provider_message_id is not None:
+                provider_message_id = str(provider_message_id)
+            OtpDeliveryLog.objects.create(
+                profile=profile,
+                phone_number=phone,
+                status="accepted" if result.get("success") else "failed",
+                provider_message_id=provider_message_id,
+                provider_status=str(provider_status).strip() if provider_status else None,
+                error_message=result.get("error_message"),
+                response_data=response_data,
+            )
+            if not result.get("success"):
+                logger.error(
+                    "[RequestOTPView] OTP send failed for %s: %s",
+                    phone,
+                    result.get("error_message") or "Unknown provider error",
+                )
+                return Response(
+                    {"error": "Failed to send verification code. Please try again."},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            logger.info(
+                "[RequestOTPView] OTP accepted for %s (provider_message_id=%s)",
+                phone,
+                result.get("provider_message_id") or "unknown",
+            )
         except Exception:
             return Response(
                 {"error": "Failed to send verification code. Please try again."},
