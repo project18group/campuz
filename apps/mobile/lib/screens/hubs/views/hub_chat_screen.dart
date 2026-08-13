@@ -7,6 +7,7 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
+import 'package:mobile/shared/widgets/chat_background.dart';
 
 class HubChatScreen extends StatefulWidget {
   const HubChatScreen({super.key, this.hub, this.hubId});
@@ -535,7 +536,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
       ),
       body: Column(
         children: [
-          Expanded(child: _buildMessages()),
+          Expanded(child: ChatBackground(child: _buildMessages())),
           _buildComposer(),
         ],
       ),

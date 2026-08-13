@@ -944,20 +944,18 @@ class AuthApiService {
         request.fields.addAll(
           body.map((key, value) => MapEntry(key, value.toString())),
         );
-        if (attachments != null) {
-          for (final file in attachments) {
-            if (file.path != null) {
-              request.files.add(
-                await http.MultipartFile.fromPath(
-                  'attachments',
-                  file.path!,
-                  filename: file.name,
-                ),
-              );
-            }
+        for (final file in attachments) {
+          if (file.path != null) {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'attachments',
+                file.path!,
+                filename: file.name,
+              ),
+            );
           }
         }
-        return request.send();
+              return request.send();
       },
     );
   }

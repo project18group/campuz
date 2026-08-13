@@ -1,7 +1,8 @@
 import 'dart:io';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mobile/shared/widgets/patterned_background.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -106,15 +107,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }).toString();
   }
 
-  Future<void> _changeAvatar() async {
+  Future<void> _changeAvatar(String seed) async {
+    final avatarUrl = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
     try {
-      final image = await ImagePicker().pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 75,
-      );
-      if (image == null) return;
       await AuthApiService.profileSetup(
-        avatarFile: File(image.path),
+        avatarUrl: avatarUrl,
       );
       if (!mounted) return;
       await _loadProfile();
@@ -154,36 +151,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showAvatarActions() {
+    final List<String> defaultSeeds = [
+      'Felix', 'Aneka', 'Molly', 'Jude', 'Tinkerbell', 
+      'Lucky', 'Leo', 'Mia', 'Oliver', 'Chloe'
+    ];
+
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.surface,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
         return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Change photo'),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _changeAvatar();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline, color: AppColors.error),
-                title: const Text(
-                  'Remove photo',
-                  style: TextStyle(color: AppColors.error),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Choose an Avatar',
+                  style: AppTextStyles.title,
                 ),
-                onTap: () {
-                  Navigator.pop(sheetContext);
-                  _removeAvatar();
-                },
-              ),
-            ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  height: 180,
+                  child: GridView.builder(
+                    scrollDirection: Axis.horizontal,
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      mainAxisSpacing: 16,
+                      crossAxisSpacing: 16,
+                    ),
+                    itemCount: defaultSeeds.length,
+                    itemBuilder: (context, index) {
+                      final seed = defaultSeeds[index];
+                      final url = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+                      return GestureDetector(
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _changeAvatar(seed);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceMuted,
+                            shape: BoxShape.circle,
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: SvgPicture.network(
+                            url,
+                            fit: BoxFit.cover,
+                            placeholderBuilder: (_) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 24),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline, color: AppColors.error),
+                  title: const Text(
+                    'Remove photo',
+                    style: TextStyle(color: AppColors.error),
+                  ),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    _removeAvatar();
+                  },
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -199,17 +241,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final profileDisplayName = (profile?['display_name'] as String? ?? '')
         .trim();
     final avatarUrl = (profile?['avatar_url'] as String? ?? '').trim();
-    final avatarImage = avatarUrl.isNotEmpty
-        ? NetworkImage(avatarUrl)
-        : NetworkImage(_defaultAvatarUrl(user));
     final displayName = profileDisplayName.isNotEmpty
         ? profileDisplayName
         : (fullName.isNotEmpty ? fullName : 'Your profile');
 
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text("Profile")),
-      body: Container(
-        color: AppColors.background,
+      body: PatternedBackground(
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
@@ -220,12 +259,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primaryDeep, AppColors.primary],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: AppColors.surface,
                         borderRadius: BorderRadius.circular(32),
+                        border: Border.all(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                          width: 1,
+                        ),
                         boxShadow: const [
                           BoxShadow(
                             color: AppColors.shadow,
@@ -241,33 +280,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             child: Stack(
                               alignment: Alignment.bottomRight,
                               children: [
-                                avatarImage != null ? CircleAvatar(
-                                  radius: 54,
-                                  backgroundColor: Colors.white.withValues(
-                                    alpha: 0.14,
-                                  ),
-                                  backgroundImage: avatarImage,
-                                ) : ClipOval(
-                                  child: AvatarPlus(
-                                    displayName,
-                                    height: 108,
-                                    width: 108,
-                                  ),
+                                AppAvatar(
+                                  avatarUrl: avatarUrl,
+                                  fallbackName: displayName,
+                                  size: 108,
                                 ),
                                 Container(
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withValues(alpha: 0.35),
+                                    color: AppColors.surface,
                                     shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withValues(alpha: 0.5),
-                                      width: 2,
-                                    ),
+                                    boxShadow: const [
+                                      BoxShadow(
+                                        color: AppColors.shadow,
+                                        blurRadius: 8,
+                                        offset: Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
                                   padding: const EdgeInsets.all(8),
                                   child: const Icon(
-                                    Icons.camera_alt_outlined,
+                                    Icons.edit_outlined,
                                     size: 16,
-                                    color: Colors.white,
+                                    color: AppColors.primary,
                                   ),
                                 ),
                               ],
@@ -277,7 +311,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Text(
                             displayName,
                             style: AppTextStyles.heading.copyWith(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 22,
                             ),
                             textAlign: TextAlign.center,
@@ -287,7 +321,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               fullName,
                               style: AppTextStyles.body.copyWith(
-                                color: Colors.white.withValues(alpha: 0.85),
+                                color: AppColors.textSecondary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -297,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             Text(
                               phoneNumber,
                               style: AppTextStyles.body.copyWith(
-                                color: Colors.white.withValues(alpha: 0.82),
+                                color: AppColors.textSecondary,
                               ),
                             ),
                           ],
@@ -305,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           TextButton.icon(
                             onPressed: _showAvatarActions,
                             style: TextButton.styleFrom(
-                              foregroundColor: Colors.white,
+                              foregroundColor: AppColors.primary,
                             ),
                             icon: const Icon(Icons.manage_accounts_outlined),
                             label: const Text('Manage photo'),

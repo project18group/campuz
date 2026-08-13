@@ -51,7 +51,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
 
     try {
       final response = await AuthApiService.getTasks(status: _filter, mine: true);
-      final items = _extractResults(response)
+      final items = response
         ..sort((a, b) {
           final aDate = _parseDueDate(a) ?? DateTime.fromMillisecondsSinceEpoch(0);
           final bDate = _parseDueDate(b) ?? DateTime.fromMillisecondsSinceEpoch(0);

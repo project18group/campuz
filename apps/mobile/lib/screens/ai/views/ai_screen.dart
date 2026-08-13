@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/core/mock/mock_data.dart';
+import 'package:mobile/shared/widgets/chat_background.dart';
 
 class AiScreen extends StatelessWidget {
   const AiScreen({super.key});
@@ -13,8 +14,7 @@ class AiScreen extends StatelessWidget {
       body: Column(
         children: [
           Expanded(
-            child: Container(
-              color: AppColors.background,
+            child: ChatBackground(
               child: Center(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(24),

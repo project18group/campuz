@@ -571,8 +571,6 @@ class DirectMessage(models.Model):
 
     def __str__(self):
         return f"{self.sender.username} -> {self.content[:30]}"
-
-
 class DirectMessageAttachment(models.Model):
     """
     A file attached to a direct message.
@@ -587,74 +585,13 @@ class DirectMessageAttachment(models.Model):
     file_name = models.CharField(max_length=255)
     mime_type = models.CharField(max_length=100, blank=True, null=True)
     size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    """
-    Sections within a Hub organize content by category.
-
-    Each Hub can have multiple sections (e.g., General, Announcements, Resources,
-    Meetings, Tasks). Sections define what content types are available in that area
-    of the Hub and control ordering/visibility.
-    """
-
-    SECTION_TYPE_CHOICES = [
-        ("general", "General"),
-        ("announcements", "Announcements"),
-        ("resources", "Resources"),
-        ("meetings", "Meetings"),
-        ("tasks", "Tasks"),
-    ]
-
-    hub = models.ForeignKey(
-        Hub,
-        on_delete=models.CASCADE,
-        related_name="sections",
-        help_text="The Hub this section belongs to",
-    )
-
-    section_type = models.CharField(
-        max_length=20,
-        choices=SECTION_TYPE_CHOICES,
-        help_text="Type of content this section contains",
-    )
-
-    title = models.CharField(
-        max_length=100,
-        help_text="Display name for this section (e.g., 'Class Updates', 'Assignments')",
-    )
-
-    description = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Optional description explaining what this section is for",
-    )
-
-    order = models.PositiveIntegerField(
-        default=0,
-        help_text="Display order (lower numbers appear first)",
-    )
-
-    is_enabled = models.BooleanField(
-        default=True,
-        help_text="Whether this section is visible to Hub members",
-    )
-
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["hub", "section_type"],
-                name="unique_hub_section_type",
-            ),
-        ]
-        ordering = ["hub", "order", "id"]
-        indexes = [
-            models.Index(fields=["hub", "is_enabled"]),
-            models.Index(fields=["hub", "order"]),
-        ]
+        ordering = ["created_at", "id"]
 
     def __str__(self):
-        return f"{self.hub.name} → {self.title} ({self.get_section_type_display()})"
+        return self.file_name
 
 
 class AdminInvitationCode(models.Model):

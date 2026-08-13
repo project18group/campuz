@@ -1,5 +1,5 @@
-import 'package:avatar_plus/avatar_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 
 class AppAvatar extends StatelessWidget {
@@ -14,29 +14,45 @@ class AppAvatar extends StatelessWidget {
     this.size = 50.0,
   });
 
+  String _getFallbackUrl() {
+    final seed = fallbackName.isEmpty ? 'User' : fallbackName;
+    return 'https://api.dicebear.com/7.x/initials/svg?seed=${Uri.encodeComponent(seed)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl.startsWith('seed:')) {
+    String url = avatarUrl;
+    
+    // Handle old format if it's cached or present
+    if (url.startsWith('seed:')) {
+      final seed = url.substring(5);
+      url = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+    } else if (url.isEmpty) {
+      url = _getFallbackUrl();
+    }
+
+    if (url.endsWith('.svg') || url.contains('/svg')) {
       return ClipOval(
-        child: AvatarPlus(
-          avatarUrl.substring(5),
-          height: size,
+        child: Container(
           width: size,
-        ),
-      );
-    } else if (avatarUrl.isEmpty) {
-      return ClipOval(
-        child: AvatarPlus(
-          fallbackName.isEmpty ? 'User' : fallbackName,
           height: size,
-          width: size,
+          color: AppColors.surfaceMuted,
+          child: SvgPicture.network(
+            url,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholderBuilder: (BuildContext context) => const Center(
+              child: CircularProgressIndicator(),
+            ),
+          ),
         ),
       );
     } else {
       return CircleAvatar(
         radius: size / 2,
         backgroundColor: AppColors.surfaceMuted,
-        backgroundImage: NetworkImage(avatarUrl),
+        backgroundImage: NetworkImage(url),
       );
     }
   }

@@ -1,4 +1,3 @@
-import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
@@ -30,11 +29,22 @@ class HubListTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             // Avatar — colored circle with initials.
-            ClipOval(
-              child: AvatarPlus(
-                hub.name,
-                height: 52,
-                width: 52,
+            Container(
+              height: 52,
+              width: 52,
+              decoration: BoxDecoration(
+                color: AppColors.primary,
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  hub.name.isNotEmpty ? hub.name[0].toUpperCase() : '?',
+                  style: AppTextStyles.body.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 20,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -88,10 +98,10 @@ class HubListTile extends StatelessWidget {
                 Text(
                   hub.timestamp,
                   style: AppTextStyles.caption.copyWith(
-                    color:
-                        hasUnread ? AppColors.success : AppColors.textSecondary,
-                    fontWeight:
-                        hasUnread ? FontWeight.w700 : FontWeight.w400,
+                    color: hasUnread
+                        ? AppColors.success
+                        : AppColors.textSecondary,
+                    fontWeight: hasUnread ? FontWeight.w700 : FontWeight.w400,
                   ),
                 ),
                 const SizedBox(height: 5),
@@ -112,10 +122,14 @@ class HubListTile extends StatelessWidget {
                       ),
                     if (hasUnread)
                       Container(
-                        constraints:
-                            const BoxConstraints(minWidth: 22, minHeight: 22),
+                        constraints: const BoxConstraints(
+                          minWidth: 22,
+                          minHeight: 22,
+                        ),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 7, vertical: 3),
+                          horizontal: 7,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: AppColors.success,
                           borderRadius: BorderRadius.circular(12),
@@ -130,8 +144,7 @@ class HubListTile extends StatelessWidget {
                           ),
                         ),
                       ),
-                    if (!hasUnread && !hub.isPinned)
-                      const SizedBox(height: 22),
+                    if (!hasUnread && !hub.isPinned) const SizedBox(height: 22),
                   ],
                 ),
               ],

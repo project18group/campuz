@@ -8,7 +8,6 @@ import 'package:mobile/shared/widgets/app_fab.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:avatar_plus/avatar_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends StatefulWidget {

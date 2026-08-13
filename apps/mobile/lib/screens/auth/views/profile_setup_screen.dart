@@ -1,4 +1,5 @@
-import 'package:avatar_plus/avatar_plus.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -28,7 +29,15 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     'Jude',
     'Tinkerbell',
     'Lucky',
+    'Leo',
+    'Mia',
+    'Oliver',
+    'Chloe'
   ];
+
+  String _getAvatarUrl(String seed) {
+    return 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+  }
 
   @override
   void dispose() {
@@ -53,7 +62,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
     try {
       await AuthApiService.profileSetup(
         displayName: displayName,
-        avatarUrl: 'seed:$_selectedSeed',
+        avatarUrl: _getAvatarUrl(_selectedSeed),
         removeAvatar: false,
         adminCode: adminCode.isEmpty ? null : adminCode,
       );
@@ -88,8 +97,28 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
         automaticallyImplyLeading: false,
         title: const Text('Complete Profile'),
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
+      body: _isLoading 
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const CircularProgressIndicator(),
+                  const SizedBox(height: 24),
+                  Text('Creating your account...',
+                      style: AppTextStyles.heading.copyWith(
+                        fontSize: 20,
+                        color: AppColors.primaryDeep,
+                      )),
+                  const SizedBox(height: 8),
+                  Text('Please wait a moment.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      )),
+                ],
+              ),
+            )
+          : SafeArea(
+              child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,11 +133,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
               ),
               const SizedBox(height: 32),
               Center(
-                child: ClipOval(
-                  child: AvatarPlus(
-                    _selectedSeed,
-                    height: 110,
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceMuted,
+                    shape: BoxShape.circle,
+                  ),
+                  clipBehavior: Clip.hardEdge,
+                  child: SvgPicture.network(
+                    _getAvatarUrl(_selectedSeed),
                     width: 110,
+                    height: 110,
+                    fit: BoxFit.cover,
+                    placeholderBuilder: (BuildContext context) => const Center(
+                      child: CircularProgressIndicator(),
+                    ),
                   ),
                 ),
               ),
@@ -138,11 +178,22 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                               ? Border.all(color: AppColors.primary, width: 3)
                               : null,
                         ),
-                        child: ClipOval(
-                          child: AvatarPlus(
-                            seed,
-                            height: 60,
+                        child: Container(
+                          width: 60,
+                          height: 60,
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceMuted,
+                            shape: BoxShape.circle,
+                          ),
+                          clipBehavior: Clip.hardEdge,
+                          child: SvgPicture.network(
+                            _getAvatarUrl(seed),
                             width: 60,
+                            height: 60,
+                            fit: BoxFit.cover,
+                            placeholderBuilder: (BuildContext context) => const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           ),
                         ),
                       ),
@@ -183,12 +234,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 ],
               ),
               const SizedBox(height: 36),
-              _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : PrimaryButton(
-                      text: 'Finish Setup',
-                      onPressed: _saveProfile,
-                    ),
+              PrimaryButton(
+                text: 'Finish Setup',
+                onPressed: _saveProfile,
+              ),
             ],
           ),
         ),
