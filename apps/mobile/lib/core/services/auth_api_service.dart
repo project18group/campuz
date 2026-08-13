@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 
@@ -694,13 +695,21 @@ class AuthApiService {
         _extractErrorMessage(decoded) ??
             'Request failed with status ${response.statusCode}',
       );
-    } on http.ClientException catch (error) {
-      throw AuthApiException(
-        'Unable to reach the backend at $_baseUrl. ${error.message}',
+    } on SocketException {
+      throw const AuthApiException(
+        'No internet connection. Please check your network and try again.',
+      );
+    } on TimeoutException {
+      throw const AuthApiException(
+        'The request timed out. Please check your connection and try again.',
+      );
+    } on http.ClientException {
+      throw const AuthApiException(
+        'Could not connect to the server. Please try again later.',
       );
     } catch (error) {
       if (error is AuthApiException) rethrow;
-      throw AuthApiException('Unexpected auth error: $error');
+      throw AuthApiException('Unexpected error: $error');
     }
   }
 
@@ -732,13 +741,21 @@ class AuthApiService {
         _extractErrorMessage(decoded) ??
             'Request failed with status ${response.statusCode}',
       );
-    } on http.ClientException catch (error) {
-      throw AuthApiException(
-        'Unable to reach the backend at $_baseUrl. ${error.message}',
+    } on SocketException {
+      throw const AuthApiException(
+        'No internet connection. Please check your network and try again.',
+      );
+    } on TimeoutException {
+      throw const AuthApiException(
+        'The request timed out. Please check your connection and try again.',
+      );
+    } on http.ClientException {
+      throw const AuthApiException(
+        'Could not connect to the server. Please try again later.',
       );
     } catch (error) {
       if (error is AuthApiException) rethrow;
-      throw AuthApiException('Unexpected auth error: $error');
+      throw AuthApiException('Unexpected error: $error');
     }
   }
 
@@ -766,13 +783,21 @@ class AuthApiService {
         _extractErrorMessage(decoded) ??
             'Request failed with status ${response.statusCode}',
       );
-    } on http.ClientException catch (error) {
-      throw AuthApiException(
-        'Unable to reach the backend at $_baseUrl. ${error.message}',
+    } on SocketException {
+      throw const AuthApiException(
+        'No internet connection. Please check your network and try again.',
+      );
+    } on TimeoutException {
+      throw const AuthApiException(
+        'The request timed out. Please check your connection and try again.',
+      );
+    } on http.ClientException {
+      throw const AuthApiException(
+        'Could not connect to the server. Please try again later.',
       );
     } catch (error) {
       if (error is AuthApiException) rethrow;
-      throw AuthApiException('Unexpected auth error: $error');
+      throw AuthApiException('Unexpected error: $error');
     }
   }
 
