@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -7,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,13 +16,23 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const _sessions = [
+    ('Broadcasts', Icons.campaign_outlined, '/broadcasts'),
+    ('Resource Gallery', Icons.folder_outlined, '/resources'),
+    ('Tasks & Assignments', Icons.assignment_outlined, '/tasks'),
+    ('Calendar Sync', Icons.calendar_month_outlined, '/calendar'),
+  ];
+  static const _keyShowSessionBadges = 'settings_show_session_badges';
+
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _showSessionBadges = true;
 
   @override
   void initState() {
     super.initState();
     _loadProfile();
+    _loadPreferences();
   }
 
   Future<void> _loadProfile() async {
@@ -148,6 +158,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SnackBar(content: Text('Unable to remove your photo right now')),
       );
     }
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _showSessionBadges = prefs.getBool(_keyShowSessionBadges) ?? true;
+    });
+  }
+
+  Widget _sessionBadge(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required String route,
+    required String number,
+  }) {
+    return GestureDetector(
+      onTap: () => context.push(route),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceMuted,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Center(
+                child: Text(
+                  number,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primaryDeep,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(icon, size: 16, color: AppColors.primaryDeep),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showAvatarActions() {
@@ -359,6 +433,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 20),
+                    if (_showSessionBadges)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(28),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sessions',
+                              style: AppTextStyles.label.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              children: [
+                                _sessionBadge(
+                                  context,
+                                  label: _sessions[0].$1,
+                                  icon: _sessions[0].$2,
+                                  route: _sessions[0].$3,
+                                  number: '01',
+                                ),
+                                _sessionBadge(
+                                  context,
+                                  label: _sessions[1].$1,
+                                  icon: _sessions[1].$2,
+                                  route: _sessions[1].$3,
+                                  number: '02',
+                                ),
+                                _sessionBadge(
+                                  context,
+                                  label: _sessions[2].$1,
+                                  icon: _sessions[2].$2,
+                                  route: _sessions[2].$3,
+                                  number: '03',
+                                ),
+                                _sessionBadge(
+                                  context,
+                                  label: _sessions[3].$1,
+                                  icon: _sessions[3].$2,
+                                  route: _sessions[3].$3,
+                                  number: '04',
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     const SizedBox(height: 24),
                     Container(
                       decoration: BoxDecoration(
@@ -383,33 +515,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const Divider(height: 1, indent: 60),
                           _profileTile(
-                            icon: Icons.campaign_outlined,
-                            title: "Broadcasts",
-                            onTap: () => context.push('/broadcasts'),
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
-                            icon: Icons.folder_outlined,
-                            title: "Resource Gallery",
-                            onTap: () => context.push('/resources'),
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
-                            icon: Icons.assignment_outlined,
-                            title: "Tasks & Assignments",
-                            onTap: () => context.push('/tasks'),
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
-                            icon: Icons.calendar_month_outlined,
-                            title: "Calendar Sync",
-                            onTap: () => context.push('/calendar'),
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
                             icon: Icons.settings_outlined,
                             title: "Settings",
-                            onTap: () {},
+                            onTap: () async {
+                              await context.push('/settings');
+                              await _loadPreferences();
+                            },
                           ),
                           const Divider(height: 1, indent: 60),
                           _profileTile(

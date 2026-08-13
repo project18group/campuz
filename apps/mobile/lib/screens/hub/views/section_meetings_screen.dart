@@ -33,6 +33,12 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
   String get _sectionTitle =>
       (widget.section['title'] as String? ?? 'Meetings').trim();
 
+  String get _displaySectionTitle {
+    return _sectionTitle.toLowerCase() == 'meetings'
+        ? 'Scheduled Sessions'
+        : _sectionTitle;
+  }
+
   bool get _canManageMeetings => widget.hub?['can_manage_members'] == true;
 
   @override
@@ -142,7 +148,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
     final url = (meeting['meeting_url'] as String? ?? '').trim();
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No meeting link is available.')),
+        const SnackBar(content: Text('No session link is available.')),
       );
       return;
     }
@@ -150,7 +156,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
     final uri = Uri.tryParse(url);
     if (uri == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid meeting link.')),
+        const SnackBar(content: Text('Invalid session link.')),
       );
       return;
     }
@@ -158,7 +164,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open meeting link.')),
+        const SnackBar(content: Text('Could not open session link.')),
       );
     }
   }
@@ -172,9 +178,9 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Delete meeting'),
+          title: const Text('Delete session'),
           content: const Text(
-            'This will remove the meeting from the hub for all members.',
+            'This will remove the session from the hub for all members.',
           ),
           actions: [
             TextButton(
@@ -203,7 +209,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
       await _loadMeetings();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Meeting deleted.')),
+        const SnackBar(content: Text('Session deleted.')),
       );
     } on AuthApiException catch (error) {
       if (!mounted) return;
@@ -342,8 +348,8 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                   SnackBar(
                     content: Text(
                       isEditing
-                          ? 'Unable to update meeting right now.'
-                          : 'Unable to create meeting right now.',
+                          ? 'Unable to update session right now.'
+                          : 'Unable to create session right now.',
                     ),
                   ),
                 );
@@ -364,7 +370,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        isEditing ? 'Edit meeting' : 'Create meeting',
+                        isEditing ? 'Edit session' : 'Create session',
                         style: AppTextStyles.heading.copyWith(fontSize: 20),
                       ),
                       const SizedBox(height: 16),
@@ -381,7 +387,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: urlController,
-                        decoration: const InputDecoration(labelText: 'Meeting URL'),
+                        decoration: const InputDecoration(labelText: 'Session URL'),
                       ),
                       const SizedBox(height: 12),
                       Row(
@@ -421,7 +427,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                                   height: 18,
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
-                              : Text(isEditing ? 'Save changes' : 'Create meeting'),
+                              : Text(isEditing ? 'Save changes' : 'Create session'),
                         ),
                       ),
                     ],
@@ -546,7 +552,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
               child: FilledButton.icon(
                 onPressed: () => _openMeeting(meeting),
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Join Meeting'),
+                label: const Text('Join Session'),
               ),
             ),
           ],
@@ -602,14 +608,14 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No upcoming meetings',
+                        'No scheduled sessions',
                         style: AppTextStyles.heading.copyWith(fontSize: 18),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         _canManageMeetings
-                            ? 'Create the first meeting for this hub.'
-                            : 'Check back later for the next live session.',
+                            ? 'Create the first session for this hub.'
+                            : 'Check back later for the next scheduled session.',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.body.copyWith(
                           color: AppColors.textSecondary,
@@ -644,9 +650,9 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_sectionTitle, style: AppTextStyles.label),
+            Text(_displaySectionTitle, style: AppTextStyles.label),
             Text(
-              'Upcoming meetings',
+              'Upcoming sessions',
               style: AppTextStyles.body.copyWith(
                 fontSize: 12,
                 color: AppColors.textSecondary,
@@ -665,7 +671,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
           ? FloatingActionButton.extended(
               onPressed: () => _openMeetingSheet(),
               icon: const Icon(Icons.add_circle_outline),
-              label: const Text('New meeting'),
+              label: const Text('New session'),
             )
           : null,
       body: _buildBody(),

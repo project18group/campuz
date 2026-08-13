@@ -307,10 +307,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 14),
           _summarySection(
-            title: 'Meetings',
+            title: 'Live Sessions',
             subtitle: 'Upcoming Zoom or external sessions.',
-            emptyTitle: 'No meetings',
-            emptyBody: 'Scheduled meetings from your hubs will show here.',
+            emptyTitle: 'No live sessions',
+            emptyBody: 'Scheduled sessions from your hubs will show here.',
             children: _meetings.take(3).map(_meetingCard).toList(),
           ),
           const SizedBox(height: 16),

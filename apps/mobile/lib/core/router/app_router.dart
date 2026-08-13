@@ -17,10 +17,12 @@ import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_info_screen.dart';
 import 'package:mobile/screens/ai/views/ai_screen.dart';
 import 'package:mobile/screens/profile/views/profile_screen.dart';
+import 'package:mobile/screens/profile/views/settings_screen.dart';
 import 'package:mobile/screens/broadcasts/views/broadcast_feed_screen.dart';
 import 'package:mobile/screens/resources/views/resource_list_screen.dart';
 import 'package:mobile/screens/tasks/views/task_list_screen.dart';
 import 'package:mobile/screens/calendar/views/calendar_screen.dart';
+import 'package:mobile/screens/sessions/views/sessions_screen.dart';
 import 'package:mobile/shared/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
@@ -64,6 +66,10 @@ final appRouter = GoRouter(
       builder: (context, state, child) => AppShell(child: child),
       routes: [
         GoRoute(path: "/home", builder: (context, state) => const HomeScreen()),
+        GoRoute(
+          path: "/sessions",
+          builder: (context, state) => const SessionsScreen(),
+        ),
         GoRoute(path: "/ai", builder: (context, state) => const AiScreen()),
         GoRoute(
           path: "/profile",
@@ -164,6 +170,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: "/calendar",
       builder: (context, state) => const CalendarScreen(),
+    ),
+    GoRoute(
+      path: "/settings",
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );
