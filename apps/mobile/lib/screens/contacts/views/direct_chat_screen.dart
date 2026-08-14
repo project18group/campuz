@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/shared/widgets/linkified_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 
@@ -323,11 +324,74 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
   Future<void> _pickAttachments() async {
     if (_isSending) return;
-    final result = await FilePicker.pickFiles(
-      allowMultiple: true,
-      withData: false,
-      type: FileType.any,
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Attach file',
+                  style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                _AttachmentChoiceTile(
+                  icon: Icons.image_rounded,
+                  title: 'Photos',
+                  subtitle: 'Pick one or more images',
+                  onTap: () => Navigator.pop(sheetContext, 'images'),
+                ),
+                _AttachmentChoiceTile(
+                  icon: Icons.description_outlined,
+                  title: 'Documents',
+                  subtitle: 'PDF, DOC, PPT and more',
+                  onTap: () => Navigator.pop(sheetContext, 'documents'),
+                ),
+                _AttachmentChoiceTile(
+                  icon: Icons.all_inclusive_rounded,
+                  title: 'Any file',
+                  subtitle: 'Browse everything from storage',
+                  onTap: () => Navigator.pop(sheetContext, 'all'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
+
+    if (choice == null) return;
+
+    FilePickerResult? result;
+    if (choice == 'images') {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: false,
+        type: FileType.image,
+      );
+    } else if (choice == 'documents') {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: false,
+        type: FileType.custom,
+        allowedExtensions: const ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'],
+      );
+    } else {
+      result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        withData: false,
+        type: FileType.any,
+      );
+    }
+
     if (result == null || !mounted) return;
     setState(() {
       _pendingAttachments.addAll(
@@ -398,11 +462,17 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               const SizedBox(height: 6),
             ],
             if (content.isNotEmpty) ...[
-              Text(
-                content,
+              LinkifiedText(
+                text: content,
                 style: AppTextStyles.body.copyWith(
                   color: isMine ? Colors.white : AppColors.textPrimary,
                   height: 1.35,
+                ),
+                linkStyle: AppTextStyles.body.copyWith(
+                  color: isMine ? Colors.white : AppColors.primaryDeep,
+                  height: 1.35,
+                  fontWeight: FontWeight.w700,
+                  decoration: TextDecoration.underline,
                 ),
               ),
               if (attachments.isNotEmpty) const SizedBox(height: 10),
@@ -940,10 +1010,92 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     fontSize: 10,
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  _humanFileSize(file.size),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  String _humanFileSize(int bytes) {
+    if (bytes <= 0) return 'Size unknown';
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(0)} KB';
+  }
+}
+
+class _AttachmentChoiceTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _AttachmentChoiceTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppColors.surfaceMuted,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(18),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: AppColors.primaryDeep),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: AppTextStyles.label.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: AppTextStyles.body.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

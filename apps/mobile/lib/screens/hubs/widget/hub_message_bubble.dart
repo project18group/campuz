@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/models/hub_message.dart';
+import 'package:mobile/shared/widgets/linkified_text.dart';
 
 class HubMessageBubble extends StatelessWidget {
   final HubMessage message;
@@ -55,13 +56,18 @@ class HubMessageBubble extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        Text(
-                          message.message!,
-                          softWrap: true,
+                        LinkifiedText(
+                          text: message.message ?? '',
                           style: AppTextStyles.body.copyWith(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 16,
+                          ),
+                          linkStyle: AppTextStyles.body.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -80,9 +86,17 @@ class HubMessageBubble extends StatelessWidget {
                               if (message.smsSent) ...[
                                 const SizedBox(width: 4),
                                 const Icon(
-                                  Icons.sms,
+                                  Icons.sms_rounded,
                                   size: 14,
-                                  color: Colors.white60,
+                                  color: Colors.white70,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'SMS',
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ],
                             ],

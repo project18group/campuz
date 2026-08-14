@@ -142,11 +142,11 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
             width: 60,
             height: 60,
             fit: BoxFit.cover,
-            placeholderBuilder: (_) => const Center(
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+            placeholderBuilder: (_) => Center(
+              child: Icon(
+                Icons.person_rounded,
+                color: AppColors.primary.withValues(alpha: 0.32),
+                size: 22,
               ),
             ),
           ),
@@ -239,15 +239,19 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                           shape: BoxShape.circle,
                         ),
                         clipBehavior: Clip.hardEdge,
-                        child: SvgPicture.network(
-                          _getAvatarUrl(_selectedSeed.isEmpty
+                          child: SvgPicture.network(
+                            _getAvatarUrl(_selectedSeed.isEmpty
                               ? (_avatarSeeds.isNotEmpty ? _avatarSeeds.first : 'campuz-student-1')
                               : _selectedSeed),
-                          width: 110,
-                          height: 110,
-                          fit: BoxFit.cover,
-                          placeholderBuilder: (_) => const Center(
-                            child: CircularProgressIndicator(),
+                            width: 110,
+                            height: 110,
+                            fit: BoxFit.cover,
+                          placeholderBuilder: (_) => Center(
+                            child: Icon(
+                              Icons.person_rounded,
+                              color: AppColors.primary.withValues(alpha: 0.32),
+                              size: 34,
+                            ),
                           ),
                         ),
                       ),

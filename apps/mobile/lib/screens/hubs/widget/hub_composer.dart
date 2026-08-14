@@ -31,13 +31,25 @@ class HubComposer extends StatelessWidget {
 
   Widget _buildAttachmentChip(PlatformFile file, int index) {
     final name = file.name.trim().isEmpty ? 'Attachment' : file.name.trim();
+    final sizeLabel = file.size > 0
+        ? (file.size >= 1024 * 1024
+            ? '${(file.size / (1024 * 1024)).toStringAsFixed(1)} MB'
+            : '${(file.size / 1024).toStringAsFixed(0)} KB')
+        : 'Size unknown';
     return Container(
       margin: const EdgeInsets.only(right: 8, bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
-        color: AppColors.surfaceMuted,
-        borderRadius: BorderRadius.circular(16),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -53,14 +65,28 @@ class HubComposer extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 160),
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.caption.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+            constraints: const BoxConstraints(maxWidth: 150),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  sizeLabel,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
             ),
           ),
           if (onRemoveAttachment != null) ...[
@@ -78,6 +104,39 @@ class HubComposer extends StatelessWidget {
     );
   }
 
+  Widget _buildSmsNotice() {
+    if (!showSendAsSms) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.45),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
+      ),
+      child: Row(
+        children: [
+          Switch(
+            value: sendAsSms,
+            onChanged: onSmsChanged,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'SMS uses credits and goes to members\' phone numbers.',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -85,71 +144,7 @@ class HubComposer extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showSendAsSms)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Send as SMS',
-                            style: AppTextStyles.body.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.amber.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              'Urgent only',
-                              style: AppTextStyles.caption.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        "SMS reaches members' phone numbers and may use credits.",
-                        style: AppTextStyles.caption,
-                      ),
-                    ],
-                  ),
-                ),
-                Switch(value: sendAsSms, onChanged: onSmsChanged),
-              ],
-            ),
-          if (showSendAsSms) ...[
-            const SizedBox(height: 8),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              decoration: BoxDecoration(
-                color: Colors.amber.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.amber.withValues(alpha: 0.25)),
-              ),
-              child: Text(
-                'Only send as SMS for urgent or very important info. SMS goes to members\' phone numbers and may use credits.',
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
+          if (showSendAsSms) _buildSmsNotice(),
           if (attachments.isNotEmpty) ...[
             const SizedBox(height: 10),
             Align(
@@ -178,27 +173,19 @@ class HubComposer extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: controller,
-
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w500,
                     fontSize: 15,
                   ),
-
                   keyboardType: TextInputType.multiline,
-
                   maxLines: null,
                   minLines: 1,
-
                   decoration: InputDecoration(
                     hintText: "Type a message",
-
                     hintStyle: AppTextStyles.label,
-
                     filled: true,
-
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(25),
-
                       borderSide: BorderSide.none,
                     ),
                   ),

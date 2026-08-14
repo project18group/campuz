@@ -16,27 +16,17 @@ class PhoneScreen extends StatefulWidget {
 }
 
 class _PhoneScreenState extends State<PhoneScreen> {
-  final _fullNameController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isLoading = false;
 
   @override
   void dispose() {
-    _fullNameController.dispose();
     _phoneController.dispose();
     super.dispose();
   }
 
   Future<void> _handleContinue() async {
-    final fullName = _fullNameController.text.trim();
     final local = _phoneController.text.trim();
-
-    if (fullName.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter your full name')),
-      );
-      return;
-    }
 
     if (local.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -63,7 +53,6 @@ class _PhoneScreenState extends State<PhoneScreen> {
     try {
       await AuthApiService.requestOtp(
         phoneNumber: phoneNumber,
-        fullName: fullName,
       );
 
       if (mounted) {
@@ -71,7 +60,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
           _isLoading = false;
         });
         context.go(
-          '/otp?phone=${Uri.encodeComponent(phoneNumber)}&fullName=${Uri.encodeComponent(fullName)}',
+          '/otp?phone=${Uri.encodeComponent(phoneNumber)}',
         );
       }
     } on AuthApiException catch (error) {
@@ -150,14 +139,6 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    AppTextField(
-                      controller: _fullNameController,
-                      label: 'Full Name',
-                      hintText: 'Your full name',
-                      keyboardType: TextInputType.name,
-                      textCapitalization: TextCapitalization.words,
-                    ),
-                    const SizedBox(height: 18),
                     AppTextField(
                       controller: _phoneController,
                       label: 'Phone Number',

@@ -42,8 +42,12 @@ class AppAvatar extends StatelessWidget {
             width: size,
             height: size,
             fit: BoxFit.cover,
-            placeholderBuilder: (BuildContext context) => const Center(
-              child: CircularProgressIndicator(),
+            placeholderBuilder: (BuildContext context) => Center(
+              child: Icon(
+                Icons.person_rounded,
+                color: AppColors.primary.withValues(alpha: 0.35),
+                size: size * 0.42,
+              ),
             ),
           ),
         ),

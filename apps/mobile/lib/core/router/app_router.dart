@@ -50,8 +50,7 @@ final appRouter = GoRouter(
       path: "/otp",
       builder: (context, state) {
         final phone = state.uri.queryParameters['phone'];
-        final fullName = state.uri.queryParameters['fullName'];
-        return OtpScreen(phone: phone, fullName: fullName);
+        return OtpScreen(phone: phone);
       },
     ),
     GoRoute(

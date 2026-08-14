@@ -31,15 +31,16 @@ class AuthApiService {
   // ---------------------------------------------------------------------------
 
   /// Requests a 6-digit OTP sent to [phoneNumber].
-  /// [fullName] is required for first-time registrations.
+  /// [fullName] is optional and only used to prefill a pending profile.
   static Future<Map<String, dynamic>> requestOtp({
     required String phoneNumber,
-    required String fullName,
+    String? fullName,
   }) async {
-    return _postJson(
-      '/auth/request-otp/',
-      body: {'phone_number': phoneNumber, 'full_name': fullName},
-    );
+    final body = <String, dynamic>{'phone_number': phoneNumber};
+    if (fullName != null && fullName.trim().isNotEmpty) {
+      body['full_name'] = fullName.trim();
+    }
+    return _postJson('/auth/request-otp/', body: body);
   }
 
   /// Verifies [otpCode] for [phoneNumber].
