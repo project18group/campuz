@@ -372,20 +372,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
     FilePickerResult? result;
     if (choice == 'images') {
-      result = await FilePicker.platform.pickFiles(
+      result = await FilePicker.pickFiles(
         allowMultiple: true,
         withData: false,
         type: FileType.image,
       );
     } else if (choice == 'documents') {
-      result = await FilePicker.platform.pickFiles(
+      result = await FilePicker.pickFiles(
         allowMultiple: true,
         withData: false,
         type: FileType.custom,
         allowedExtensions: const ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx'],
       );
     } else {
-      result = await FilePicker.platform.pickFiles(
+      result = await FilePicker.pickFiles(
         allowMultiple: true,
         withData: false,
         type: FileType.any,
@@ -393,9 +393,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
 
     if (result == null || !mounted) return;
+    final pickedFiles = result.files;
     setState(() {
       _pendingAttachments.addAll(
-        result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+        pickedFiles.where((file) => file.path != null && file.path!.isNotEmpty),
       );
     });
   }
