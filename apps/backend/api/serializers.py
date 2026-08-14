@@ -57,7 +57,12 @@ def _clear_otp(profile: UserProfile) -> None:
 
 class RequestOTPSerializer(serializers.Serializer):
     phone_number = serializers.CharField(max_length=20)
-    full_name = serializers.CharField(max_length=150)
+    full_name = serializers.CharField(
+        max_length=150,
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+    )
 
     def validate_phone_number(self, value):
         value = value.strip()
@@ -68,9 +73,9 @@ class RequestOTPSerializer(serializers.Serializer):
         return value
 
     def validate_full_name(self, value):
+        if value in (None, ""):
+            return ""
         value = value.strip()
-        if not value:
-            raise serializers.ValidationError("Full name cannot be blank.")
         return value
 
 

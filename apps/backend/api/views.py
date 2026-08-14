@@ -172,7 +172,7 @@ class RequestOTPView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         phone = serializer.validated_data["phone_number"]
-        full_name = serializer.validated_data["full_name"]
+        full_name = (serializer.validated_data.get("full_name") or "").strip()
 
         # Find or create a pending profile for this phone number.
         profile = UserProfile.objects.filter(phone_number=phone).first()
@@ -188,8 +188,11 @@ class RequestOTPView(APIView):
 
             profile = UserProfile.objects.get(user=user)
             profile.phone_number = phone
-            profile.full_name = full_name
-            profile.save(update_fields=["phone_number", "full_name"])
+            if full_name:
+                profile.full_name = full_name
+                profile.save(update_fields=["phone_number", "full_name"])
+            else:
+                profile.save(update_fields=["phone_number"])
         else:
             # Update full_name in case it changed (e.g. re-registering).
             if full_name and profile.full_name != full_name:
