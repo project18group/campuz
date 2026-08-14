@@ -112,20 +112,29 @@ class HubComposer extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border.withValues(alpha: 0.8)),
+        color: AppColors.surface.withValues(alpha: 0.92),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.9)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x10000000),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
           Switch(
             value: sendAsSms,
-            onChanged: onSmsChanged,
+            onChanged: attachments.isEmpty ? onSmsChanged : null,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
-              'SMS uses credits and goes to members\' phone numbers.',
+              attachments.isEmpty
+                  ? 'Only use SMS for urgent or very important text updates.'
+                  : 'SMS works only for text-only updates.',
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textPrimary,
                 fontWeight: FontWeight.w600,

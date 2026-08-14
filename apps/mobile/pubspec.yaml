@@ -24,6 +24,7 @@ dependencies:
   file_picker: ^11.0.2
   image_picker: ^1.2.2
   emoji_picker_flutter: 4.4.0
+  flutter_chat_reactions: ^0.2.7
   open_file: ^3.5.10
   url_launcher: ^6.3.1
   path: ^1.9.1

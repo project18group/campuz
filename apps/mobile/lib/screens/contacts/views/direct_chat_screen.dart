@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
+import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
 import 'package:mobile/shared/widgets/linkified_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
@@ -28,6 +32,8 @@ class DirectChatScreen extends StatefulWidget {
 class _DirectChatScreenState extends State<DirectChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _reactionsController =
+      ReactionsController(currentUserId: AuthSession.username ?? 'me');
   final List<Map<String, dynamic>> _messages = [];
   final List<PlatformFile> _pendingAttachments = [];
 
@@ -38,6 +44,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
   String? _error;
   Timer? _pollTimer;
   int _nextPageToLoad = 1;
+  Map<String, dynamic>? _replyToMessage;
 
   Map<String, dynamic> get _otherUser =>
       widget.conversation?['other_user'] as Map<String, dynamic>? ?? const {};
@@ -71,6 +78,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     _scrollController.removeListener(_onScroll);
     _messageController.dispose();
     _scrollController.dispose();
+    _reactionsController.dispose();
     super.dispose();
   }
 
@@ -187,6 +195,46 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     return fullName.isNotEmpty ? fullName : 'Campuz user';
   }
 
+  String _messageFingerprint(Map<String, dynamic> message) {
+    final id = (message['id']?.toString() ?? '').trim();
+    if (id.isNotEmpty) return 'id:$id';
+    final sender = message['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderKey = [
+      sender['id'],
+      message['sender_name'],
+      profile['display_name'],
+      profile['full_name'],
+    ].map((value) => value?.toString().trim() ?? '').firstWhere(
+          (value) => value.isNotEmpty,
+          orElse: () => 'unknown',
+        );
+    final timestamp = _parseTimestamp(message)?.toUtc().toIso8601String() ?? '';
+    final content = (message['content'] as String? ?? '').trim();
+    final attachmentCount = (message['attachments'] as List?)?.length ?? 0;
+    return '$senderKey|$timestamp|$content|$attachmentCount';
+  }
+
+  bool _hasMessage(Map<String, dynamic> candidate) {
+    final fingerprint = _messageFingerprint(candidate);
+    return _messages.any((message) => _messageFingerprint(message) == fingerprint);
+  }
+
+  void _startReplyToMessage(Map<String, dynamic> message) {
+    setState(() => _replyToMessage = message);
+  }
+
+  void _cancelReply() {
+    setState(() => _replyToMessage = null);
+  }
+
+  String _replySnippet(Map<String, dynamic> message) {
+    final content = (message['content'] as String? ?? '').trim();
+    if (content.isEmpty) return 'Attachment';
+    if (content.length <= 90) return content;
+    return '${content.substring(0, 90)}...';
+  }
+
   Future<void> _loadMessages({required bool reset, bool silent = false}) async {
     if (reset) {
       setState(() {
@@ -206,6 +254,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         page: page,
       );
       final results = _extractResults(response).reversed.toList();
+      final fresh = results.where((message) => !_hasMessage(message)).toList();
 
       if (!mounted) return;
 
@@ -216,8 +265,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ..addAll(results);
           _nextPageToLoad = 2;
         } else {
-          final existingIds = _messages.map((m) => m['id']).toSet();
-          final fresh = results.where((m) => !existingIds.contains(m['id'])).toList();
           if (fresh.isNotEmpty) {
             _messages.addAll(fresh);
           }
@@ -259,8 +306,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         page: _nextPageToLoad,
       );
       final results = _extractResults(response).reversed.toList();
-      final existingIds = _messages.map((m) => m['id']).toSet();
-      final older = results.where((m) => !existingIds.contains(m['id'])).toList();
+      final older = results.where((m) => !_hasMessage(m)).toList();
 
       if (!mounted) return;
 
@@ -294,16 +340,24 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
 
     setState(() => _isSending = true);
     try {
+      final replyMessage = _replyToMessage;
+      final replyPrefix = replyMessage == null
+          ? ''
+          : '> ${_messageAuthor(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
       final message = await AuthApiService.sendDirectMessage(
         conversationId: widget.conversationId,
-        content: content,
+        content: '$replyPrefix$content',
         attachments: List<PlatformFile>.from(_pendingAttachments),
       );
       if (!mounted) return;
       _messageController.clear();
       setState(() {
-        _messages.add(Map<String, dynamic>.from(message));
+        final sentMessage = Map<String, dynamic>.from(message);
+        if (!_hasMessage(sentMessage)) {
+          _messages.add(sentMessage);
+        }
         _pendingAttachments.clear();
+        _replyToMessage = null;
         _isSending = false;
       });
       _scrollToBottom();
@@ -406,6 +460,69 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _pendingAttachments.removeAt(index));
   }
 
+  Future<void> _showEmojiPicker() async {
+    if (!mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(sheetContext).size.height * 0.42,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Pick an emoji',
+                          style: AppTextStyles.title.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(sheetContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: EmojiPicker(
+                      textEditingController: _messageController,
+                      config: const Config(
+                        height: 256,
+                        checkPlatformCompatibility: true,
+                        skinToneConfig: SkinToneConfig(),
+                        categoryViewConfig: CategoryViewConfig(),
+                        bottomActionBarConfig: BottomActionBarConfig(),
+                        searchViewConfig: SearchViewConfig(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
@@ -418,6 +535,175 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     });
   }
 
+  Future<void> _showMessageMenu(Map<String, dynamic> message) async {
+    final isMine = message['is_mine'] as bool? ?? false;
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Message options',
+                  style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 12),
+                _MessageActionTile(
+                  icon: Icons.reply_rounded,
+                  title: 'Reply',
+                  subtitle: 'Quote this message in your next one',
+                  onTap: () => Navigator.pop(sheetContext, 'reply'),
+                ),
+                _MessageActionTile(
+                  icon: Icons.copy_rounded,
+                  title: 'Copy',
+                  subtitle: 'Copy text to clipboard',
+                  onTap: () => Navigator.pop(sheetContext, 'copy'),
+                ),
+                if (isMine)
+                  _MessageActionTile(
+                    icon: Icons.edit_rounded,
+                    title: 'Edit draft',
+                    subtitle: 'Load the text back into the composer',
+                    onTap: () => Navigator.pop(sheetContext, 'edit'),
+                  ),
+                if (isMine)
+                  _MessageActionTile(
+                    icon: Icons.delete_outline,
+                    title: 'Delete from view',
+                    subtitle: 'Remove this bubble locally',
+                    isDestructive: true,
+                    onTap: () => Navigator.pop(sheetContext, 'delete'),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (!mounted || choice == null) return;
+    final content = (message['content'] as String? ?? '').trim();
+    switch (choice) {
+      case 'reply':
+        _startReplyToMessage(message);
+        break;
+      case 'copy':
+        if (content.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: content));
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Message copied')),
+          );
+        }
+        break;
+      case 'edit':
+        if (content.isNotEmpty) {
+          _messageController.text = content;
+          _messageController.selection = TextSelection.collapsed(
+            offset: _messageController.text.length,
+          );
+          _startReplyToMessage(message);
+        }
+        break;
+      case 'delete':
+        setState(() {
+          _messages.removeWhere(
+            (candidate) => _messageFingerprint(candidate) == _messageFingerprint(message),
+          );
+        });
+        break;
+    }
+  }
+
+  ChatReactionsConfig _reactionConfigForMessage(bool isMine) {
+    return ChatReactionsConfig(
+      availableReactions: const ['👍', '❤️', '😂', '😮', '😢', '😠', '➕'],
+      menuItems: isMine
+          ? const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+              MenuItem(label: 'Edit', icon: Icons.edit),
+              MenuItem(
+                label: 'Delete',
+                icon: Icons.delete_forever,
+                isDestructive: true,
+              ),
+            ]
+          : const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+            ],
+      showAddReactionButton: true,
+      enableHapticFeedback: true,
+      enableLongPress: true,
+      enableDoubleTap: true,
+      showContextMenu: true,
+      dialogBackgroundColor: AppColors.surface,
+      dialogBorderRadius: BorderRadius.circular(20),
+      dismissOnTapOutside: true,
+      emojiPickerBuilder: (context, onEmojiSelected) {
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: EmojiPicker(
+            textEditingController: _messageController,
+            onEmojiSelected: (category, emoji) {
+              onEmojiSelected(emoji.emoji);
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _handleMessageAction(
+    Map<String, dynamic> message,
+    MenuItem item,
+  ) async {
+    final label = item.label.toLowerCase();
+    final content = (message['content'] as String? ?? '').trim();
+    switch (label) {
+      case 'reply':
+        _startReplyToMessage(message);
+        break;
+      case 'copy':
+        if (content.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: content));
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Message copied')),
+          );
+        }
+        break;
+      case 'edit':
+        if (content.isNotEmpty) {
+          _messageController.text = content;
+          _messageController.selection = TextSelection.collapsed(
+            offset: _messageController.text.length,
+          );
+        }
+        break;
+      case 'delete':
+        setState(() {
+          _messages.removeWhere(
+            (candidate) =>
+                _messageFingerprint(candidate) == _messageFingerprint(message),
+          );
+        });
+        break;
+    }
+  }
+
   Widget _buildMessageBubble(Map<String, dynamic> message) {
     final content = (message['content'] as String? ?? '').trim();
     final isMine = message['is_mine'] as bool? ?? false;
@@ -425,68 +711,74 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     final isRead = message['is_read'] as bool? ?? false;
     final attachments = (message['attachments'] as List?) ?? const [];
 
-    return Align(
+    return ChatMessageWrapper(
+      messageId: _messageFingerprint(message),
+      controller: _reactionsController,
+      config: _reactionConfigForMessage(isMine),
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 320),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: isMine ? AppColors.primaryDeep : AppColors.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isMine ? 18 : 4),
-            bottomRight: Radius.circular(isMine ? 4 : 18),
-          ),
-          border: isMine ? null : Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
+      onMenuItemTapped: (item) => _handleMessageAction(message, item),
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 320),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: isMine ? AppColors.primaryDeep : AppColors.surface,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(isMine ? 18 : 4),
+              bottomRight: Radius.circular(isMine ? 4 : 18),
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!isMine) ...[
-              Text(
-                _messageAuthor(message),
-                style: AppTextStyles.label.copyWith(
-                  color: AppColors.primaryDeep,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+            border: isMine ? null : Border.all(color: AppColors.border),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D000000),
+                blurRadius: 10,
+                offset: Offset(0, 4),
               ),
-              const SizedBox(height: 6),
             ],
-            if (content.isNotEmpty) ...[
-              LinkifiedText(
-                text: content,
-                style: AppTextStyles.body.copyWith(
-                  color: isMine ? Colors.white : AppColors.textPrimary,
-                  height: 1.35,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!isMine) ...[
+                Text(
+                  _messageAuthor(message),
+                  style: AppTextStyles.label.copyWith(
+                    color: AppColors.primaryDeep,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
-                linkStyle: AppTextStyles.body.copyWith(
-                  color: isMine ? Colors.white : AppColors.primaryDeep,
-                  height: 1.35,
-                  fontWeight: FontWeight.w700,
-                  decoration: TextDecoration.underline,
+                const SizedBox(height: 6),
+              ],
+              if (content.isNotEmpty) ...[
+                LinkifiedText(
+                  text: content,
+                  style: AppTextStyles.body.copyWith(
+                    color: isMine ? Colors.white : AppColors.textPrimary,
+                    height: 1.35,
+                  ),
+                  linkStyle: AppTextStyles.body.copyWith(
+                    color: isMine ? Colors.white : AppColors.primaryDeep,
+                    height: 1.35,
+                    fontWeight: FontWeight.w700,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
-              ),
-              if (attachments.isNotEmpty) const SizedBox(height: 10),
-            ],
-            if (attachments.isNotEmpty)
-              ...attachments.whereType<Map>().map((raw) {
-                final attachment = Map<String, dynamic>.from(raw);
-                final url = attachment['url'] as String? ?? '';
-                final fileName = (attachment['file_name'] as String? ?? 'Attachment').trim();
-                final isImage = _isImageAttachment(attachment);
-                final color = _attachmentColorFor(attachment);
-                final icon = _attachmentIconFor(attachment);
-                return Padding(
+                if (attachments.isNotEmpty) const SizedBox(height: 10),
+              ],
+              if (attachments.isNotEmpty)
+                ...attachments.whereType<Map>().map((raw) {
+                  final attachment = Map<String, dynamic>.from(raw);
+                  final url = attachment['url'] as String? ?? '';
+                  final fileName = (attachment['file_name'] as String? ?? 'Attachment').trim();
+                  final isImage = _isImageAttachment(attachment);
+                  final color = _attachmentColorFor(attachment);
+                  final icon = _attachmentIconFor(attachment);
+                  return Padding(
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -636,35 +928,37 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       ),
                     ],
                   ),
-                );
-              }),
-            if (content.isNotEmpty || attachments.isNotEmpty) const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    timestamp,
-                    style: AppTextStyles.caption.copyWith(
-                      color: isMine ? Colors.white60 : AppColors.textSecondary,
-                      fontSize: 10,
+                  );
+                }),
+              if (content.isNotEmpty || attachments.isNotEmpty)
+                const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      timestamp,
+                      style: AppTextStyles.caption.copyWith(
+                        color: isMine ? Colors.white60 : AppColors.textSecondary,
+                        fontSize: 10,
+                      ),
                     ),
-                  ),
-                  if (isMine) ...[
-                    const SizedBox(width: 3),
-                    Icon(
-                      isRead ? Icons.done_all_rounded : Icons.done_rounded,
-                      size: 12,
-                      color: isRead
-                          ? const Color(0xFF53BDEB)
-                          : Colors.white70,
-                    ),
+                    if (isMine) ...[
+                      const SizedBox(width: 3),
+                      Icon(
+                        isRead ? Icons.done_all_rounded : Icons.done_rounded,
+                        size: 12,
+                        color: isRead
+                            ? const Color(0xFF53BDEB)
+                            : Colors.white70,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -931,6 +1225,11 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
               child: Row(
                 children: [
                   IconButton(
+                    onPressed: _isSending ? null : _showEmojiPicker,
+                    icon: const Icon(Icons.emoji_emotions_outlined),
+                    tooltip: 'Emoji',
+                  ),
+                  IconButton(
                     onPressed: _isSending ? null : _pickAttachments,
                     icon: const Icon(Icons.attach_file_rounded),
                     tooltip: 'Attach file',
@@ -1023,6 +1322,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
           ),
         ],
+        ),
       ),
     );
   }

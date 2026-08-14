@@ -1639,6 +1639,11 @@ class HubMessageView(APIView):
                 size_bytes=getattr(upload, "size", None),
             )
         send_as_sms = _request_bool(request.data.get("send_as_sms"))
+        if send_as_sms and attachments:
+            return Response(
+                {"error": "SMS delivery is only available for text-only hub messages."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         eligible_sms_recipients = 0
         if send_as_sms:
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)

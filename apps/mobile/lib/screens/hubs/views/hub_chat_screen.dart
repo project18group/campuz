@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
+import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
@@ -25,6 +28,8 @@ class HubChatScreen extends StatefulWidget {
 class _HubChatScreenState extends State<HubChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
+  final _reactionsController =
+      ReactionsController(currentUserId: AuthSession.username ?? 'me');
   final List<Map<String, dynamic>> _messages = [];
   final List<PlatformFile> _pendingAttachments = [];
 
@@ -36,6 +41,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
   String? _error;
   int _nextPage = 1;
   Timer? _pollTimer;
+  Map<String, dynamic>? _replyToMessage;
 
   int get _hubId {
     final value = widget.hub?['id'] ?? widget.hubId;
@@ -71,6 +77,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
     _messageController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _reactionsController.dispose();
     super.dispose();
   }
 
@@ -195,10 +202,14 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
     setState(() => _isSending = true);
     try {
+      final replyMessage = _replyToMessage;
+      final replyPrefix = replyMessage == null
+          ? ''
+          : '> ${_displayName(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
       final message = await AuthApiService.sendHubMessage(
         hubId: _hubId,
-        content: content,
-        sendAsSms: _sendAsSms && _canSendAsSms,
+        content: '$replyPrefix$content',
+        sendAsSms: _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
         attachments: List<PlatformFile>.from(_pendingAttachments),
       );
 
@@ -212,8 +223,12 @@ class _HubChatScreenState extends State<HubChatScreen> {
           _messages.add(sentMessage);
         }
         _pendingAttachments.clear();
+        _replyToMessage = null;
         _isSending = false;
         if (_sendAsSms && !_canSendAsSms) {
+          _sendAsSms = false;
+        }
+        if (_pendingAttachments.isNotEmpty || sentMessage['attachments'] is List && (sentMessage['attachments'] as List).isNotEmpty) {
           _sendAsSms = false;
         }
       });
@@ -265,10 +280,102 @@ class _HubChatScreenState extends State<HubChatScreen> {
     return fullName.isNotEmpty ? fullName : 'Campuz user';
   }
 
-  String _messageIdKey(Map<String, dynamic> message) => '${message['id'] ?? ''}';
+  String _messageIdKey(Map<String, dynamic> message) {
+    final id = (message['id']?.toString() ?? '').trim();
+    if (id.isNotEmpty) return 'id:$id';
+    final sender = message['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderKey = [
+      sender['id'],
+      message['sender_name'],
+      profile['display_name'],
+      profile['full_name'],
+    ].map((value) => value?.toString().trim() ?? '').firstWhere(
+          (value) => value.isNotEmpty,
+          orElse: () => 'unknown',
+        );
+    final timestamp = _parseTimestamp(message)?.toUtc().toIso8601String() ?? '';
+    final content = (message['content'] as String? ?? '').trim();
+    final attachmentCount = (message['attachments'] as List?)?.length ?? 0;
+    return '$senderKey|$timestamp|$content|$attachmentCount';
+  }
 
   bool _hasMessageWithId(String idKey) {
     return _messages.any((message) => _messageIdKey(message) == idKey);
+  }
+
+  void _startReplyToMessage(Map<String, dynamic> message) {
+    setState(() => _replyToMessage = message);
+  }
+
+  void _cancelReply() {
+    setState(() => _replyToMessage = null);
+  }
+
+  String _replySnippet(Map<String, dynamic> message) {
+    final content = (message['content'] as String? ?? '').trim();
+    if (content.isEmpty) return 'Attachment';
+    if (content.length <= 90) return content;
+    return '${content.substring(0, 90)}...';
+  }
+
+  ChatReactionsConfig _reactionConfigForMessage(bool isMine) {
+    return ChatReactionsConfig(
+      availableReactions: const ['👍', '❤️', '😂', '😮', '😢', '😠', '➕'],
+      menuItems: isMine
+          ? const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+              MenuItem(label: 'Delete', icon: Icons.delete_forever, isDestructive: true),
+            ]
+          : const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+            ],
+      showAddReactionButton: true,
+      enableHapticFeedback: true,
+      enableLongPress: true,
+      enableDoubleTap: true,
+      showContextMenu: true,
+      dialogBackgroundColor: AppColors.surface,
+      dialogBorderRadius: BorderRadius.circular(20),
+      dismissOnTapOutside: true,
+    );
+  }
+
+  Future<void> _handleMessageAction(
+    Map<String, dynamic> message,
+    MenuItem item,
+  ) async {
+    final label = item.label.toLowerCase();
+    final content = (message['content'] as String? ?? '').trim();
+    switch (label) {
+      case 'reply':
+        final quote = '> ${_displayName(message)}: ${_replySnippet(message)}\n\n';
+        _messageController.text = '$quote${_messageController.text}';
+        _messageController.selection = TextSelection.collapsed(
+          offset: _messageController.text.length,
+        );
+        _startReplyToMessage(message);
+        break;
+      case 'copy':
+        if (content.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: content));
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Message copied')),
+          );
+        }
+        break;
+      case 'delete':
+        setState(() {
+          _messages.removeWhere(
+            (candidate) =>
+                _messageIdKey(candidate) == _messageIdKey(message),
+          );
+        });
+        break;
+    }
   }
 
   bool _isImageAttachment(Map<String, dynamic> attachment) {
@@ -346,6 +453,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
       _pendingAttachments.addAll(
         result.files.where((file) => file.path != null && file.path!.isNotEmpty),
       );
+      if (_pendingAttachments.isNotEmpty) {
+        _sendAsSms = false;
+      }
     });
   }
 
@@ -364,17 +474,52 @@ class _HubChatScreenState extends State<HubChatScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (context) {
-        return SizedBox(
-          height: MediaQuery.of(context).size.height * 0.42,
-          child: EmojiPicker(
-            textEditingController: _messageController,
-            config: const Config(
-              height: 256,
-              checkPlatformCompatibility: true,
-              skinToneConfig: SkinToneConfig(),
-              categoryViewConfig: CategoryViewConfig(),
-              bottomActionBarConfig: BottomActionBarConfig(),
-              searchViewConfig: SearchViewConfig(),
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(24)),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.42,
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Pick an emoji',
+                          style: AppTextStyles.title.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: EmojiPicker(
+                      textEditingController: _messageController,
+                      config: const Config(
+                        height: 256,
+                        checkPlatformCompatibility: true,
+                        skinToneConfig: SkinToneConfig(),
+                        categoryViewConfig: CategoryViewConfig(),
+                        bottomActionBarConfig: BottomActionBarConfig(),
+                        searchViewConfig: SearchViewConfig(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -444,9 +589,15 @@ class _HubChatScreenState extends State<HubChatScreen> {
         message['sms_delivery_queued'] == true ||
         message['sms_sent'] == true;
 
-    return Align(
+    return ChatMessageWrapper(
+      messageId: _messageIdKey(message),
+      controller: _reactionsController,
+      config: _reactionConfigForMessage(isMine),
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
+      onMenuItemTapped: (item) => _handleMessageAction(message, item),
+      child: Align(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
         constraints: const BoxConstraints(maxWidth: 360),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
@@ -649,6 +800,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               ),
             ],
           ],
+        ),
         ),
       ),
     );
