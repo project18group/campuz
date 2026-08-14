@@ -101,18 +101,36 @@ def send_otp(phone_number: str) -> dict:
     if isinstance(nested, dict):
         provider_message_id = nested.get("id") or nested.get("message_id")
     provider_message_id = provider_message_id or data.get("id")
+    provider_code = _provider_code(data)
 
     if 200 <= response.status_code < 300:
-        logger.info(
-            "[sms_service] OTP request accepted for %s (provider_message_id=%s)",
+        if provider_code == "1000":
+            logger.info(
+                "[sms_service] OTP request accepted for %s (provider_message_id=%s)",
+                recipient,
+                provider_message_id or "unknown",
+            )
+            return {
+                "success": True,
+                "provider_message_id": provider_message_id,
+                "response": data,
+                "error_message": None,
+            }
+
+        error_message = _extract_sms_error_message(
+            data,
+            f"Arkesel OTP request returned unexpected provider code {provider_code or 'unknown'}.",
+        )
+        logger.error(
+            "[sms_service] OTP request rejected for %s: %s",
             recipient,
-            provider_message_id or "unknown",
+            error_message,
         )
         return {
-            "success": True,
+            "success": False,
             "provider_message_id": provider_message_id,
             "response": data,
-            "error_message": None,
+            "error_message": error_message,
         }
 
     error_message = _extract_sms_error_message(
@@ -161,7 +179,7 @@ def verify_otp(phone_number: str, otp_code: str) -> bool:
         )
         if response.status_code == 200:
             data = response.json()
-            is_valid = data.get("code") == "1100"
+            is_valid = _provider_code(data) == "1100"
             logger.info(
                 "[sms_service] OTP verification for %s: %s",
                 phone_number,
@@ -201,6 +219,27 @@ def _extract_sms_error_message(data: dict, fallback: str) -> str:
             if isinstance(value, str) and value.strip():
                 return value.strip()
     return fallback
+
+
+def _provider_code(data: dict) -> str:
+    """Extract Arkesel's provider code from the top-level or nested payload."""
+    for key in ("code", "status"):
+        value = data.get(key)
+        if value is not None:
+            text = str(value).strip()
+            if text:
+                return text
+
+    nested = data.get("data")
+    if isinstance(nested, dict):
+        for key in ("code", "status"):
+            value = nested.get(key)
+            if value is not None:
+                text = str(value).strip()
+                if text:
+                    return text
+
+    return ""
 
 
 def send_sms(
