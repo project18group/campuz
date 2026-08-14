@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/services/secure_token_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthApiException implements Exception {
   final String message;
@@ -19,6 +20,7 @@ class AuthApiService {
   AuthApiService._();
 
   static final http.Client _client = http.Client();
+  static const _cachedCurrentUserKey = 'campuz_cached_current_user';
 
   static String get _baseUrl {
     const envBaseUrl = String.fromEnvironment('CAMPUZ_API_BASE_URL');
@@ -600,13 +602,15 @@ class AuthApiService {
   // ---------------------------------------------------------------------------
 
   static Future<Map<String, dynamic>> currentUser({String? accessToken}) async {
-    return _authorized(
+    final result = await _authorized(
       (token) => _client.get(
         Uri.parse('$_baseUrl/auth/me/'),
         headers: _headers(token),
       ),
       overrideToken: accessToken,
     );
+    await _cacheCurrentUser(result);
+    return result;
   }
 
   /// Exchanges the stored refresh token for a new access token.
@@ -658,6 +662,8 @@ class AuthApiService {
 
   static Future<void> signOut() async {
     await SecureTokenStorage.clear();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_cachedCurrentUserKey);
     AuthSession.clear();
   }
 
@@ -697,6 +703,26 @@ class AuthApiService {
       refreshToken: refresh,
       username: username.isEmpty ? null : username,
     );
+  }
+
+  static Future<void> _cacheCurrentUser(Map<String, dynamic> response) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_cachedCurrentUserKey, jsonEncode(response));
+  }
+
+  static Future<Map<String, dynamic>?> readCachedCurrentUser() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_cachedCurrentUserKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<Map<String, dynamic>> _authorized(

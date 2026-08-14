@@ -68,7 +68,7 @@ def send_otp(phone_number: str) -> dict:
         "expiry": 5,
         "length": 6,
         "medium": "sms",
-        "message": "Your Campuz verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
+        "message": "Your TekChat verification code is %otp_code%. It expires in 5 minutes. Do not share this code.",
         "number": number,
         "sender_id": sender_id,
         "type": "numeric",

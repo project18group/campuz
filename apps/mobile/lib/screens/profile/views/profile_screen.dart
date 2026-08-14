@@ -26,13 +26,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Map<String, dynamic>? _userData;
   bool _isLoading = true;
+  bool _hasLoadedCachedProfile = false;
   bool _showSessionBadges = true;
 
   @override
   void initState() {
     super.initState();
+    _loadCachedProfile();
     _loadProfile();
     _loadPreferences();
+  }
+
+  Future<void> _loadCachedProfile() async {
+    final cached = await AuthApiService.readCachedCurrentUser();
+    if (!mounted || cached == null) {
+      return;
+    }
+
+    setState(() {
+      _userData = cached;
+      _isLoading = false;
+      _hasLoadedCachedProfile = true;
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -46,6 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _userData = user;
         _isLoading = false;
+        _hasLoadedCachedProfile = true;
       });
     } on AuthApiException catch (error) {
       if (!mounted) {
@@ -55,9 +71,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.message)));
+      if (!_hasLoadedCachedProfile) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
+      }
     } catch (_) {
       if (!mounted) {
         return;
@@ -66,9 +84,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to load profile right now')),
-      );
+      if (!_hasLoadedCachedProfile) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Unable to load profile right now')),
+        );
+      }
     }
   }
 
@@ -181,20 +201,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return GestureDetector(
       onTap: () => context.push(route),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
-          color: AppColors.surfaceMuted,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border.withValues(alpha: 0.85)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+          ],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              width: 26,
-              height: 26,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: AppColors.primary.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Center(
@@ -203,19 +230,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: AppTextStyles.caption.copyWith(
                     color: AppColors.primaryDeep,
                     fontWeight: FontWeight.w800,
-                    fontSize: 10,
+                    fontSize: 10.5,
                   ),
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            Icon(icon, size: 16, color: AppColors.primaryDeep),
-            const SizedBox(width: 6),
+            const SizedBox(width: 9),
+            Icon(icon, size: 17, color: AppColors.primaryDeep),
+            const SizedBox(width: 7),
             Text(
               label,
               style: AppTextStyles.caption.copyWith(
                 color: AppColors.textPrimary,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w800,
               ),
             ),
           ],
@@ -225,18 +252,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showAvatarActions() {
-    final List<String> defaultSeeds = [
-      'Felix',
-      'Aneka',
-      'Molly',
-      'Jude',
-      'Tinkerbell',
-      'Lucky',
-      'Leo',
-      'Mia',
-      'Oliver',
-      'Chloe',
-    ];
+    final avatarSeeds = <String>[];
+    var avatarSeedCounter = 0;
+    var loadingMoreAvatars = false;
+
+    void appendAvatarSeeds() {
+      final nextSeeds = List<String>.generate(12, (index) {
+        final number = avatarSeedCounter + index + 1;
+        return 'campuz-student-$number';
+      });
+
+      avatarSeeds.addAll(nextSeeds);
+      avatarSeedCounter += nextSeeds.length;
+    }
+
+    appendAvatarSeeds();
 
     showModalBottomSheet<void>(
       context: context,
@@ -246,73 +276,162 @@ class _ProfileScreenState extends State<ProfileScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Choose an Avatar', style: AppTextStyles.title),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 180,
-                  child: GridView.builder(
-                    scrollDirection: Axis.horizontal,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          mainAxisSpacing: 16,
-                          crossAxisSpacing: 16,
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void loadMoreAvatars() {
+              if (loadingMoreAvatars) return;
+              setSheetState(() => loadingMoreAvatars = true);
+
+              Future<void>.delayed(const Duration(milliseconds: 90)).then(
+                (_) {
+                  if (!sheetContext.mounted) {
+                    return;
+                  }
+                  setSheetState(() {
+                    appendAvatarSeeds();
+                    loadingMoreAvatars = false;
+                  });
+                },
+              );
+            }
+
+            return SafeArea(
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Choose an Avatar',
+                      style: AppTextStyles.title.copyWith(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Scroll for more student icons.',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 96,
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (notification) {
+                          if (notification.metrics.extentAfter < 180) {
+                            loadMoreAvatars();
+                          }
+                          return false;
+                        },
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          physics: const BouncingScrollPhysics(),
+                          itemCount:
+                              avatarSeeds.length + (loadingMoreAvatars ? 1 : 0),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 12),
+                          itemBuilder: (context, index) {
+                            if (index >= avatarSeeds.length) {
+                              return Container(
+                                width: 66,
+                                height: 66,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surfaceMuted,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.border,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.more_horiz_rounded,
+                                  color: AppColors.primaryDeep,
+                                ),
+                              );
+                            }
+
+                            final seed = avatarSeeds[index];
+                            final url =
+                                'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${Uri.encodeComponent(seed)}';
+
+                            return GestureDetector(
+                              onTap: () {
+                                Navigator.pop(sheetContext);
+                                _changeAvatar(seed);
+                              },
+                              child: Container(
+                                width: 66,
+                                height: 66,
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: AppColors.border.withValues(
+                                      alpha: 0.9,
+                                    ),
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12000000),
+                                      blurRadius: 12,
+                                      offset: Offset(0, 5),
+                                    ),
+                                  ],
+                                ),
+                                clipBehavior: Clip.hardEdge,
+                                child: SvgPicture.network(
+                                  url,
+                                  fit: BoxFit.cover,
+                                  placeholderBuilder: (_) => Center(
+                                    child: Icon(
+                                      Icons.person_rounded,
+                                      color: AppColors.primary.withValues(
+                                        alpha: 0.24,
+                                      ),
+                                      size: 24,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
                         ),
-                    itemCount: defaultSeeds.length,
-                    itemBuilder: (context, index) {
-                      final seed = defaultSeeds[index];
-                      final url =
-                          'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
-                      return GestureDetector(
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceMuted.withValues(alpha: 0.55),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: ListTile(
+                        leading: const Icon(
+                          Icons.delete_outline,
+                          color: AppColors.error,
+                        ),
+                        title: Text(
+                          'Remove photo',
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                         onTap: () {
                           Navigator.pop(sheetContext);
-                          _changeAvatar(seed);
+                          _removeAvatar();
                         },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceMuted,
-                            shape: BoxShape.circle,
-                          ),
-                          clipBehavior: Clip.hardEdge,
-                          child: SvgPicture.network(
-                            url,
-                            fit: BoxFit.cover,
-                            placeholderBuilder: (_) => const Center(
-                              child: CircularProgressIndicator(
-                                color: AppColors.background,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                ListTile(
-                  leading: const Icon(
-                    Icons.delete_outline,
-                    color: AppColors.error,
-                  ),
-                  title: const Text(
-                    'Remove photo',
-                    style: TextStyle(color: AppColors.error),
-                  ),
-                  onTap: () {
-                    Navigator.pop(sheetContext);
-                    _removeAvatar();
-                  },
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -335,204 +454,208 @@ class _ProfileScreenState extends State<ProfileScreen> {
       backgroundColor: AppColors.background,
       appBar: AppBar(title: const Text("Profile")),
       body: PatternedBackground(
-        child: _isLoading
+        child: _isLoading && _userData == null
             ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-                child: Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(32),
-                        border: Border.all(
-                          color: AppColors.border.withValues(alpha: 0.5),
-                          width: 1,
-                        ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: AppColors.shadow,
-                            blurRadius: 24,
-                            offset: Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          GestureDetector(
-                            onTap: _showAvatarActions,
-                            child: Stack(
-                              alignment: Alignment.bottomRight,
-                              children: [
-                                AppAvatar(
-                                  avatarUrl: avatarUrl,
-                                  fallbackName: displayName,
-                                  size: 108,
-                                ),
-                                Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surface,
-                                    shape: BoxShape.circle,
-                                    boxShadow: const [
-                                      BoxShadow(
-                                        color: AppColors.shadow,
-                                        blurRadius: 8,
-                                        offset: Offset(0, 4),
-                                      ),
-                                    ],
-                                  ),
-                                  padding: const EdgeInsets.all(8),
-                                  child: const Icon(
-                                    Icons.edit_outlined,
-                                    size: 16,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            displayName,
-                            style: AppTextStyles.heading.copyWith(
-                              color: AppColors.textPrimary,
-                              fontSize: 22,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (fullName.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              fullName,
-                              style: AppTextStyles.body.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                          if (phoneNumber.isNotEmpty) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              phoneNumber,
-                              style: AppTextStyles.body.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 14),
-                          TextButton.icon(
-                            onPressed: _showAvatarActions,
-                            style: TextButton.styleFrom(
-                              foregroundColor: AppColors.primary,
-                            ),
-                            icon: const Icon(Icons.manage_accounts_outlined),
-                            label: const Text('Manage photo'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    if (_showSessionBadges)
+            : RefreshIndicator(
+                onRefresh: _loadProfile,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                  child: Column(
+                    children: [
                       Container(
                         width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                        padding: const EdgeInsets.fromLTRB(20, 24, 20, 24),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(32),
+                          border: Border.all(
+                            color: AppColors.border.withValues(alpha: 0.5),
+                            width: 1,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadow,
+                              blurRadius: 24,
+                              offset: Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            GestureDetector(
+                              onTap: _showAvatarActions,
+                              child: Stack(
+                                alignment: Alignment.bottomRight,
+                                children: [
+                                  AppAvatar(
+                                    avatarUrl: avatarUrl,
+                                    fallbackName: displayName,
+                                    size: 108,
+                                  ),
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: AppColors.surface,
+                                      shape: BoxShape.circle,
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: AppColors.shadow,
+                                          blurRadius: 8,
+                                          offset: Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    padding: const EdgeInsets.all(8),
+                                    child: const Icon(
+                                      Icons.edit_outlined,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              displayName,
+                              style: AppTextStyles.heading.copyWith(
+                                color: AppColors.textPrimary,
+                                fontSize: 22,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            if (fullName.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                fullName,
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                            if (phoneNumber.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                phoneNumber,
+                                style: AppTextStyles.body.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
+                            TextButton.icon(
+                              onPressed: _showAvatarActions,
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                              ),
+                              icon: const Icon(Icons.manage_accounts_outlined),
+                              label: const Text('Manage photo'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      if (_showSessionBadges)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+                          decoration: BoxDecoration(
+                            color: AppColors.surface,
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Sessions',
+                                style: AppTextStyles.label.copyWith(
+                                  color: AppColors.textPrimary,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                children: [
+                                  _sessionBadge(
+                                    context,
+                                    label: _sessions[0].$1,
+                                    icon: _sessions[0].$2,
+                                    route: _sessions[0].$3,
+                                    number: '01',
+                                  ),
+                                  _sessionBadge(
+                                    context,
+                                    label: _sessions[1].$1,
+                                    icon: _sessions[1].$2,
+                                    route: _sessions[1].$3,
+                                    number: '02',
+                                  ),
+                                  _sessionBadge(
+                                    context,
+                                    label: _sessions[2].$1,
+                                    icon: _sessions[2].$2,
+                                    route: _sessions[2].$3,
+                                    number: '03',
+                                  ),
+                                  _sessionBadge(
+                                    context,
+                                    label: _sessions[3].$1,
+                                    icon: _sessions[3].$2,
+                                    route: _sessions[3].$3,
+                                    number: '04',
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 24),
+                      Container(
                         decoration: BoxDecoration(
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(color: AppColors.border),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: AppColors.shadow,
+                              blurRadius: 18,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
                         ),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Sessions',
-                              style: AppTextStyles.label.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.w800,
-                              ),
+                            _profileTile(
+                              icon: Icons.school_outlined,
+                              title: "Academic Info",
+                              subtitle: "Verified account",
+                              onTap: () {},
                             ),
-                            const SizedBox(height: 12),
-                            Wrap(
-                              spacing: 10,
-                              runSpacing: 10,
-                              children: [
-                                _sessionBadge(
-                                  context,
-                                  label: _sessions[0].$1,
-                                  icon: _sessions[0].$2,
-                                  route: _sessions[0].$3,
-                                  number: '01',
-                                ),
-                                _sessionBadge(
-                                  context,
-                                  label: _sessions[1].$1,
-                                  icon: _sessions[1].$2,
-                                  route: _sessions[1].$3,
-                                  number: '02',
-                                ),
-                                _sessionBadge(
-                                  context,
-                                  label: _sessions[2].$1,
-                                  icon: _sessions[2].$2,
-                                  route: _sessions[2].$3,
-                                  number: '03',
-                                ),
-                                _sessionBadge(
-                                  context,
-                                  label: _sessions[3].$1,
-                                  icon: _sessions[3].$2,
-                                  route: _sessions[3].$3,
-                                  number: '04',
-                                ),
-                              ],
+                            const Divider(height: 1, indent: 60),
+                            _profileTile(
+                              icon: Icons.settings_outlined,
+                              title: "Settings",
+                              onTap: () async {
+                                await context.push('/settings');
+                                await _loadPreferences();
+                              },
+                            ),
+                            const Divider(height: 1, indent: 60),
+                            _profileTile(
+                              icon: Icons.exit_to_app_outlined,
+                              title: "Sign Out",
+                              destructive: true,
+                              onTap: () => _handleSignOut(context),
                             ),
                           ],
                         ),
                       ),
-                    const SizedBox(height: 24),
-                    Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(28),
-                        border: Border.all(color: AppColors.border),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: AppColors.shadow,
-                            blurRadius: 18,
-                            offset: Offset(0, 10),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          _profileTile(
-                            icon: Icons.school_outlined,
-                            title: "Academic Info",
-                            subtitle: "Verified account",
-                            onTap: () {},
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
-                            icon: Icons.settings_outlined,
-                            title: "Settings",
-                            onTap: () async {
-                              await context.push('/settings');
-                              await _loadPreferences();
-                            },
-                          ),
-                          const Divider(height: 1, indent: 60),
-                          _profileTile(
-                            icon: Icons.exit_to_app_outlined,
-                            title: "Sign Out",
-                            destructive: true,
-                            onTap: () => _handleSignOut(context),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
       ),

@@ -268,11 +268,13 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     String? error;
     Timer? debounce;
     bool initialSearchStarted = false;
+    bool sheetIsOpen = true;
 
     Future<void> searchUsers(
       String query,
       void Function(void Function()) setModalState,
     ) async {
+      if (!sheetIsOpen) return;
       setModalState(() {
         loading = true;
         error = null;
@@ -280,22 +282,25 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
 
       try {
         final users = await AuthApiService.searchUsers(query: query);
-        if (!mounted) return;
+        if (!mounted || !sheetIsOpen) return;
         setModalState(() {
           results = users;
           selectedIds.removeWhere(
-            (id) => !users.any((user) => user['id'] == id),
+            (id) => !users.any((user) {
+              final userId = user['id'];
+              return userId == id || int.tryParse('$userId') == id;
+            }),
           );
           loading = false;
         });
       } on AuthApiException catch (authError) {
-        if (!mounted) return;
+        if (!mounted || !sheetIsOpen) return;
         setModalState(() {
           error = authError.message;
           loading = false;
         });
       } catch (_) {
-        if (!mounted) return;
+        if (!mounted || !sheetIsOpen) return;
         setModalState(() {
           error = 'Unable to search Campuz users right now.';
           loading = false;
@@ -407,9 +412,11 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                             if (userId == null) {
                               return const SizedBox.shrink();
                             }
-                            final avatar = (user['avatar_url'] as String? ?? '').trim();
+                            final avatar =
+                                (user['avatar_url'] as String? ?? '').trim();
                             final displayName = _userDisplayName(user);
-                            final phone = (user['phone_number'] as String? ?? '').trim();
+                            final phone =
+                                (user['phone_number'] as String? ?? '').trim();
                             return CheckboxListTile(
                               contentPadding: EdgeInsets.zero,
                               value: selectedIds.contains(userId),
@@ -441,9 +448,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                                   await AuthApiService.updateHubMembership(
                                     hubId: _hubId,
                                     action: 'add',
-                                    userIds: selectedIds.toList(),
+                                    userIds: selectedIds.toList()..sort(),
                                   );
                                   if (!mounted) return;
+                                  sheetIsOpen = false;
                                   Navigator.pop(sheetContext);
                                   await _loadMembers();
                                   if (!mounted) return;
@@ -453,13 +461,13 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                                     ),
                                   );
                                 } on AuthApiException catch (error) {
-                                  if (!mounted) return;
+                                  if (!mounted || !sheetIsOpen) return;
                                   setModalState(() => submitting = false);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text(error.message)),
                                   );
                                 } catch (_) {
-                                  if (!mounted) return;
+                                  if (!mounted || !sheetIsOpen) return;
                                   setModalState(() => submitting = false);
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -492,6 +500,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
     );
 
     debounce?.cancel();
+    sheetIsOpen = false;
     searchController.dispose();
   }
 
