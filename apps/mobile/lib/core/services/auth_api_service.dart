@@ -262,7 +262,7 @@ class AuthApiService {
       );
     }
 
-    return _authorized(
+    return _authorizedMultipart(
       (token) async {
         final request = http.MultipartRequest(
           'POST',
