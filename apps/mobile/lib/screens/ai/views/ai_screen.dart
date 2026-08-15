@@ -3,7 +3,7 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/core/mock/mock_data.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
-
+import 'package:mobile/core/services/auth_api_service.dart';
 class AiScreen extends StatefulWidget {
   const AiScreen({super.key});
 
@@ -15,6 +15,27 @@ class _AiScreenState extends State<AiScreen> {
   final _messageController = TextEditingController();
   final List<Map<String, String>> _messages = [];
   bool _isTyping = false;
+
+  String _userName = 'Student';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
+
+  Future<void> _loadUserName() async {
+    final cached = await AuthApiService.readCachedCurrentUser();
+    if (cached != null && mounted) {
+      final profile = cached['profile'] as Map<String, dynamic>?;
+      final fullName = profile?['full_name'] as String?;
+      final displayName = profile?['display_name'] as String?;
+      final resolvedName = (displayName?.trim().isNotEmpty == true ? displayName : fullName?.trim()) ?? 'Student';
+      setState(() {
+        _userName = resolvedName.isNotEmpty ? resolvedName : 'Student';
+      });
+    }
+  }
 
   void _sendMessage() {
     final text = _messageController.text.trim();
@@ -86,7 +107,7 @@ class _AiScreenState extends State<AiScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                "Hello, ${MockData.currentUser.name}!\n\nI can help you extract deadlines from messages, summarize documents, and manage your academic schedule. What can I assist you with today?",
+                "Hello, $_userName!\n\nI can help you extract deadlines from messages, summarize documents, and manage your academic schedule. What can I assist you with today?",
                 style: AppTextStyles.body.copyWith(
                   color: AppColors.textSecondary,
                 ),

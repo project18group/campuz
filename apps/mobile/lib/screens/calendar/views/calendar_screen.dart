@@ -3,8 +3,15 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
-class CalendarScreen extends StatelessWidget {
+class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
+
+  @override
+  State<CalendarScreen> createState() => _CalendarScreenState();
+}
+
+class _CalendarScreenState extends State<CalendarScreen> {
+  bool _syncReminders = false;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +40,7 @@ class CalendarScreen extends StatelessWidget {
                   BoxShadow(
                     color: AppColors.shadow,
                     blurRadius: 24,
-                    offset: Offset(0, 12),
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),
@@ -68,6 +75,43 @@ class CalendarScreen extends StatelessWidget {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceMuted.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+                    ),
+                    child: SwitchListTile(
+                      value: _syncReminders,
+                      onChanged: (val) {
+                        setState(() {
+                          _syncReminders = val;
+                        });
+                        if (val) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Calendar reminders enabled')),
+                          );
+                        }
+                      },
+                      title: Text(
+                        "Device Reminders",
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      subtitle: Text(
+                        "Sync upcoming deadlines and lectures to your phone's calendar.",
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      activeColor: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
