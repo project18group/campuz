@@ -2,6 +2,8 @@
     <!-- Campuz talks to the REST API on every screen, so release builds need
          this too — the Flutter template only declares it for debug/profile. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
 
     <application
         android:label="mobile"

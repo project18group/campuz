@@ -1,6 +1,9 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 
 /// Full-screen image viewer with Hero animation, pinch-to-zoom,
 /// double-tap zoom, pan, and swipe-down-to-dismiss.
@@ -97,6 +100,55 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     _snapBackController.dispose();
     _transformController.dispose();
     super.dispose();
+  }
+
+  // ─── Image Saving ───
+  
+  bool _isSaving = false;
+
+  Future<void> _saveImage() async {
+    if (_isSaving) return;
+    setState(() => _isSaving = true);
+    
+    try {
+      Uint8List? imageBytes;
+      if (widget.imageUrl != null) {
+        final response = await http.get(Uri.parse(widget.imageUrl!));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
+        }
+      } else if (widget.imagePath != null) {
+        final file = File(widget.imagePath!);
+        if (await file.exists()) {
+          imageBytes = await file.readAsBytes();
+        }
+      }
+
+      if (imageBytes != null) {
+        final result = await ImageGallerySaver.saveImage(
+          imageBytes,
+          quality: 100,
+          name: "campuz_${DateTime.now().millisecondsSinceEpoch}",
+        );
+        if (!mounted) return;
+        if (result != null && result['isSuccess'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Image saved to gallery')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to save image')),
+          );
+        }
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('An error occurred while saving')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   // ─── Raw pointer handlers (bypass gesture arena) ───
@@ -291,18 +343,23 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                         Material(
                           color: Colors.black26,
                           shape: const CircleBorder(),
-                          child: IconButton(
-                            icon: const Icon(
-                              Icons.download_rounded,
-                              color: Colors.white,
-                              size: 22,
-                            ),
-                            onPressed: () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Saved to device')),
-                              );
-                            },
-                          ),
+                          child: _isSaving 
+                            ? const Padding(
+                                padding: EdgeInsets.all(12),
+                                child: SizedBox(
+                                  width: 20, 
+                                  height: 20, 
+                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                ),
+                              )
+                            : IconButton(
+                                icon: const Icon(
+                                  Icons.download_rounded,
+                                  color: Colors.white,
+                                  size: 22,
+                                ),
+                                onPressed: _saveImage,
+                              ),
                         ),
                       ],
                     ),
