@@ -1078,7 +1078,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.folder_shared_rounded, color: AppColors.primary, size: 18),
+                                Icon(Icons.folder_shared_rounded, color: AppColors.primary, size: 18),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Class Resources',

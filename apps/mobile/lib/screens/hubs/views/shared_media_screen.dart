@@ -631,7 +631,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                           color: AppColors.primary.withValues(alpha: 0.1),
                         ),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.public,
                         color: AppColors.primary,
                         size: 26,
@@ -689,7 +689,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.open_in_new_rounded,
                       size: 22,
                       color: AppColors.primary,

@@ -496,6 +496,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                         ),
                       ],
                     ),
+                  ),
                   Expanded(
                     child: AppEmojiPicker(
                       textEditingController: _messageController,
