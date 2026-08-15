@@ -3,11 +3,11 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 
 class AppTheme {
-  static ThemeData lightTheme = ThemeData(
+  static ThemeData get theme => ThemeData(
     useMaterial3: true,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme:
-        const ColorScheme.light(
+        ColorScheme.light(
           primary: AppColors.primary,
           onPrimary: AppColors.textOnPrimary,
           secondary: AppColors.accent,
@@ -23,7 +23,7 @@ class AppTheme {
           outline: AppColors.border,
           outlineVariant: AppColors.border,
         ),
-    appBarTheme: const AppBarTheme(
+    appBarTheme: AppBarTheme(
       centerTitle: false,
       backgroundColor: AppColors.primaryDeep,
       foregroundColor: AppColors.textOnPrimary,
@@ -45,7 +45,7 @@ class AppTheme {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(24),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: AppColors.border),
       ),
     ),
     snackBarTheme: SnackBarThemeData(
@@ -57,7 +57,7 @@ class AppTheme {
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
     ),
-    dividerTheme: const DividerThemeData(
+    dividerTheme: DividerThemeData(
       color: AppColors.border,
       space: 1,
       thickness: 1,
@@ -79,7 +79,7 @@ class AppTheme {
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.primaryDeep,
-        side: const BorderSide(color: AppColors.primaryDeep, width: 1.25),
+        side: BorderSide(color: AppColors.primaryDeep, width: 1.25),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         textStyle: AppTextStyles.title.copyWith(fontWeight: FontWeight.w600),
       ),
@@ -90,12 +90,12 @@ class AppTheme {
         textStyle: AppTextStyles.label.copyWith(fontWeight: FontWeight.w600),
       ),
     ),
-    floatingActionButtonTheme: const FloatingActionButtonThemeData(
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: AppColors.primary,
       foregroundColor: AppColors.textOnPrimary,
       elevation: 0,
     ),
-    bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+    bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: AppColors.surface,
       selectedItemColor: AppColors.primaryDeep,
       unselectedItemColor: AppColors.textSecondary,
@@ -113,27 +113,27 @@ class AppTheme {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.border),
+        borderSide: BorderSide(color: AppColors.border),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.6),
+        borderSide: BorderSide(color: AppColors.primary, width: 1.6),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.error),
+        borderSide: BorderSide(color: AppColors.error),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(18),
-        borderSide: const BorderSide(color: AppColors.error, width: 1.6),
+        borderSide: BorderSide(color: AppColors.error, width: 1.6),
       ),
     ),
-    iconTheme: const IconThemeData(color: AppColors.primaryDeep),
-    textSelectionTheme: const TextSelectionThemeData(
+    iconTheme: IconThemeData(color: AppColors.primaryDeep),
+    textSelectionTheme: TextSelectionThemeData(
       cursorColor: AppColors.primary,
       selectionColor: AppColors.surfaceMuted,
       selectionHandleColor: AppColors.primary,

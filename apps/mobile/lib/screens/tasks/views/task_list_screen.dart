@@ -499,7 +499,7 @@ class _TaskListScreenState extends State<TaskListScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+              Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 16),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),

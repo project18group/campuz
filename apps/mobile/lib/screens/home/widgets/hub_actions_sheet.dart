@@ -61,7 +61,7 @@ Future<HubAction?> showHubActionsSheet(BuildContext context, Hub hub) {
             ),
           ),
           const SizedBox(height: 8),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           _sheetTile(
             sheetContext,
             icon: hub.isPinned

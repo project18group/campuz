@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -66,33 +67,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(26),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'App behavior',
-                        style: AppTextStyles.title.copyWith(
-                          color: AppColors.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'These controls change how Campuz behaves on this device.',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
+                // Removed "App behaviour" badge here
+                _settingCard(
+                  title: 'Dark Mode',
+                  subtitle: 'Switch between light and dark themes.',
+                  value: themeNotifier.value == ThemeMode.dark,
+                  onChanged: (value) async {
+                    final newMode = value ? ThemeMode.dark : ThemeMode.light;
+                    themeNotifier.value = newMode;
+                    final prefs = await SharedPreferences.getInstance();
+                    await prefs.setBool('settings_dark_mode', value);
+                  },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 _settingCard(
                   title: 'Show session badges',
                   subtitle: 'Display session badges on Profile and the Sessions tab.',

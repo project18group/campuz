@@ -206,7 +206,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           centerTitle: true,
-          iconTheme: const IconThemeData(color: AppColors.textPrimary),
+          iconTheme: IconThemeData(color: AppColors.textPrimary),
           title: Text(
             'Shared Media',
             style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
@@ -226,7 +226,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
             ),
             PopupMenuButton<_SortOption>(
               tooltip: 'Sort',
-              icon: const Icon(Icons.sort, color: AppColors.textPrimary),
+              icon: Icon(Icons.sort, color: AppColors.textPrimary),
               color: AppColors.surface,
               onSelected: _onSortSelected,
               itemBuilder: (context) => [
@@ -487,7 +487,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                                   ],
                                 ),
                               ),
-                              const Icon(
+                              Icon(
                                 Icons.chevron_right,
                                 color: AppColors.textSecondary,
                               ),
@@ -536,7 +536,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                       borderRadius: BorderRadius.circular(22),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.public,
                       color: AppColors.primary,
                       size: 22,
@@ -575,7 +575,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.open_in_new,
                     size: 18,
                     color: AppColors.textSecondary,

@@ -33,7 +33,7 @@ class HubCreatedScreen extends StatelessWidget {
                   color: AppColors.primary.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.check_circle_outline,
                   size: 58,
                   color: AppColors.primaryDeep,

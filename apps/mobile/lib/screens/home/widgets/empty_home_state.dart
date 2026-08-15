@@ -72,7 +72,7 @@ class EmptyHomeState extends StatelessWidget {
                 onPressed: () => context.push('/create-hub'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primaryDeep,
-                  side: const BorderSide(
+                  side: BorderSide(
                     color: AppColors.primaryDeep,
                     width: 1.4,
                   ),

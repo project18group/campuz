@@ -29,7 +29,7 @@ class CalendarScreen extends StatelessWidget {
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(32),
                 border: Border.all(color: AppColors.border),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
                     color: AppColors.shadow,
                     blurRadius: 24,
@@ -46,7 +46,7 @@ class CalendarScreen extends StatelessWidget {
                       color: AppColors.primary.withValues(alpha: 0.10),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.calendar_month,
                       size: 64,
                       color: AppColors.primaryDeep,

@@ -806,7 +806,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_off_outlined,
                 size: 52,
                 color: AppColors.textSecondary,
@@ -908,7 +908,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
     return SafeArea(
       top: false,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),

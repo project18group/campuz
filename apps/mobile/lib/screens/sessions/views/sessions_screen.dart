@@ -52,13 +52,13 @@ class SessionsScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   colors: [AppColors.primaryDeep, AppColors.primary],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
                 borderRadius: BorderRadius.circular(28),
-                boxShadow: const [
+                boxShadow: [
                   BoxShadow(
                     color: AppColors.shadow,
                     blurRadius: 20,
@@ -228,7 +228,7 @@ class _SessionCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
+              Icon(Icons.arrow_forward_ios, size: 16, color: AppColors.textSecondary),
             ],
           ),
         ),

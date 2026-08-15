@@ -14,7 +14,7 @@ class AimBackground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(color: AppColors.background),
+      decoration: BoxDecoration(color: AppColors.background),
       child: Stack(
         children: [
           const _AimBackdrop(),
@@ -25,7 +25,7 @@ class AimBackground extends StatelessWidget {
               right: 0,
               child: Container(
                 height: 220,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -53,7 +53,7 @@ class _AimBackdrop extends StatelessWidget {
       child: Stack(
         children: [
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,

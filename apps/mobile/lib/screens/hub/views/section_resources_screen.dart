@@ -211,7 +211,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
             ),
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text(
+              child: Text(
                 'Delete',
                 style: TextStyle(color: AppColors.error),
               ),
@@ -549,7 +549,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
+              Icon(Icons.error_outline, size: 48, color: AppColors.textSecondary),
               const SizedBox(height: 16),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 16),

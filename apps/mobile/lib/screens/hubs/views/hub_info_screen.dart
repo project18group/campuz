@@ -193,8 +193,8 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 ),
               if (!isSelf)
                 ListTile(
-                  leading: const Icon(Icons.person_remove_alt_1_outlined, color: AppColors.error),
-                  title: const Text(
+                  leading: Icon(Icons.person_remove_alt_1_outlined, color: AppColors.error),
+                  title: Text(
                     'Remove from hub',
                     style: TextStyle(color: AppColors.error),
                   ),
@@ -208,8 +208,8 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 ),
               if (isSelf)
                 ListTile(
-                  leading: const Icon(Icons.logout_rounded, color: AppColors.error),
-                  title: const Text(
+                  leading: Icon(Icons.logout_rounded, color: AppColors.error),
+                  title: Text(
                     'Leave hub',
                     style: TextStyle(color: AppColors.error),
                   ),
@@ -248,7 +248,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   shouldLeaveScreen: true,
                 );
               },
-              child: const Text(
+              child: Text(
                 'Leave',
                 style: TextStyle(color: AppColors.error),
               ),
@@ -656,7 +656,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline, size: 52, color: AppColors.textSecondary),
+              Icon(Icons.error_outline, size: 52, color: AppColors.textSecondary),
               const SizedBox(height: 12),
               Text('Unable to open hub', style: AppTextStyles.heading),
               const SizedBox(height: 8),
@@ -764,7 +764,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                       label: const Text('Leave hub'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
+                        side: BorderSide(color: AppColors.error),
                       ),
                     ),
                   ),

@@ -214,7 +214,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       color: AppColors.surfaceMuted,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(color: AppColors.border, width: 1.4),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
                           color: AppColors.shadow,
                           blurRadius: 14,

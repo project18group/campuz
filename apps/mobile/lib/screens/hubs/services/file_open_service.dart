@@ -25,7 +25,7 @@ class FileOpenService {
       FileKindVisual(Icons.slideshow_rounded, Color(0xFFFB8C00)); // orange
   static const _zip =
       FileKindVisual(Icons.folder_zip_rounded, Color(0xFF8E24AA)); // purple
-  static const _image = FileKindVisual(Icons.image_rounded, AppColors.success);
+  static final _image = FileKindVisual(Icons.image_rounded, AppColors.success);
   static const _generic =
       FileKindVisual(Icons.insert_drive_file_rounded, Color(0xFF757575)); // grey
 

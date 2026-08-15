@@ -116,7 +116,7 @@ class _AppShellState extends State<AppShell> {
                     color: AppColors.border.withValues(alpha: 0.5),
                     width: 1,
                   ),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
                       blurRadius: 16,

@@ -86,7 +86,7 @@ class HubAttachmentBubble extends StatelessWidget {
                       horizontal: 12,
                       vertical: 10,
                     ),
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.only(
                         topLeft: Radius.circular(18),

@@ -537,6 +537,8 @@ class HubSerializer(serializers.ModelSerializer):
             return False
         if request.user.is_superuser:
             return True
+        if obj.creator_id == request.user.id:
+            return True
         return bool(membership and membership.role == "admin")
 
 

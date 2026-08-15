@@ -95,7 +95,7 @@ class _HubPermissionsScreenState extends State<HubPermissionsScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.admin_panel_settings_outlined,
                       color: AppColors.primaryDeep,
                     ),

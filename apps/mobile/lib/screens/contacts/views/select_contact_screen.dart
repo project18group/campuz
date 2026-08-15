@@ -158,7 +158,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 ),
               ),
               ListTile(
-                leading: const CircleAvatar(
+                leading: CircleAvatar(
                   backgroundColor: AppColors.surfaceMuted,
                   child: Icon(Icons.groups_outlined),
                 ),
@@ -239,7 +239,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 ),
                 if (verified) ...[
                   const SizedBox(width: 6),
-                  const Icon(
+                  Icon(
                     Icons.verified,
                     size: 17,
                     color: AppColors.primary,

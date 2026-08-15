@@ -57,7 +57,7 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
     final showImagePreview = isImage && File(widget.filePath).existsSync();
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.background,
         borderRadius: BorderRadius.only(
           topLeft: Radius.circular(24),
@@ -184,7 +184,7 @@ class _AttachmentPreviewSheetState extends State<AttachmentPreviewSheet> {
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(24),
-                      borderSide: const BorderSide(color: AppColors.border),
+                      borderSide: BorderSide(color: AppColors.border),
                     ),
                   ),
                 ),

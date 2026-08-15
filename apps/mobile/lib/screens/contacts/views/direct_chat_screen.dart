@@ -884,7 +884,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_off_outlined,
                 size: 48,
                 color: AppColors.textSecondary,
@@ -920,7 +920,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.forum_outlined,
                 size: 56,
                 color: AppColors.primaryDeep,
@@ -1104,7 +1104,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                             child: Container(
                               width: 22,
                               height: 22,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
                                 color: AppColors.primaryDeep,
                                 shape: BoxShape.circle,
                               ),
@@ -1126,7 +1126,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             top: false,
             child: Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.surface,
                 border: Border(top: BorderSide(color: AppColors.border)),
               ),
@@ -1192,7 +1192,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             child: Icon(
               isImage ? Icons.image_rounded : Icons.attach_file_rounded,
               size: 17,
-              color: isImage ? const Color(0xFF14A44D) : AppColors.primaryDeep,
+              color: isImage ? Color(0xFF14A44D) : AppColors.primaryDeep,
             ),
           ),
           const SizedBox(width: 8),

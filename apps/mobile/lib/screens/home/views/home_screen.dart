@@ -238,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_off_outlined,
                 size: 52,
                 color: AppColors.textSecondary,
@@ -344,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           colors: [AppColors.primaryDeep, AppColors.primary],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -370,7 +370,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           const SizedBox(height: 6),
           Text(
-            'Everything in Campuz, backed by live data.',
+            'Live sync active',
             style: AppTextStyles.heading.copyWith(
               color: Colors.white,
               fontSize: 22,
@@ -769,7 +769,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     color: AppColors.primaryDeep.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.assignment_turned_in_rounded,
                     color: AppColors.primaryDeep,
                     size: 18,
@@ -853,7 +853,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: AppColors.primaryDeep.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.videocam_rounded,
                       color: AppColors.primaryDeep,
                       size: 18,
@@ -861,7 +861,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const Spacer(),
                   if (meetingUrl.isNotEmpty)
-                    const Icon(
+                    Icon(
                       Icons.open_in_new_rounded,
                       color: AppColors.textSecondary,
                       size: 18,

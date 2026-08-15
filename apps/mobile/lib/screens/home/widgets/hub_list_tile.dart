@@ -67,7 +67,7 @@ class HubListTile extends StatelessWidget {
                   Row(
                     children: [
                       if (hub.isMuted) ...[
-                        const Icon(
+                        Icon(
                           Icons.volume_off_rounded,
                           size: 15,
                           color: AppColors.textSecondary,
@@ -113,7 +113,7 @@ class HubListTile extends StatelessWidget {
                         padding: EdgeInsets.only(right: hasUnread ? 6 : 0),
                         child: Transform.rotate(
                           angle: 0.6,
-                          child: const Icon(
+                          child: Icon(
                             Icons.push_pin,
                             size: 16,
                             color: AppColors.textSecondary,

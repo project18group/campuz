@@ -131,7 +131,7 @@ class _AttachmentPickerState extends State<AttachmentPicker>
     final options = _options;
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),

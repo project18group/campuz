@@ -26,7 +26,7 @@ class AiScreen extends StatelessWidget {
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(32),
                       border: Border.all(color: AppColors.border),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
                           color: AppColors.shadow,
                           blurRadius: 24,
@@ -43,7 +43,7 @@ class AiScreen extends StatelessWidget {
                             color: AppColors.primary.withValues(alpha: 0.10),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.smart_toy_outlined,
                             size: 64,
                             color: AppColors.primaryDeep,
@@ -91,7 +91,7 @@ class AiScreen extends StatelessWidget {
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.surface,
               border: Border(top: BorderSide(color: AppColors.border)),
             ),
@@ -115,7 +115,7 @@ class AiScreen extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: AppColors.primary,
                       shape: BoxShape.circle,
                     ),

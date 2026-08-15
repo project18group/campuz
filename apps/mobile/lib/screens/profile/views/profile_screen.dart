@@ -334,7 +334,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     color: AppColors.border,
                                   ),
                                 ),
-                                child: const Icon(
+                                child: Icon(
                                   Icons.more_horiz_rounded,
                                   color: AppColors.primaryDeep,
                                 ),
@@ -398,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         border: Border.all(color: AppColors.border),
                       ),
                       child: ListTile(
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.delete_outline,
                           color: AppColors.error,
                         ),
@@ -461,7 +461,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: AppColors.border.withValues(alpha: 0.5),
                             width: 1,
                           ),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
                               color: AppColors.shadow,
                               blurRadius: 24,
@@ -485,7 +485,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     decoration: BoxDecoration(
                                       color: AppColors.surface,
                                       shape: BoxShape.circle,
-                                      boxShadow: const [
+                                      boxShadow: [
                                         BoxShadow(
                                           color: AppColors.shadow,
                                           blurRadius: 8,
@@ -494,7 +494,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ],
                                     ),
                                     padding: const EdgeInsets.all(8),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.edit_outlined,
                                       size: 16,
                                       color: AppColors.primary,
@@ -607,7 +607,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: AppColors.surface,
                           borderRadius: BorderRadius.circular(28),
                           border: Border.all(color: AppColors.border),
-                          boxShadow: const [
+                          boxShadow: [
                             BoxShadow(
                               color: AppColors.shadow,
                               blurRadius: 18,

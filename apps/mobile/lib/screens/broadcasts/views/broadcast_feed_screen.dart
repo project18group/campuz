@@ -105,7 +105,7 @@ class _BroadcastFeedScreenState extends State<BroadcastFeedScreen> {
               ? _priorityColor(priority).withValues(alpha: 0.3)
               : AppColors.border,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
             color: AppColors.shadow,
             blurRadius: 18,

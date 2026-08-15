@@ -105,7 +105,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                 decoration: BoxDecoration(
                   color: AppColors.surface,
                   borderRadius: BorderRadius.circular(32),
-                  boxShadow: const [
+                  boxShadow: [
                     BoxShadow(
                       color: AppColors.shadow,
                       blurRadius: 24,
@@ -123,7 +123,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                         color: AppColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.phone_rounded,
                         color: AppColors.primaryDeep,
                         size: 34,
@@ -155,7 +155,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       width: double.infinity,
                       height: 56,
                       child: _isLoading
-                          ? const Center(
+                          ? Center(
                               child: CircularProgressIndicator(
                                 color: AppColors.primary,
                               ),
