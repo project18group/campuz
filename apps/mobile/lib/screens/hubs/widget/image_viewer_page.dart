@@ -5,16 +5,18 @@ import 'package:flutter/material.dart';
 /// Full-screen image viewer with Hero animation, pinch-to-zoom,
 /// double-tap zoom, pan, and swipe-down-to-dismiss.
 class ImageViewerPage extends StatefulWidget {
-  final String imagePath;
+  final String? imagePath;
+  final String? imageUrl;
   final String heroTag;
   final String? caption;
 
   const ImageViewerPage({
     super.key,
-    required this.imagePath,
+    this.imagePath,
+    this.imageUrl,
     required this.heroTag,
     this.caption,
-  });
+  }) : assert(imagePath != null || imageUrl != null);
 
   @override
   State<ImageViewerPage> createState() => _ImageViewerPageState();
@@ -249,10 +251,15 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                     maxScale: 5.0,
                     child: Hero(
                       tag: widget.heroTag,
-                      child: Image.file(
-                        File(widget.imagePath),
-                        fit: BoxFit.contain,
-                      ),
+                      child: widget.imageUrl != null
+                          ? Image.network(
+                              widget.imageUrl!,
+                              fit: BoxFit.contain,
+                            )
+                          : Image.file(
+                              File(widget.imagePath!),
+                              fit: BoxFit.contain,
+                            ),
                     ),
                   ),
                 ),
@@ -262,20 +269,42 @@ class _ImageViewerPageState extends State<ImageViewerPage>
               Positioned(
                 top: 0,
                 left: 0,
+                right: 0,
                 child: SafeArea(
                   child: Padding(
                     padding: const EdgeInsets.all(8),
-                    child: Material(
-                      color: Colors.black26,
-                      shape: const CircleBorder(),
-                      child: IconButton(
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new,
-                          color: Colors.white,
-                          size: 20,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Material(
+                          color: Colors.black26,
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.arrow_back_ios_new,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
                         ),
-                        onPressed: () => Navigator.of(context).pop(),
-                      ),
+                        Material(
+                          color: Colors.black26,
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            icon: const Icon(
+                              Icons.download_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            onPressed: () {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Saved to device')),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

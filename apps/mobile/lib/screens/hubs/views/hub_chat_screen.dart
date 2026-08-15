@@ -14,6 +14,7 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
 import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
 import 'package:mobile/screens/hubs/widget/hub_attachment_bubble.dart';
+import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -427,6 +428,21 @@ class _HubChatScreenState extends State<HubChatScreen> {
   Future<void> _openAttachment(Map<String, dynamic> attachment) async {
     final url = (attachment['url'] as String? ?? '').trim();
     if (url.isEmpty) return;
+    
+    if (_isImageAttachment(attachment)) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, _, __) => ImageViewerPage(
+            imageUrl: url,
+            heroTag: url,
+            caption: _attachmentSubtitle(attachment),
+          ),
+        ),
+      );
+      return;
+    }
+
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -724,26 +740,29 @@ class _HubChatScreenState extends State<HubChatScreen> {
                               ),
                               child: AspectRatio(
                                 aspectRatio: 1.08,
-                                child: Image.network(
-                                  url,
-                                  fit: BoxFit.cover,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(
-                                      child: Padding(
-                                        padding: EdgeInsets.all(18),
-                                        child: CircularProgressIndicator(strokeWidth: 2),
-                                      ),
-                                    );
-                                  },
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      color: color.withValues(alpha: 0.14),
-                                      alignment: Alignment.center,
-                                      padding: const EdgeInsets.all(18),
-                                      child: Icon(icon, color: color, size: 34),
-                                    );
-                                  },
+                                child: Hero(
+                                  tag: url,
+                                  child: Image.network(
+                                    url,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(18),
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      );
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Container(
+                                        color: color.withValues(alpha: 0.14),
+                                        alignment: Alignment.center,
+                                        padding: const EdgeInsets.all(18),
+                                        child: Icon(icon, color: color, size: 34),
+                                      );
+                                    },
+                                  ),
                                 ),
                               ),
                             ),
