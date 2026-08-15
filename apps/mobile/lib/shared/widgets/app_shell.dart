@@ -7,6 +7,7 @@ import 'package:mobile/screens/profile/views/profile_screen.dart';
 import 'package:mobile/screens/sessions/views/sessions_screen.dart';
 import 'package:mobile/shared/widgets/patterned_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:ui';
 
 class AppShell extends StatefulWidget {
   final Widget child;
@@ -48,7 +49,8 @@ class _AppShellState extends State<AppShell> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final currentIndex = _getCurrentIndex(context);
-      if (_pageController.hasClients && _pageController.page?.round() != currentIndex) {
+      if (_pageController.hasClients &&
+          _pageController.page?.round() != currentIndex) {
         _pageController.jumpToPage(currentIndex);
       }
     });
@@ -110,7 +112,7 @@ class _AppShellState extends State<AppShell> {
               child: Container(
                 margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
+                  color: AppColors.surface.withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
                     color: AppColors.border.withValues(alpha: 0.5),
@@ -118,49 +120,55 @@ class _AppShellState extends State<AppShell> {
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.shadow,
+                      color: AppColors.shadow.withValues(alpha: 0.2),
                       blurRadius: 16,
-                      offset: Offset(0, 8),
+                      offset: const Offset(0, 8),
                     ),
                   ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(24),
-                  child: BottomNavigationBar(
-                    currentIndex: currentIndex,
-                    onTap: (index) => _onTabTapped(context, index),
-                    selectedItemColor: AppColors.primary,
-                    unselectedItemColor: AppColors.textSecondary,
-                    backgroundColor: AppColors.surface,
-                    elevation: 0,
-                    type: BottomNavigationBarType.fixed,
-                    showUnselectedLabels: false,
-                    selectedLabelStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                    child: BottomNavigationBar(
+                      currentIndex: currentIndex,
+                      onTap: (index) => _onTabTapped(context, index),
+                      selectedItemColor: AppColors.primaryDeep,
+                      unselectedItemColor: AppColors.textSecondary,
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      type: BottomNavigationBarType.fixed,
+                      showUnselectedLabels: false,
+                      selectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                      items: [
+                        BottomNavigationBarItem(
+                          icon: _buildIcon(Icons.forum_outlined, false),
+                          activeIcon: _buildIcon(Icons.forum, true),
+                          label: "Hubs",
+                        ),
+                        BottomNavigationBarItem(
+                          icon: _buildSessionIcon(false, showSessionBadges),
+                          activeIcon: _buildSessionIcon(
+                            true,
+                            showSessionBadges,
+                          ),
+                          label: "Sessions",
+                        ),
+                        BottomNavigationBarItem(
+                          icon: _buildIcon(Icons.smart_toy_outlined, false),
+                          activeIcon: _buildIcon(Icons.smart_toy, true),
+                          label: "AI Assist",
+                        ),
+                        BottomNavigationBarItem(
+                          icon: _buildIcon(Icons.person_outline, false),
+                          activeIcon: _buildIcon(Icons.person, true),
+                          label: "Profile",
+                        ),
+                      ],
                     ),
-                    items: [
-                      BottomNavigationBarItem(
-                        icon: _buildIcon(Icons.forum_outlined, false),
-                        activeIcon: _buildIcon(Icons.forum, true),
-                        label: "Hubs",
-                      ),
-                      BottomNavigationBarItem(
-                        icon: _buildSessionIcon(false, showSessionBadges),
-                        activeIcon: _buildSessionIcon(true, showSessionBadges),
-                        label: "Sessions",
-                      ),
-                      BottomNavigationBarItem(
-                        icon: _buildIcon(Icons.smart_toy_outlined, false),
-                        activeIcon: _buildIcon(Icons.smart_toy, true),
-                        label: "AI Assist",
-                      ),
-                      BottomNavigationBarItem(
-                        icon: _buildIcon(Icons.person_outline, false),
-                        activeIcon: _buildIcon(Icons.person, true),
-                        label: "Profile",
-                      ),
-                    ],
                   ),
                 ),
               ),
@@ -174,9 +182,14 @@ class _AppShellState extends State<AppShell> {
   Widget _buildIcon(IconData icon, bool isActive) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      padding: EdgeInsets.symmetric(horizontal: isActive ? 16.0 : 8.0, vertical: 8.0),
+      padding: EdgeInsets.symmetric(
+        horizontal: isActive ? 16.0 : 8.0,
+        vertical: 8.0,
+      ),
       decoration: BoxDecoration(
-        color: isActive ? AppColors.primaryDeep.withValues(alpha: 0.1) : Colors.transparent,
+        color: isActive
+            ? AppColors.primaryDeep.withValues(alpha: 0.1)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Icon(icon),

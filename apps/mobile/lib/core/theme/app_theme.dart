@@ -32,10 +32,9 @@ class AppTheme {
       surfaceTintColor: Colors.transparent,
       iconTheme: IconThemeData(color: AppColors.textOnPrimary),
       actionsIconTheme: IconThemeData(color: AppColors.textOnPrimary),
-      titleTextStyle: TextStyle(
+      titleTextStyle: AppTextStyles.heading.copyWith(
         color: AppColors.textOnPrimary,
         fontSize: 22,
-        fontWeight: FontWeight.w700,
       ),
     ),
     cardTheme: CardThemeData(
