@@ -6,6 +6,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -734,11 +735,23 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 ),
                 if (content.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Text(
-                    content,
+                  Linkify(
+                    text: content,
+                    onOpen: (link) async {
+                      final url = Uri.parse(link.url);
+                      if (await canLaunchUrl(url)) {
+                        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                      }
+                    },
                     style: AppTextStyles.body.copyWith(
                       color: isMine ? Colors.white : AppColors.textPrimary,
                       height: 1.35,
+                    ),
+                    linkStyle: AppTextStyles.body.copyWith(
+                      color: isMine ? Colors.white : AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      height: 1.35,
+                      decoration: TextDecoration.underline,
                     ),
                   ),
                 ],

@@ -30,6 +30,8 @@ dependencies:
   path: ^1.9.1
   mobile_scanner: ^7.4.0
   image_gallery_saver: ^2.0.3
+  flutter_linkify: ^6.0.0
+  linkify: ^5.0.0
 
 dev_dependencies:
   flutter_test:
