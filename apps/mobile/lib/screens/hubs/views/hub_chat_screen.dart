@@ -35,8 +35,9 @@ class HubChatScreen extends StatefulWidget {
 class _HubChatScreenState extends State<HubChatScreen> {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
-  final _reactionsController =
-      ReactionsController(currentUserId: AuthSession.username ?? 'me');
+  final _reactionsController = ReactionsController(
+    currentUserId: AuthSession.username ?? 'me',
+  );
   final List<Map<String, dynamic>> _messages = [];
   final List<PlatformFile> _pendingAttachments = [];
 
@@ -57,8 +58,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
   String get _hubName =>
       (widget.hub?['name'] as String? ?? 'Hub').trim().isEmpty
-          ? 'Hub'
-          : (widget.hub?['name'] as String? ?? 'Hub').trim();
+      ? 'Hub'
+      : (widget.hub?['name'] as String? ?? 'Hub').trim();
 
   int get _memberCount {
     final value = widget.hub?['members_count'];
@@ -125,10 +126,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
     }
   }
 
-  Future<void> _loadMessages({
-    required bool reset,
-    bool silent = false,
-  }) async {
+  Future<void> _loadMessages({required bool reset, bool silent = false}) async {
     if (_hubId == 0) {
       if (!mounted) return;
       setState(() {
@@ -149,17 +147,18 @@ class _HubChatScreenState extends State<HubChatScreen> {
     }
 
     try {
-      final previousIds = _messages.map(_messageIdKey).toSet();
       final response = await AuthApiService.getHubMessages(
         hubId: _hubId,
         page: 1,
       );
+
+      if (!mounted) return;
+
+      final previousIds = _messages.map(_messageIdKey).toSet();
       final results = _extractResults(response).reversed.toList();
       final fresh = results
           .where((message) => !previousIds.contains(_messageIdKey(message)))
           .toList();
-
-      if (!mounted) return;
 
       setState(() {
         if (reset) {
@@ -223,9 +222,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
     } on AuthApiException catch (error) {
       if (!mounted) return;
       setState(() => _isLoadingMore = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _isLoadingMore = false);
@@ -266,7 +265,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
         if (_sendAsSms && !_canSendAsSms) {
           _sendAsSms = false;
         }
-        if (_pendingAttachments.isNotEmpty || sentMessage['attachments'] is List && (sentMessage['attachments'] as List).isNotEmpty) {
+        if (_pendingAttachments.isNotEmpty ||
+            sentMessage['attachments'] is List &&
+                (sentMessage['attachments'] as List).isNotEmpty) {
           _sendAsSms = false;
         }
       });
@@ -274,9 +275,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
     } on AuthApiException catch (error) {
       if (!mounted) return;
       setState(() => _isSending = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
       setState(() => _isSending = false);
@@ -323,15 +324,15 @@ class _HubChatScreenState extends State<HubChatScreen> {
     if (id.isNotEmpty) return 'id:$id';
     final sender = message['sender'] as Map<String, dynamic>? ?? const {};
     final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
-    final senderKey = [
-      sender['id'],
-      message['sender_name'],
-      profile['display_name'],
-      profile['full_name'],
-    ].map((value) => value?.toString().trim() ?? '').firstWhere(
-          (value) => value.isNotEmpty,
-          orElse: () => 'unknown',
-        );
+    final senderKey =
+        [
+              sender['id'],
+              message['sender_name'],
+              profile['display_name'],
+              profile['full_name'],
+            ]
+            .map((value) => value?.toString().trim() ?? '')
+            .firstWhere((value) => value.isNotEmpty, orElse: () => 'unknown');
     final timestamp = _parseTimestamp(message)?.toUtc().toIso8601String() ?? '';
     final content = (message['content'] as String? ?? '').trim();
     final attachmentCount = (message['attachments'] as List?)?.length ?? 0;
@@ -360,7 +361,11 @@ class _HubChatScreenState extends State<HubChatScreen> {
           ? const [
               MenuItem(label: 'Reply', icon: Icons.reply),
               MenuItem(label: 'Copy', icon: Icons.copy),
-              MenuItem(label: 'Delete', icon: Icons.delete_forever, isDestructive: true),
+              MenuItem(
+                label: 'Delete',
+                icon: Icons.delete_forever,
+                isDestructive: true,
+              ),
             ]
           : const [
               MenuItem(label: 'Reply', icon: Icons.reply),
@@ -385,7 +390,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
     final content = (message['content'] as String? ?? '').trim();
     switch (label) {
       case 'reply':
-        final quote = '> ${_displayName(message)}: ${_replySnippet(message)}\n\n';
+        final quote =
+            '> ${_displayName(message)}: ${_replySnippet(message)}\n\n';
         _messageController.text = '$quote${_messageController.text}';
         _messageController.selection = TextSelection.collapsed(
           offset: _messageController.text.length,
@@ -396,16 +402,15 @@ class _HubChatScreenState extends State<HubChatScreen> {
         if (content.isNotEmpty) {
           await Clipboard.setData(ClipboardData(text: content));
           if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message copied')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Message copied')));
         }
         break;
       case 'delete':
         setState(() {
           _messages.removeWhere(
-            (candidate) =>
-                _messageIdKey(candidate) == _messageIdKey(message),
+            (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
           );
         });
         break;
@@ -462,7 +467,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
   Future<void> _openAttachment(Map<String, dynamic> attachment) async {
     final url = (attachment['url'] as String? ?? '').trim();
     if (url.isEmpty) return;
-    
+
     if (_isImageAttachment(attachment)) {
       Navigator.of(context).push(
         PageRouteBuilder(
@@ -484,7 +489,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
   Future<void> _pickAttachments() async {
     if (_isSending) return;
-    
+
     await showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -500,7 +505,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
             if (result == null || !mounted) return;
             setState(() {
               _pendingAttachments.addAll(
-                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+                result.files.where(
+                  (file) => file.path != null && file.path!.isNotEmpty,
+                ),
               );
               if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
             });
@@ -512,7 +519,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               type: FileType.image,
             );
             if (result == null || result.files.isEmpty || !mounted) return;
-            
+
             final firstFile = result.files.first;
             if (firstFile.path != null) {
               final caption = await showModalBottomSheet<String>(
@@ -525,7 +532,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                   fileType: 'image',
                 ),
               );
-              
+
               if (caption != null && caption.isNotEmpty) {
                 _messageController.text = caption;
               }
@@ -533,7 +540,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
             setState(() {
               _pendingAttachments.addAll(
-                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+                result.files.where(
+                  (file) => file.path != null && file.path!.isNotEmpty,
+                ),
               );
               if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
             });
@@ -547,7 +556,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
             if (result == null || !mounted) return;
             setState(() {
               _pendingAttachments.addAll(
-                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+                result.files.where(
+                  (file) => file.path != null && file.path!.isNotEmpty,
+                ),
               );
               if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
             });
@@ -577,8 +588,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
           child: Container(
             decoration: BoxDecoration(
               color: AppColors.surface,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(24)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
               border: Border.all(color: AppColors.border),
             ),
             child: SizedBox(
@@ -652,225 +664,279 @@ class _HubChatScreenState extends State<HubChatScreen> {
     final senderName = isMine ? 'You' : _displayName(message);
     final timestamp = _formatTimestamp(_parseTimestamp(message));
     final attachments = (message['attachments'] as List?) ?? const [];
-    final smsSent = message['send_as_sms'] == true ||
+    final smsSent =
+        message['send_as_sms'] == true ||
         message['sms_delivery_queued'] == true ||
         message['sms_sent'] == true;
 
-    return ChatMessageWrapper(
-      messageId: _messageIdKey(message),
-      controller: _reactionsController,
-      config: _reactionConfigForMessage(isMine),
-      alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-      onMenuItemTapped: (item) => _handleMessageAction(message, item),
-      child: Align(
+    return Dismissible(
+      key: ValueKey('swipe_reply_${_messageIdKey(message)}'),
+      direction: isMine
+          ? DismissDirection.endToStart
+          : DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        _handleMessageAction(
+          message,
+          const MenuItem(label: 'Reply', icon: Icons.reply),
+        );
+        return false;
+      },
+      background: Container(
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-        constraints: const BoxConstraints(maxWidth: 360),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: isMine ? AppColors.primaryDeep : AppColors.surface,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(18),
-            topRight: const Radius.circular(18),
-            bottomLeft: Radius.circular(isMine ? 18 : 4),
-            bottomRight: Radius.circular(isMine ? 4 : 18),
-          ),
-          border: isMine ? null : Border.all(color: AppColors.border),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x0D000000),
-              blurRadius: 10,
-              offset: Offset(0, 4),
-            ),
-          ],
+        padding: EdgeInsets.only(
+          right: isMine ? 24.0 : 0,
+          left: isMine ? 0 : 24.0,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              senderName,
-              style: AppTextStyles.label.copyWith(
-              color: isMine ? Colors.white70 : AppColors.primaryDeep,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-            if (content.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                content,
-                style: AppTextStyles.body.copyWith(
-                  color: isMine ? Colors.white : AppColors.textPrimary,
-                  height: 1.35,
-                ),
+        child: Icon(
+          Icons.reply_rounded,
+          color: AppColors.primary.withValues(alpha: 0.7),
+        ),
+      ),
+      child: ChatMessageWrapper(
+        messageId: _messageIdKey(message),
+        controller: _reactionsController,
+        config: _reactionConfigForMessage(isMine),
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        onMenuItemTapped: (item) => _handleMessageAction(message, item),
+        child: Align(
+          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 360),
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            decoration: BoxDecoration(
+              color: isMine ? AppColors.primaryDeep : AppColors.surface,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isMine ? 18 : 4),
+                bottomRight: Radius.circular(isMine ? 4 : 18),
               ),
-            ],
-            if (attachments.isNotEmpty) ...[
-              if (content.isNotEmpty) const SizedBox(height: 10),
-              ...attachments.whereType<Map>().map((raw) {
-                final attachment = Map<String, dynamic>.from(raw);
-                final url = (attachment['url'] as String? ?? '').trim();
-                final fileName =
-                    (attachment['file_name'] as String? ?? 'Attachment').trim();
-                final isImage = _isImageAttachment(attachment);
-                final color = _attachmentColorFor(attachment);
-                final icon = _attachmentIconFor(attachment);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: GestureDetector(
-                    onTap: url.isNotEmpty ? () => _openAttachment(attachment) : null,
-                    child: Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: isMine
-                            ? Colors.white.withValues(alpha: 0.08)
-                            : AppColors.surfaceMuted,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: isMine
-                              ? Colors.white.withValues(alpha: 0.10)
-                              : AppColors.border,
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (isImage && url.isNotEmpty)
-                            ClipRRect(
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(14),
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 1.08,
-                                child: Hero(
-                                  tag: url,
-                                  child: Image.network(
-                                    url,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(18),
-                                          child: CircularProgressIndicator(strokeWidth: 2),
-                                        ),
-                                      );
-                                    },
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Container(
-                                        color: color.withValues(alpha: 0.14),
-                                        alignment: Alignment.center,
-                                        padding: const EdgeInsets.all(18),
-                                        child: Icon(icon, color: color, size: 34),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              ),
+              border: isMine ? null : Border.all(color: AppColors.border),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x0D000000),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  senderName,
+                  style: AppTextStyles.label.copyWith(
+                    color: isMine ? Colors.white70 : AppColors.primaryDeep,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (content.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Text(
+                    content,
+                    style: AppTextStyles.body.copyWith(
+                      color: isMine ? Colors.white : AppColors.textPrimary,
+                      height: 1.35,
+                    ),
+                  ),
+                ],
+                if (attachments.isNotEmpty) ...[
+                  if (content.isNotEmpty) const SizedBox(height: 10),
+                  ...attachments.whereType<Map>().map((raw) {
+                    final attachment = Map<String, dynamic>.from(raw);
+                    final url = (attachment['url'] as String? ?? '').trim();
+                    final fileName =
+                        (attachment['file_name'] as String? ?? 'Attachment')
+                            .trim();
+                    final isImage = _isImageAttachment(attachment);
+                    final color = _attachmentColorFor(attachment);
+                    final icon = _attachmentIconFor(attachment);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: GestureDetector(
+                        onTap: url.isNotEmpty
+                            ? () => _openAttachment(attachment)
+                            : null,
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: isMine
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : AppColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isMine
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : AppColors.border,
                             ),
-                          Padding(
-                            padding: EdgeInsets.fromLTRB(
-                              11,
-                              isImage && url.isNotEmpty ? 9 : 11,
-                              11,
-                              10,
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Container(
-                                  width: 34,
-                                  height: 34,
-                                  decoration: BoxDecoration(
-                                    color: color.withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (isImage && url.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(14),
                                   ),
-                                  child: Icon(icon, color: color, size: 20),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        fileName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: AppTextStyles.body.copyWith(
-                                          color: isMine ? Colors.white : AppColors.textPrimary,
-                                          fontWeight: FontWeight.w700,
-                                        ),
+                                  child: AspectRatio(
+                                    aspectRatio: 1.08,
+                                    child: Hero(
+                                      tag: url,
+                                      child: Image.network(
+                                        url,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                              if (loadingProgress == null)
+                                                return child;
+                                              return const Center(
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(18),
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
+                                              );
+                                            },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                              return Container(
+                                                color: color.withValues(
+                                                  alpha: 0.14,
+                                                ),
+                                                alignment: Alignment.center,
+                                                padding: const EdgeInsets.all(
+                                                  18,
+                                                ),
+                                                child: Icon(
+                                                  icon,
+                                                  color: color,
+                                                  size: 34,
+                                                ),
+                                              );
+                                            },
                                       ),
-                                      const SizedBox(height: 1),
-                                      Text(
-                                        _attachmentSubtitle(attachment),
-                                        style: AppTextStyles.caption.copyWith(
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  11,
+                                  isImage && url.isNotEmpty ? 9 : 11,
+                                  11,
+                                  10,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(icon, color: color, size: 20),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            fileName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTextStyles.body.copyWith(
+                                              color: isMine
+                                                  ? Colors.white
+                                                  : AppColors.textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 1),
+                                          Text(
+                                            _attachmentSubtitle(attachment),
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                                  color: isMine
+                                                      ? Colors.white70
+                                                      : AppColors.textSecondary,
+                                                  fontSize: 10.5,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (url.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 6,
+                                          top: 1,
+                                        ),
+                                        child: Icon(
+                                          Icons.open_in_new_rounded,
+                                          size: 16,
                                           color: isMine
                                               ? Colors.white70
                                               : AppColors.textSecondary,
-                                          fontSize: 10.5,
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
-                                if (url.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 6, top: 1),
-                                    child: Icon(
-                                      Icons.open_in_new_rounded,
-                                      size: 16,
-                                      color: isMine ? Colors.white70 : AppColors.textSecondary,
-                                    ),
-                                  ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
+                    );
+                  }),
+                ],
+                if (content.isNotEmpty || attachments.isNotEmpty)
+                  const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    timestamp,
+                    style: AppTextStyles.caption.copyWith(
+                      color: isMine ? Colors.white60 : AppColors.textSecondary,
                     ),
                   ),
-                );
-              }),
-            ],
-            if (content.isNotEmpty || attachments.isNotEmpty) const SizedBox(height: 4),
-            Align(
-              alignment: Alignment.centerRight,
-              child: Text(
-                timestamp,
-                style: AppTextStyles.caption.copyWith(
-                  color: isMine ? Colors.white60 : AppColors.textSecondary,
                 ),
-              ),
+                if (smsSent) ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.sms_rounded,
+                          size: 13,
+                          color: Colors.white60,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Sent as SMS',
+                          style: AppTextStyles.caption.copyWith(
+                            color: isMine
+                                ? Colors.white60
+                                : AppColors.textSecondary,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
-            if (smsSent) ...[
-              const SizedBox(height: 4),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.sms_rounded,
-                      size: 13,
-                      color: Colors.white60,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      'Sent as SMS',
-                      style: AppTextStyles.caption.copyWith(
-                        color: isMine ? Colors.white60 : AppColors.textSecondary,
-                        fontSize: 10.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ],
-        ),
+          ),
         ),
       ),
     );
@@ -894,10 +960,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 color: AppColors.textSecondary,
               ),
               const SizedBox(height: 12),
-              Text(
-                'Unable to load hub messages',
-                style: AppTextStyles.heading,
-              ),
+              Text('Unable to load hub messages', style: AppTextStyles.heading),
               const SizedBox(height: 8),
               Text(
                 _error!,
@@ -1039,13 +1102,15 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 context.go('/home');
               } on AuthApiException catch (error) {
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(error.message)),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(error.message)));
               } catch (_) {
                 if (!mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Unable to leave hub right now')),
+                  const SnackBar(
+                    content: Text('Unable to leave hub right now'),
+                  ),
                 );
               }
             },
@@ -1108,7 +1173,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
               if (value == 'info') {
                 context.push(
                   '/hub-info',
-                  extra: widget.hub ??
+                  extra:
+                      widget.hub ??
                       {
                         'id': _hubId,
                         'name': _hubName,
@@ -1126,7 +1192,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
               ),
               PopupMenuItem<String>(
                 value: 'leave',
-                child: Text('Leave hub', style: TextStyle(color: AppColors.error)),
+                child: Text(
+                  'Leave hub',
+                  style: TextStyle(color: AppColors.error),
+                ),
               ),
             ],
           ),
@@ -1150,7 +1219,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.surface.withValues(alpha: 0.7),
                               borderRadius: BorderRadius.circular(24),
@@ -1163,28 +1235,42 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                   color: Colors.black.withValues(alpha: 0.1),
                                   blurRadius: 8,
                                   offset: const Offset(0, 4),
-                                )
+                                ),
                               ],
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.folder_shared_rounded, color: AppColors.primary, size: 18),
+                                Icon(
+                                  Icons.folder_shared_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Class Resources',
-                                  style: AppTextStyles.label.copyWith(color: AppColors.textPrimary, fontSize: 13),
+                                  style: AppTextStyles.label.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: AppColors.primary,
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   child: Text(
                                     '3 New',
-                                    style: AppTextStyles.caption.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ),
                               ],
