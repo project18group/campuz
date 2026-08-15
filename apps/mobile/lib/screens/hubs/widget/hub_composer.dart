@@ -6,6 +6,7 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 class HubComposer extends StatelessWidget {
   final bool showSendAsSms;
   final bool sendAsSms;
+  final bool isSending;
   final bool canSend;
   final TextEditingController controller;
   final List<PlatformFile> attachments;
@@ -19,6 +20,7 @@ class HubComposer extends StatelessWidget {
     super.key,
     this.showSendAsSms = false,
     required this.sendAsSms,
+    this.isSending = false,
     this.canSend = true,
     required this.controller,
     this.attachments = const [],
@@ -201,10 +203,19 @@ class HubComposer extends StatelessWidget {
                 ),
               ),
 
-              IconButton(
-                onPressed: canSend ? onSend : null,
-                icon: const Icon(Icons.send),
-              ),
+              isSending
+                  ? const Padding(
+                      padding: EdgeInsets.all(12.0),
+                      child: SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : IconButton(
+                      onPressed: canSend ? onSend : null,
+                      icon: const Icon(Icons.send),
+                    ),
             ],
           ),
         ],

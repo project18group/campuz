@@ -10,6 +10,7 @@ from django.core.files.storage import default_storage
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
+import cloudinary.uploader
 
 from .models import (
     AdminInvitationCode,
@@ -494,6 +495,7 @@ class HubSerializer(serializers.ModelSerializer):
     sections = HubSectionSerializer(many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     can_manage_members = serializers.SerializerMethodField()
+    cover_image_file = serializers.ImageField(required=False, write_only=True)
 
     class Meta:
         model = Hub
@@ -502,6 +504,7 @@ class HubSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "cover_image_url",
+            "cover_image_file",
             "creator",
             "members",
             "members_count",
@@ -540,6 +543,18 @@ class HubSerializer(serializers.ModelSerializer):
         if obj.creator_id == request.user.id:
             return True
         return bool(membership and membership.role == "admin")
+
+    @transaction.atomic
+    def update(self, instance, validated_data):
+        cover_image_file = validated_data.pop("cover_image_file", None)
+        instance = super().update(instance, validated_data)
+
+        if cover_image_file is not None:
+            upload_result = cloudinary.uploader.upload(cover_image_file, folder="campuz_hubs")
+            instance.cover_image_url = upload_result.get("secure_url")
+            instance.save(update_fields=["cover_image_url"])
+
+        return instance
 
 
 class BroadcastCreateSerializer(serializers.Serializer):

@@ -231,6 +231,55 @@ class AuthApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> updateHub({
+    required int hubId,
+    String? name,
+    String? description,
+    File? coverImageFile,
+  }) async {
+    final needsMultipart = coverImageFile != null;
+    final body = <String, dynamic>{};
+    if (name != null && name.isNotEmpty) {
+      body['name'] = name;
+    }
+    if (description != null) {
+      body['description'] = description;
+    }
+
+    if (!needsMultipart) {
+      return _authorized(
+        (token) => _client.patch(
+          Uri.parse('$_baseUrl/hubs/$hubId/'),
+          headers: _headers(token),
+          body: jsonEncode(body),
+        ),
+      );
+    }
+
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'PATCH',
+          Uri.parse('$_baseUrl/hubs/$hubId/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields.addAll(
+          body.map((key, value) => MapEntry(key, value.toString())),
+        );
+        if (coverImageFile != null) {
+          request.files.add(
+            await http.MultipartFile.fromPath(
+              'cover_image_file',
+              coverImageFile.path,
+              filename: p.basename(coverImageFile.path),
+            ),
+          );
+        }
+        return request.send();
+      },
+    );
+  }
+
   static Future<Map<String, dynamic>> getHubMessages({
     required int hubId,
     int page = 1,

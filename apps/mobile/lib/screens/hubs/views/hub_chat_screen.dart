@@ -11,6 +11,9 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
+import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
+import 'package:mobile/screens/hubs/widget/hub_attachment_bubble.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -431,20 +434,77 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
   Future<void> _pickAttachments() async {
     if (_isSending) return;
-    final result = await FilePicker.pickFiles(
-      allowMultiple: true,
-      withData: false,
-      type: FileType.any,
+    
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return AttachmentPicker(
+          onPickDocument: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: true,
+              withData: false,
+              type: FileType.any,
+            );
+            if (result == null || !mounted) return;
+            setState(() {
+              _pendingAttachments.addAll(
+                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+              );
+              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
+            });
+          },
+          onPickGallery: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: true,
+              withData: false,
+              type: FileType.image,
+            );
+            if (result == null || result.files.isEmpty || !mounted) return;
+            
+            final firstFile = result.files.first;
+            if (firstFile.path != null) {
+              final caption = await showModalBottomSheet<String>(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => AttachmentPreviewSheet(
+                  filePath: firstFile.path!,
+                  fileName: firstFile.name,
+                  fileType: 'image',
+                ),
+              );
+              
+              if (caption != null && caption.isNotEmpty) {
+                _messageController.text = caption;
+              }
+            }
+
+            setState(() {
+              _pendingAttachments.addAll(
+                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+              );
+              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
+            });
+          },
+          onPickCamera: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: true,
+              withData: false,
+              type: FileType.media,
+            );
+            if (result == null || !mounted) return;
+            setState(() {
+              _pendingAttachments.addAll(
+                result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+              );
+              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
+            });
+          },
+        );
+      },
     );
-    if (result == null || !mounted) return;
-    setState(() {
-      _pendingAttachments.addAll(
-        result.files.where((file) => file.path != null && file.path!.isNotEmpty),
-      );
-      if (_pendingAttachments.isNotEmpty) {
-        _sendAsSms = false;
-      }
-    });
   }
 
   void _removePendingAttachment(int index) {
@@ -915,6 +975,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         child: HubComposer(
           showSendAsSms: _canSendAsSms,
           sendAsSms: _sendAsSms,
+          isSending: _isSending,
           canSend: !_isSending,
           controller: _messageController,
           attachments: _pendingAttachments,

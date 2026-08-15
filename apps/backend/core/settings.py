@@ -42,6 +42,24 @@ if DEBUG:
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
+
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host.strip()
+]
+
+# In development, accept any Host header so physical devices on the LAN can
+# reach the dev server by IP without pinning the address here.
+if DEBUG:
+    ALLOWED_HOSTS.append("*")
+
+
+# Application definition
+
+INSTALLED_APPS = [
+    "django.contrib.admin",
+    "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
@@ -49,6 +67,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    "cloudinary",
     "api",
     "hubs",
     "resources",
@@ -188,3 +207,14 @@ if not DEBUG:
 
 # Connection String
 # --
+
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+cloudinary.config( 
+  cloud_name = "pwutfure", 
+  api_key = "259557338688285", 
+  api_secret = "AXnXzhnuqFAUk_WIEyhIvbNO9zY",
+  secure = True
+)

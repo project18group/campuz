@@ -11,20 +11,22 @@ class AttachmentPicker extends StatefulWidget {
 
   /// Optional callbacks for the placeholder options. When null, tapping the
   /// option simply closes the sheet and shows a "Coming soon" snackbar.
-  final VoidCallback? onPickVideo;
-  final VoidCallback? onPickAudio;
   final VoidCallback? onPickLocation;
   final VoidCallback? onPickContact;
+  final VoidCallback? onPickPoll;
+  final VoidCallback? onPickEvent;
+  final VoidCallback? onPickAIImages;
 
   const AttachmentPicker({
     super.key,
     required this.onPickDocument,
     required this.onPickGallery,
     required this.onPickCamera,
-    this.onPickVideo,
-    this.onPickAudio,
     this.onPickLocation,
     this.onPickContact,
+    this.onPickPoll,
+    this.onPickEvent,
+    this.onPickAIImages,
   });
 
   @override
@@ -35,7 +37,7 @@ class _AttachmentPickerState extends State<AttachmentPicker>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
-  static const int _optionCount = 7;
+  static const int _optionCount = 8;
 
   @override
   void initState() {
@@ -75,6 +77,12 @@ class _AttachmentPickerState extends State<AttachmentPicker>
 
   List<_AttachmentOption> get _options => [
         _AttachmentOption(
+          label: "Document",
+          icon: Icons.description_rounded,
+          color: const Color(0xFF8B5CF6),
+          onTap: () => _handleTap(widget.onPickDocument, "Document"),
+        ),
+        _AttachmentOption(
           label: "Camera",
           icon: Icons.camera_alt_rounded,
           color: const Color(0xFFEF476F),
@@ -83,26 +91,8 @@ class _AttachmentPickerState extends State<AttachmentPicker>
         _AttachmentOption(
           label: "Gallery",
           icon: Icons.photo_rounded,
-          color: const Color(0xFF8B5CF6),
-          onTap: () => _handleTap(widget.onPickGallery, "Gallery"),
-        ),
-        _AttachmentOption(
-          label: "Document",
-          icon: Icons.description_rounded,
           color: const Color(0xFF3B82F6),
-          onTap: () => _handleTap(widget.onPickDocument, "Document"),
-        ),
-        _AttachmentOption(
-          label: "Video",
-          icon: Icons.videocam_rounded,
-          color: const Color(0xFFF59E0B),
-          onTap: () => _handleTap(widget.onPickVideo, "Video"),
-        ),
-        _AttachmentOption(
-          label: "Audio",
-          icon: Icons.headphones_rounded,
-          color: const Color(0xFFF97316),
-          onTap: () => _handleTap(widget.onPickAudio, "Audio"),
+          onTap: () => _handleTap(widget.onPickGallery, "Gallery"),
         ),
         _AttachmentOption(
           label: "Location",
@@ -115,6 +105,24 @@ class _AttachmentPickerState extends State<AttachmentPicker>
           icon: Icons.person_rounded,
           color: const Color(0xFF06B6D4),
           onTap: () => _handleTap(widget.onPickContact, "Contact"),
+        ),
+        _AttachmentOption(
+          label: "Poll",
+          icon: Icons.poll_rounded,
+          color: const Color(0xFFF59E0B),
+          onTap: () => _handleTap(widget.onPickPoll, "Poll"),
+        ),
+        _AttachmentOption(
+          label: "Event",
+          icon: Icons.event_rounded,
+          color: const Color(0xFFF97316),
+          onTap: () => _handleTap(widget.onPickEvent, "Event"),
+        ),
+        _AttachmentOption(
+          label: "AI Images",
+          icon: Icons.auto_awesome_rounded,
+          color: const Color(0xFF10B981),
+          onTap: () => _handleTap(widget.onPickAIImages, "AI Images"),
         ),
       ];
 

@@ -7,6 +7,7 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/invite_card.dart';
+import 'package:mobile/screens/hubs/widget/edit_hub_sheet.dart';
 
 class HubInfoScreen extends StatefulWidget {
   const HubInfoScreen({super.key, this.hub});
@@ -796,16 +797,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
         children: [
           Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-                child: Text(
-                  initials.isEmpty ? 'H' : initials,
-                  style: AppTextStyles.title.copyWith(
-                    color: AppColors.primaryDeep,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+              AppAvatar(
+                avatarUrl: (_hub ?? widget.hub)?['cover_image_url'] as String? ?? '',
+                fallbackName: _hubName,
+                size: 56,
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -826,6 +821,23 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   ],
                 ),
               ),
+              if (_canManageMembers)
+                IconButton(
+                  icon: const Icon(Icons.edit_outlined),
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (sheetContext) {
+                        return EditHubSheet(
+                          hub: _hub ?? {},
+                          onHubUpdated: _loadMembers,
+                        );
+                      },
+                    );
+                  },
+                ),
             ],
           ),
           if (_hubDescription.isNotEmpty) ...[
