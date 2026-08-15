@@ -18,13 +18,13 @@ class SelectContactScreen extends StatefulWidget {
 class _SelectContactScreenState extends State<SelectContactScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
-  
+
   List<Map<String, dynamic>> _allTekchatUsers = [];
   List<Contact> _allUnmatchedContacts = [];
-  
+
   List<Map<String, dynamic>> _filteredTekchatUsers = [];
   List<Contact> _filteredUnmatchedContacts = [];
-  
+
   bool _isLoading = true;
   bool _isOpening = false;
   bool _permissionDenied = false;
@@ -49,7 +49,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       _filterLocally(value.trim());
     });
   }
-  
+
   String _cleanPhone(String phone) {
     return phone.replaceAll(RegExp(r'[^\d+]'), '');
   }
@@ -73,7 +73,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       }
 
       final contacts = await FlutterContacts.getContacts(withProperties: true);
-      
+
       List<String> phoneNumbers = [];
       for (var c in contacts) {
         if (c.phones.isNotEmpty) {
@@ -81,13 +81,18 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         }
       }
 
-      final matchedUsers = await AuthApiService.syncContacts(phoneNumbers: phoneNumbers);
-      
-      final matchedPhones = matchedUsers.map((u) {
-        final p = (u['phone_number'] as String? ?? '');
-        return _cleanPhone(p);
-      }).where((p) => p.isNotEmpty).toSet();
-      
+      final matchedUsers = await AuthApiService.syncContacts(
+        phoneNumbers: phoneNumbers,
+      );
+
+      final matchedPhones = matchedUsers
+          .map((u) {
+            final p = (u['phone_number'] as String? ?? '');
+            return _cleanPhone(p);
+          })
+          .where((p) => p.isNotEmpty)
+          .toSet();
+
       List<Contact> unmatched = [];
       for (var c in contacts) {
         if (c.phones.isNotEmpty) {
@@ -132,7 +137,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       });
       return;
     }
-    
+
     final lowerQuery = query.toLowerCase();
     setState(() {
       _filteredTekchatUsers = _allTekchatUsers.where((user) {
@@ -140,10 +145,12 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         final phone = (user['phone_number'] as String? ?? '').toLowerCase();
         return name.contains(lowerQuery) || phone.contains(lowerQuery);
       }).toList();
-      
+
       _filteredUnmatchedContacts = _allUnmatchedContacts.where((contact) {
-        final name = contact.displayName.toLowerCase();
-        final phone = contact.phones.isNotEmpty ? contact.phones.first.number.toLowerCase() : '';
+        final name = (contact.displayName ?? '').toLowerCase();
+        final phone = contact.phones.isNotEmpty
+            ? contact.phones.first.number.toLowerCase()
+            : '';
         return name.contains(lowerQuery) || phone.contains(lowerQuery);
       }).toList();
     });
@@ -168,17 +175,19 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       context.push('/direct-chat/$conversationId', extra: conversation);
     } on AuthApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
     } finally {
       if (mounted) setState(() => _isOpening = false);
     }
   }
-  
+
   void _inviteContact(Contact contact) {
     // In a real app, this would open SMS with a prefilled message.
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Invite sent to ${contact.displayName}'))
+      SnackBar(content: Text('Invite sent to ${contact.displayName}')),
     );
   }
 
@@ -269,7 +278,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    
+
     if (_permissionDenied) {
       return _EmptyState(
         icon: Icons.perm_contact_calendar_outlined,
@@ -292,8 +301,12 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
 
     if (_filteredTekchatUsers.isEmpty && _filteredUnmatchedContacts.isEmpty) {
       return _EmptyState(
-        icon: _searchController.text.isEmpty ? Icons.people_outline : Icons.search_off,
-        title: _searchController.text.isEmpty ? 'No contacts found' : 'No search results',
+        icon: _searchController.text.isEmpty
+            ? Icons.people_outline
+            : Icons.search_off,
+        title: _searchController.text.isEmpty
+            ? 'No contacts found'
+            : 'No search results',
         message: _searchController.text.isEmpty
             ? 'Add some contacts to your phone to get started.'
             : 'Try another name or phone number.',
@@ -324,7 +337,11 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   horizontal: 16,
                   vertical: 5,
                 ),
-                leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 50),
+                leading: AppAvatar(
+                  avatarUrl: avatar,
+                  fallbackName: name,
+                  size: 50,
+                ),
                 title: Row(
                   children: [
                     Flexible(
@@ -336,11 +353,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                     ),
                     if (verified) ...[
                       const SizedBox(width: 6),
-                      Icon(
-                        Icons.verified,
-                        size: 17,
-                        color: AppColors.primary,
-                      ),
+                      Icon(Icons.verified, size: 17, color: AppColors.primary),
                     ],
                   ],
                 ),
@@ -349,20 +362,25 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
               );
             }),
           ],
-          if (_filteredTekchatUsers.isNotEmpty && _filteredUnmatchedContacts.isNotEmpty)
+          if (_filteredTekchatUsers.isNotEmpty &&
+              _filteredUnmatchedContacts.isNotEmpty)
             const Divider(height: 24, thickness: 1),
-          
+
           if (_filteredUnmatchedContacts.isNotEmpty) ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Text(
                 'Invite to TekChat',
-                style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.label.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
             ..._filteredUnmatchedContacts.map((contact) {
               final name = contact.displayName;
-              final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+              final phone = contact.phones.isNotEmpty
+                  ? contact.phones.first.number
+                  : '';
 
               return ListTile(
                 contentPadding: const EdgeInsets.symmetric(
@@ -374,10 +392,13 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   radius: 25,
                   child: Text(
                     name.isNotEmpty ? name[0].toUpperCase() : '?',
-                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-                title: Text(name, style: AppTextStyles.label),
+                title: Text(name!, style: AppTextStyles.label),
                 subtitle: phone.isEmpty ? null : Text(phone),
                 trailing: TextButton(
                   onPressed: () => _inviteContact(contact),
