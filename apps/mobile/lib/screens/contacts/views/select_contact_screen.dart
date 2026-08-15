@@ -62,7 +62,8 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     });
 
     try {
-      if (!await FlutterContacts.requestPermission(readonly: true)) {
+      final permStatus = await FlutterContacts.permissions.request(PermissionType.read);
+      if (permStatus != PermissionStatus.granted) {
         if (mounted) {
           setState(() {
             _permissionDenied = true;
@@ -72,7 +73,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         return;
       }
 
-      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      final contacts = await FlutterContacts.getAll(properties: {ContactProperty.phone});
 
       List<String> phoneNumbers = [];
       for (var c in contacts) {
@@ -391,14 +392,14 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                   backgroundColor: AppColors.surfaceMuted,
                   radius: 25,
                   child: Text(
-                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    (name != null && name.isNotEmpty) ? name[0].toUpperCase() : '?',
                     style: TextStyle(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
-                title: Text(name!, style: AppTextStyles.label),
+                title: Text(name ?? 'Unknown', style: AppTextStyles.label),
                 subtitle: phone.isEmpty ? null : Text(phone),
                 trailing: TextButton(
                   onPressed: () => _inviteContact(contact),
