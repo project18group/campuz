@@ -13,6 +13,7 @@ import 'package:mobile/screens/hubs/views/hub_created_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_permissions_screen.dart';
 import 'package:mobile/screens/hubs/views/join_hub_screen.dart';
 import 'package:mobile/screens/hubs/views/scan_qr_screen.dart';
+import 'package:mobile/screens/hubs/views/shared_media_screen.dart';
 import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_info_screen.dart';
 import 'package:mobile/screens/ai/views/ai_screen.dart';
@@ -95,6 +96,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: "/scan-qr",
       builder: (context, state) => const ScanQrScreen(),
+    ),
+    GoRoute(
+      path: "/shared-media",
+      builder: (context, state) => const SharedMediaScreen(),
     ),
     GoRoute(
       path: "/select-contact",

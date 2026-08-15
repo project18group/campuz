@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -337,16 +337,9 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
       builder: (context) {
         return SizedBox(
           height: MediaQuery.of(context).size.height * 0.42,
-          child: EmojiPicker(
+          child: AppEmojiPicker(
             textEditingController: _messageController,
-            config: const Config(
-              height: 256,
-              checkPlatformCompatibility: true,
-              skinToneConfig: SkinToneConfig(),
-              categoryViewConfig: CategoryViewConfig(),
-              bottomActionBarConfig: BottomActionBarConfig(),
-              searchViewConfig: SearchViewConfig(),
-            ),
+            onClose: () => Navigator.pop(context),
           ),
         );
       },

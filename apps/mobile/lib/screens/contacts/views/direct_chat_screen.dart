@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -496,18 +496,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                         ),
                       ],
                     ),
-                  ),
                   Expanded(
-                    child: EmojiPicker(
+                    child: AppEmojiPicker(
                       textEditingController: _messageController,
-                      config: const Config(
-                        height: 256,
-                        checkPlatformCompatibility: true,
-                        skinToneConfig: SkinToneConfig(),
-                        categoryViewConfig: CategoryViewConfig(),
-                        bottomActionBarConfig: BottomActionBarConfig(),
-                        searchViewConfig: SearchViewConfig(),
-                      ),
+                      onClose: () => Navigator.pop(sheetContext),
                     ),
                   ),
                 ],
@@ -563,8 +555,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
           ),
-          child: EmojiPicker(
-            textEditingController: _messageController,
+          child: AppEmojiPicker(
             onEmojiSelected: (category, emoji) {
               onEmojiSelected(emoji.emoji);
             },

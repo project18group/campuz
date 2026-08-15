@@ -1,4 +1,6 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:animate_do/animate_do.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/data/mock_shared_media.dart';
@@ -201,57 +203,81 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
       length: 3,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.surface,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          iconTheme: IconThemeData(color: AppColors.textPrimary),
-          title: Text(
-            'Shared Media',
-            style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
-          ),
-          actions: [
-            IconButton(
-              tooltip: 'Filter by date',
-              icon: Icon(
-                _dateFilter == _DateRangeFilter.allTime
-                    ? Icons.filter_alt_outlined
-                    : Icons.filter_alt,
-                color: _dateFilter == _DateRangeFilter.allTime
-                    ? AppColors.textPrimary
-                    : AppColors.primary,
+        extendBodyBehindAppBar: true,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(kToolbarHeight + 48),
+          child: ClipRRect(
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: AppBar(
+                backgroundColor: AppColors.surface.withValues(alpha: 0.6),
+                surfaceTintColor: Colors.transparent,
+                elevation: 0,
+                centerTitle: true,
+                iconTheme: IconThemeData(color: AppColors.textPrimary),
+                title: Text(
+                  'Class Resources',
+                  style: AppTextStyles.title.copyWith(color: AppColors.textPrimary),
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Filter by date',
+                    icon: Icon(
+                      _dateFilter == _DateRangeFilter.allTime
+                          ? Icons.filter_alt_outlined
+                          : Icons.filter_alt,
+                      color: _dateFilter == _DateRangeFilter.allTime
+                          ? AppColors.textPrimary
+                          : AppColors.primary,
+                    ),
+                    onPressed: _showDateFilterSheet,
+                  ),
+                  PopupMenuButton<_SortOption>(
+                    tooltip: 'Sort',
+                    icon: Icon(Icons.sort, color: AppColors.textPrimary),
+                    color: AppColors.surface,
+                    onSelected: _onSortSelected,
+                    itemBuilder: (context) => [
+                      _sortMenuItem(_SortOption.dateNewest, 'Date (newest first)'),
+                      _sortMenuItem(_SortOption.dateOldest, 'Date (oldest first)'),
+                      _sortMenuItem(_SortOption.nameAZ, 'Name (A–Z)'),
+                      _sortMenuItem(_SortOption.sizeLargest, 'Size (largest first)'),
+                    ],
+                  ),
+                ],
+                bottom: TabBar(
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.textSecondary,
+                  indicatorColor: AppColors.primary,
+                  indicatorWeight: 3,
+                  labelStyle: AppTextStyles.label.copyWith(fontSize: 14),
+                  unselectedLabelStyle: AppTextStyles.body,
+                  tabs: const [
+                    Tab(text: 'Images'),
+                    Tab(text: 'Documents'),
+                    Tab(text: 'Links'),
+                  ],
+                ),
               ),
-              onPressed: _showDateFilterSheet,
             ),
-            PopupMenuButton<_SortOption>(
-              tooltip: 'Sort',
-              icon: Icon(Icons.sort, color: AppColors.textPrimary),
-              color: AppColors.surface,
-              onSelected: _onSortSelected,
-              itemBuilder: (context) => [
-                _sortMenuItem(_SortOption.dateNewest, 'Date (newest first)'),
-                _sortMenuItem(_SortOption.dateOldest, 'Date (oldest first)'),
-                _sortMenuItem(_SortOption.nameAZ, 'Name (A–Z)'),
-                _sortMenuItem(_SortOption.sizeLargest, 'Size (largest first)'),
-              ],
-            ),
-          ],
-          bottom: TabBar(
-            labelColor: AppColors.primary,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.primary,
-            labelStyle: AppTextStyles.label.copyWith(fontSize: 14),
-            unselectedLabelStyle: AppTextStyles.body,
-            tabs: const [
-              Tab(text: 'Images'),
-              Tab(text: 'Documents'),
-              Tab(text: 'Links'),
-            ],
           ),
         ),
-        body: TabBarView(
-          children: [_buildImagesTab(), _buildDocumentsTab(), _buildLinksTab()],
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.primary.withValues(alpha: 0.05),
+                AppColors.background,
+              ],
+            ),
+          ),
+          child: SafeArea(
+            child: TabBarView(
+              children: [_buildImagesTab(), _buildDocumentsTab(), _buildLinksTab()],
+            ),
+          ),
         ),
       ),
     );
@@ -316,21 +342,32 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
       itemCount: images.length,
       itemBuilder: (context, index) {
         final image = images[index];
-        return GestureDetector(
-          onTap: () => _openImagePreview(image),
-          child: Hero(
-            tag: 'shared-media-${image.id}',
-            child: Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: image.gradient,
+        return FadeInUp(
+          delay: Duration(milliseconds: (index * 50).clamp(0, 500)),
+          duration: const Duration(milliseconds: 500),
+          child: GestureDetector(
+            onTap: () => _openImagePreview(image),
+            child: Hero(
+              tag: 'shared-media-${image.id}',
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: image.gradient,
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Icon(Icons.image, color: Colors.white70, size: 30),
+                child: const Center(
+                  child: Icon(Icons.image, color: Colors.white70, size: 30),
+                ),
               ),
             ),
           ),
@@ -435,63 +472,99 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
                   itemBuilder: (context, index) {
                     final doc = docs[index];
                     final color = _docColor(doc.type);
-                    return Material(
-                      color: AppColors.surface,
-                      borderRadius: BorderRadius.circular(12),
-                      child: InkWell(
-                        borderRadius: BorderRadius.circular(12),
-                        onTap: () =>
-                            _showSnack('Preview for "${doc.name}" coming soon'),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  _docIcon(doc.type),
-                                  color: color,
-                                  size: 24,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      doc.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.body.copyWith(
-                                        fontWeight: FontWeight.w600,
-                                        color: AppColors.textPrimary,
-                                      ),
+                    return FadeInUp(
+                      delay: Duration(milliseconds: (index * 50).clamp(0, 500)),
+                      duration: const Duration(milliseconds: 500),
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () =>
+                              _showSnack('Preview for "${doc.name}" coming soon'),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 50,
+                                  height: 50,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      colors: [
+                                        color.withValues(alpha: 0.2),
+                                        color.withValues(alpha: 0.05),
+                                      ],
+                                      begin: Alignment.topLeft,
+                                      end: Alignment.bottomRight,
                                     ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      '${doc.formattedSize} · '
-                                      '${_formatDate(doc.date)} · '
-                                      '${doc.sender}',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: AppTextStyles.caption.copyWith(
-                                        color: AppColors.textSecondary,
-                                      ),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: color.withValues(alpha: 0.1),
                                     ),
-                                  ],
+                                  ),
+                                  child: Icon(
+                                    _docIcon(doc.type),
+                                    color: color,
+                                    size: 26,
+                                  ),
                                 ),
-                              ),
-                              Icon(
-                                Icons.chevron_right,
-                                color: AppColors.textSecondary,
-                              ),
-                            ],
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        doc.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.textPrimary,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.sd_storage_outlined, size: 14, color: AppColors.textSecondary),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            doc.formattedSize,
+                                            style: AppTextStyles.caption.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 12),
+                                          Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            _formatDate(doc.date),
+                                            style: AppTextStyles.caption.copyWith(
+                                              color: AppColors.textSecondary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.download_rounded),
+                                  color: AppColors.primary,
+                                  onPressed: () => _showSnack('Downloading...'),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -518,69 +591,111 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
         final link = links[index];
-        return Material(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(12),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(12),
-            onTap: () => _showSnack('Opening "${link.url}" coming soon'),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.10),
-                      borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: AppColors.border),
+        return FadeInUp(
+          delay: Duration(milliseconds: (index * 50).clamp(0, 500)),
+          duration: const Duration(milliseconds: 500),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: () => _showSnack('Opening "${link.url}" coming soon'),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 50,
+                      height: 50,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            AppColors.primary.withValues(alpha: 0.2),
+                            AppColors.primary.withValues(alpha: 0.05),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.public,
+                        color: AppColors.primary,
+                        size: 26,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.public,
-                      color: AppColors.primary,
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            link.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.body.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            link.url,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                              color: const Color(0xFF2563EB),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Text(
+                                _formatDate(link.date),
+                                style: AppTextStyles.caption.copyWith(
+                                  color: AppColors.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Icon(Icons.person_outline, size: 14, color: AppColors.textSecondary),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Text(
+                                  link.sender,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.caption.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.open_in_new_rounded,
                       size: 22,
+                      color: AppColors.primary,
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          link.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.body.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          link.url,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(
-                            color: const Color(0xFF2563EB),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          '${_formatDate(link.date)} · ${link.sender}',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.open_in_new,
-                    size: 18,
-                    color: AppColors.textSecondary,
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

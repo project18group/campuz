@@ -744,12 +744,12 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               ),
             ),
           ),
-          if (_canManageMembers) ...[
-            const SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                if (_canManageMembers) ...[
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _isUpdating ? null : _showAddMembersSheet,
@@ -758,21 +758,21 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _isUpdating ? null : _confirmLeaveHub,
-                      icon: const Icon(Icons.logout_rounded),
-                      label: const Text('Leave hub'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: BorderSide(color: AppColors.error),
-                      ),
+                ],
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _isUpdating ? null : _confirmLeaveHub,
+                    icon: const Icon(Icons.logout_rounded),
+                    label: const Text('Leave hub'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.error,
+                      side: BorderSide(color: AppColors.error),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );

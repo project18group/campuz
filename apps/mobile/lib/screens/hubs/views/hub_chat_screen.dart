@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
@@ -17,6 +18,7 @@ import 'package:mobile/screens/hubs/widget/hub_attachment_bubble.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
+import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class HubChatScreen extends StatefulWidget {
@@ -549,40 +551,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
             ),
             child: SizedBox(
               height: MediaQuery.of(context).size.height * 0.42,
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                    child: Row(
-                      children: [
-                        Text(
-                          'Pick an emoji',
-                          style: AppTextStyles.title.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: EmojiPicker(
-                      textEditingController: _messageController,
-                      config: const Config(
-                        height: 256,
-                        checkPlatformCompatibility: true,
-                        skinToneConfig: SkinToneConfig(),
-                        categoryViewConfig: CategoryViewConfig(),
-                        bottomActionBarConfig: BottomActionBarConfig(),
-                        searchViewConfig: SearchViewConfig(),
-                      ),
-                    ),
-                  ),
-                ],
+              child: AppEmojiPicker(
+                textEditingController: _messageController,
+                onClose: () => Navigator.pop(context),
               ),
             ),
           ),
@@ -1046,6 +1017,11 @@ class _HubChatScreenState extends State<HubChatScreen> {
         ),
         actions: [
           IconButton(
+            onPressed: () => context.push('/shared-media'),
+            icon: const Icon(Icons.folder_shared_rounded),
+            tooltip: 'Class Resources',
+          ),
+          IconButton(
             onPressed: _isLoading ? null : () => _loadMessages(reset: true),
             icon: const Icon(Icons.refresh_rounded),
           ),
@@ -1067,7 +1043,70 @@ class _HubChatScreenState extends State<HubChatScreen> {
       ),
       body: Column(
         children: [
-          Expanded(child: ChatBackground(child: _buildMessages())),
+          Expanded(
+            child: Stack(
+              children: [
+                ChatBackground(child: _buildMessages()),
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () => context.push('/shared-media'),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.folder_shared_rounded, color: AppColors.primary, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Class Resources',
+                                  style: AppTextStyles.label.copyWith(color: AppColors.textPrimary, fontSize: 13),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '3 New',
+                                    style: AppTextStyles.caption.copyWith(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           _buildComposer(),
         ],
       ),
