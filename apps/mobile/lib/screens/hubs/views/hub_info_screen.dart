@@ -186,9 +186,17 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   title: Text(role == 'admin' ? 'Demote to member' : 'Promote to admin'),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _runAction(
-                      action: role == 'admin' ? 'demote' : 'promote',
-                      userId: _memberUserId(member),
+                    _confirmAction(
+                      title: role == 'admin' ? 'Demote member' : 'Promote member',
+                      content: role == 'admin'
+                          ? 'Are you sure you want to demote $displayName to a regular member?'
+                          : 'Are you sure you want to promote $displayName to an admin? They will have full control over the hub.',
+                      actionLabel: role == 'admin' ? 'Demote' : 'Promote',
+                      actionColor: AppColors.primaryDeep,
+                      onConfirm: () => _runAction(
+                        action: role == 'admin' ? 'demote' : 'promote',
+                        userId: _memberUserId(member),
+                      ),
                     );
                   },
                 ),
@@ -201,9 +209,15 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(sheetContext);
-                    _runAction(
-                      action: 'remove',
-                      userId: _memberUserId(member),
+                    _confirmAction(
+                      title: 'Remove member',
+                      content: 'Are you sure you want to remove $displayName from this hub?',
+                      actionLabel: 'Remove',
+                      actionColor: AppColors.error,
+                      onConfirm: () => _runAction(
+                        action: 'remove',
+                        userId: _memberUserId(member),
+                      ),
                     );
                   },
                 ),
@@ -221,6 +235,40 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  void _confirmAction({
+    required String title,
+    required String content,
+    required String actionLabel,
+    required Color actionColor,
+    required VoidCallback onConfirm,
+  }) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: Text(content),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                onConfirm();
+              },
+              child: Text(
+                actionLabel,
+                style: TextStyle(color: actionColor),
+              ),
+            ),
+          ],
         );
       },
     );
