@@ -308,10 +308,6 @@ class _HubChatScreenState extends State<HubChatScreen> {
     setState(() => _replyToMessage = message);
   }
 
-  void _cancelReply() {
-    setState(() => _replyToMessage = null);
-  }
-
   String _replySnippet(Map<String, dynamic> message) {
     final content = (message['content'] as String? ?? '').trim();
     if (content.isEmpty) return 'Attachment';
@@ -412,14 +408,6 @@ class _HubChatScreenState extends State<HubChatScreen> {
     if (ext == 'doc' || ext == 'docx') return const Color(0xFF1E88E5);
     if (ext == 'ppt' || ext == 'pptx') return const Color(0xFFFB8C00);
     return const Color(0xFF757575);
-  }
-
-  String _attachmentTypeLabel(Map<String, dynamic> attachment) {
-    final ext = (attachment['extension'] as String? ?? '').trim().toUpperCase();
-    final mime = (attachment['mime_type'] as String? ?? '').trim();
-    if (ext.isNotEmpty) return ext;
-    if (mime.startsWith('image/')) return 'IMG';
-    return 'FILE';
   }
 
   String _attachmentSubtitle(Map<String, dynamic> attachment) {

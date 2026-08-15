@@ -224,10 +224,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _replyToMessage = message);
   }
 
-  void _cancelReply() {
-    setState(() => _replyToMessage = null);
-  }
-
   String _replySnippet(Map<String, dynamic> message) {
     final content = (message['content'] as String? ?? '').trim();
     if (content.isEmpty) return 'Attachment';
@@ -533,94 +529,6 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         );
       }
     });
-  }
-
-  Future<void> _showMessageMenu(Map<String, dynamic> message) async {
-    final isMine = message['is_mine'] as bool? ?? false;
-    final choice = await showModalBottomSheet<String>(
-      context: context,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (sheetContext) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Message options',
-                  style: AppTextStyles.title.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 12),
-                _MessageActionTile(
-                  icon: Icons.reply_rounded,
-                  title: 'Reply',
-                  subtitle: 'Quote this message in your next one',
-                  onTap: () => Navigator.pop(sheetContext, 'reply'),
-                ),
-                _MessageActionTile(
-                  icon: Icons.copy_rounded,
-                  title: 'Copy',
-                  subtitle: 'Copy text to clipboard',
-                  onTap: () => Navigator.pop(sheetContext, 'copy'),
-                ),
-                if (isMine)
-                  _MessageActionTile(
-                    icon: Icons.edit_rounded,
-                    title: 'Edit draft',
-                    subtitle: 'Load the text back into the composer',
-                    onTap: () => Navigator.pop(sheetContext, 'edit'),
-                  ),
-                if (isMine)
-                  _MessageActionTile(
-                    icon: Icons.delete_outline,
-                    title: 'Delete from view',
-                    subtitle: 'Remove this bubble locally',
-                    isDestructive: true,
-                    onTap: () => Navigator.pop(sheetContext, 'delete'),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-
-    if (!mounted || choice == null) return;
-    final content = (message['content'] as String? ?? '').trim();
-    switch (choice) {
-      case 'reply':
-        _startReplyToMessage(message);
-        break;
-      case 'copy':
-        if (content.isNotEmpty) {
-          await Clipboard.setData(ClipboardData(text: content));
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Message copied')),
-          );
-        }
-        break;
-      case 'edit':
-        if (content.isNotEmpty) {
-          _messageController.text = content;
-          _messageController.selection = TextSelection.collapsed(
-            offset: _messageController.text.length,
-          );
-          _startReplyToMessage(message);
-        }
-        break;
-      case 'delete':
-        setState(() {
-          _messages.removeWhere(
-            (candidate) => _messageFingerprint(candidate) == _messageFingerprint(message),
-          );
-        });
-        break;
-    }
   }
 
   ChatReactionsConfig _reactionConfigForMessage(bool isMine) {
@@ -1322,11 +1230,10 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
             ),
           ),
         ],
-        ),
       ),
     );
   }
-
+  
   String _humanFileSize(int bytes) {
     if (bytes <= 0) return 'Size unknown';
     if (bytes >= 1024 * 1024) {

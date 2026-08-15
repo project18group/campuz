@@ -287,6 +287,7 @@ class _SectionAnnouncementsScreenState
       _contentController.clear();
       _priority = 'normal';
       _sendAsSms = false;
+      if (!context.mounted) return;
       if (Navigator.of(sheetContext).canPop()) {
         Navigator.of(sheetContext).pop();
       }

@@ -275,7 +275,7 @@ class AuthApiService {
         request.fields.addAll(
           body.map((key, value) => MapEntry(key, value.toString())),
         );
-        for (final file in attachments!) {
+        for (final file in attachments) {
           if (file.path != null) {
             request.files.add(
               await http.MultipartFile.fromPath(

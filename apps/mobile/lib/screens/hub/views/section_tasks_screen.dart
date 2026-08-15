@@ -55,14 +55,6 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
         .toList();
   }
 
-  int? get _currentUserId {
-    final creator = widget.hub?['creator'] as Map<String, dynamic>? ?? const {};
-    final profile = creator['profile'] as Map<String, dynamic>? ?? const {};
-    final currentUser = profile['user_id'];
-    if (currentUser is int) return currentUser;
-    return null;
-  }
-
   @override
   void initState() {
     super.initState();
@@ -144,11 +136,6 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
 
   DateTime? _parseDueDate(Map<String, dynamic> task) {
     final raw = task['due_date'];
-    if (raw is String) return DateTime.tryParse(raw);
-    return null;
-  }
-
-  DateTime? _parseTimestamp(dynamic raw) {
     if (raw is String) return DateTime.tryParse(raw);
     return null;
   }
@@ -378,25 +365,25 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   );
                 }
 
-                if (!mounted) return;
+                if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
                 await _loadTasks();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(isEditing ? 'Task updated.' : 'Task created.'),
                   ),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -543,23 +530,23 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   submissionText: submissionTextController.text.trim(),
                   submissionLink: submissionLinkController.text.trim(),
                 );
-                if (!mounted) return;
+                if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
                 await _loadTasks();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Task submitted.')),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Unable to submit task right now.')),
@@ -653,23 +640,23 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   grade: grade,
                   feedback: _feedbackController.text.trim(),
                 );
-                if (!mounted) return;
+                if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
                 await _loadTasks();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Task graded.')),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Unable to grade task right now.')),

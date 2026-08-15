@@ -450,7 +450,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                                     action: 'add',
                                     userIds: selectedIds.toList()..sort(),
                                   );
-                                  if (!mounted) return;
+                                  if (!context.mounted) return;
                                   sheetIsOpen = false;
                                   Navigator.pop(sheetContext);
                                   await _loadMembers();

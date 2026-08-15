@@ -279,10 +279,11 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                   url: url,
                   resourceType: resourceType,
                 );
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setState(() {
                   _resources.insert(0, Map<String, dynamic>.from(created));
                 });
+                if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
@@ -290,13 +291,13 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                   const SnackBar(content: Text('Resource uploaded successfully.')),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Unable to upload resource right now.')),

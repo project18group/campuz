@@ -321,13 +321,13 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                   );
                 }
 
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setState(() => _isSaving = false);
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
                 await _loadMeetings();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
                     content: Text(
@@ -336,13 +336,13 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                   ),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

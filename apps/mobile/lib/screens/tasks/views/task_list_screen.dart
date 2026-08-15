@@ -84,15 +84,6 @@ class _TaskListScreenState extends State<TaskListScreen> {
     }
   }
 
-  List<Map<String, dynamic>> _extractResults(Map<String, dynamic> response) {
-    final raw = response['results'];
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map<String, dynamic>>()
-        .map((item) => Map<String, dynamic>.from(item))
-        .toList();
-  }
-
   DateTime? _parseDueDate(Map<String, dynamic> task) {
     final raw = task['due_date'];
     if (raw is String) return DateTime.tryParse(raw);
@@ -183,23 +174,23 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   submissionText: _submissionTextController.text.trim(),
                   submissionLink: _submissionLinkController.text.trim(),
                 );
-                if (!mounted) return;
+                if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
                 await _loadTasks();
-                if (!mounted) return;
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Task submitted.')),
                 );
               } on AuthApiException catch (error) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(error.message)),
                 );
               } catch (_) {
-                if (!mounted) return;
+                if (!context.mounted) return;
                 setSheetState(() => sending = false);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Unable to submit task right now.')),

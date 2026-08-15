@@ -122,18 +122,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  String _defaultAvatarUrl(Map<String, dynamic>? user) {
-    final profile = user?['profile'] as Map<String, dynamic>? ?? const {};
-    final seed = (profile['display_name'] as String? ?? '').trim().isNotEmpty
-        ? (profile['display_name'] as String).trim()
-        : ((profile['full_name'] as String? ?? '').trim().isNotEmpty
-              ? (profile['full_name'] as String).trim()
-              : 'Campuz Student');
-    return Uri.https('api.dicebear.com', '/10.x/initials/svg', {
-      'seed': seed,
-    }).toString();
-  }
-
   Future<void> _changeAvatar(String seed) async {
     final avatarUrl =
         'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';

@@ -218,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             color: AppColors.textSecondary,
           ),
         ),
-        activeColor: AppColors.primary,
+        activeThumbColor: AppColors.primary,
       ),
     );
   }
