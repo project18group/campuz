@@ -146,6 +146,25 @@ class AuthApiService {
     return <Map<String, dynamic>>[];
   }
 
+  /// Syncs contacts by passing a list of phone numbers to the backend.
+  /// Returns a list of matched users on the platform.
+  static Future<List<Map<String, dynamic>>> syncContacts({
+    required List<String> phoneNumbers,
+  }) async {
+    final result = await _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/users/sync-contacts/'),
+        headers: _headers(token),
+        body: jsonEncode({'phone_numbers': phoneNumbers}),
+      ),
+    );
+    final list = result['data'];
+    if (list is List) {
+      return list.whereType<Map<String, dynamic>>().toList();
+    }
+    return <Map<String, dynamic>>[];
+  }
+
   // ---------------------------------------------------------------------------
   // Direct conversations
   // ---------------------------------------------------------------------------
@@ -266,16 +285,14 @@ class AuthApiService {
         request.fields.addAll(
           body.map((key, value) => MapEntry(key, value.toString())),
         );
-        if (coverImageFile != null) {
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'cover_image_file',
-              coverImageFile.path,
-              filename: p.basename(coverImageFile.path),
-            ),
-          );
-        }
-        return request.send();
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'cover_image_file',
+            coverImageFile.path,
+            filename: p.basename(coverImageFile.path),
+          ),
+        );
+              return request.send();
       },
     );
   }

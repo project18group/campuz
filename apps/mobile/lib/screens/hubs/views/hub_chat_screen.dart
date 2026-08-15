@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
 
-import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +14,6 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
 import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
-import 'package:mobile/screens/hubs/widget/hub_attachment_bubble.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
@@ -802,8 +800,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                         fit: BoxFit.cover,
                                         loadingBuilder:
                                             (context, child, loadingProgress) {
-                                              if (loadingProgress == null)
+                                              if (loadingProgress == null) {
                                                 return child;
+                                              }
                                               return const Center(
                                                 child: Padding(
                                                   padding: EdgeInsets.all(18),

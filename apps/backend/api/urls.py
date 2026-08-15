@@ -30,7 +30,7 @@ urlpatterns = [
 
     # User discovery (contact search)
     path("users/search/", views.UserSearchView.as_view(), name="user-search"),
-
+    path("users/sync-contacts/", views.SyncContactsView.as_view(), name="user-sync-contacts"),
     # Direct conversations
     path("conversations/direct/", views.DirectConversationView.as_view(), name="direct-conversation"),
     path(

@@ -24,6 +24,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Campuz needs access to your photo library to save images.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>TekChat needs access to your contacts to find your friends on the platform.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

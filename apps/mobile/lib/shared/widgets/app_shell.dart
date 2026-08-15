@@ -97,6 +97,7 @@ class _AppShellState extends State<AppShell> {
 
         return PatternedBackground(
           child: Scaffold(
+            extendBody: true,
             backgroundColor: Colors.transparent,
             body: PageView(
               controller: _pageController,

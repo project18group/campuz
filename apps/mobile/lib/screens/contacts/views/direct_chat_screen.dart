@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';

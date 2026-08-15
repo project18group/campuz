@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -17,15 +18,22 @@ class SelectContactScreen extends StatefulWidget {
 class _SelectContactScreenState extends State<SelectContactScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
-  List<Map<String, dynamic>> _users = const [];
+  
+  List<Map<String, dynamic>> _allTekchatUsers = [];
+  List<Contact> _allUnmatchedContacts = [];
+  
+  List<Map<String, dynamic>> _filteredTekchatUsers = [];
+  List<Contact> _filteredUnmatchedContacts = [];
+  
   bool _isLoading = true;
   bool _isOpening = false;
+  bool _permissionDenied = false;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    _loadUsers();
+    _loadContactsAndSync();
   }
 
   @override
@@ -38,21 +46,64 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   void _onSearchChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 350), () {
-      _loadUsers(query: value.trim());
+      _filterLocally(value.trim());
     });
   }
+  
+  String _cleanPhone(String phone) {
+    return phone.replaceAll(RegExp(r'[^\d+]'), '');
+  }
 
-  Future<void> _loadUsers({String query = ''}) async {
+  Future<void> _loadContactsAndSync() async {
     setState(() {
       _isLoading = true;
       _error = null;
+      _permissionDenied = false;
     });
 
     try {
-      final users = await AuthApiService.searchUsers(query: query);
+      if (!await FlutterContacts.requestPermission(readonly: true)) {
+        if (mounted) {
+          setState(() {
+            _permissionDenied = true;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+
+      final contacts = await FlutterContacts.getContacts(withProperties: true);
+      
+      List<String> phoneNumbers = [];
+      for (var c in contacts) {
+        if (c.phones.isNotEmpty) {
+          phoneNumbers.add(c.phones.first.number);
+        }
+      }
+
+      final matchedUsers = await AuthApiService.syncContacts(phoneNumbers: phoneNumbers);
+      
+      final matchedPhones = matchedUsers.map((u) {
+        final p = (u['phone_number'] as String? ?? '');
+        return _cleanPhone(p);
+      }).where((p) => p.isNotEmpty).toSet();
+      
+      List<Contact> unmatched = [];
+      for (var c in contacts) {
+        if (c.phones.isNotEmpty) {
+          final p = _cleanPhone(c.phones.first.number);
+          if (p.isNotEmpty && !matchedPhones.contains(p)) {
+            unmatched.add(c);
+          }
+        }
+      }
+
       if (mounted) {
         setState(() {
-          _users = users;
+          _allTekchatUsers = matchedUsers;
+          _allUnmatchedContacts = unmatched;
+          _filteredTekchatUsers = _allTekchatUsers;
+          _filteredUnmatchedContacts = _allUnmatchedContacts;
           _isLoading = false;
         });
       }
@@ -67,10 +118,35 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _error = 'Unable to load Campuz contacts.';
+          _error = 'Unable to sync contacts.';
         });
       }
     }
+  }
+
+  void _filterLocally(String query) {
+    if (query.isEmpty) {
+      setState(() {
+        _filteredTekchatUsers = _allTekchatUsers;
+        _filteredUnmatchedContacts = _allUnmatchedContacts;
+      });
+      return;
+    }
+    
+    final lowerQuery = query.toLowerCase();
+    setState(() {
+      _filteredTekchatUsers = _allTekchatUsers.where((user) {
+        final name = _displayName(user).toLowerCase();
+        final phone = (user['phone_number'] as String? ?? '').toLowerCase();
+        return name.contains(lowerQuery) || phone.contains(lowerQuery);
+      }).toList();
+      
+      _filteredUnmatchedContacts = _allUnmatchedContacts.where((contact) {
+        final name = contact.displayName.toLowerCase();
+        final phone = contact.phones.isNotEmpty ? contact.phones.first.number.toLowerCase() : '';
+        return name.contains(lowerQuery) || phone.contains(lowerQuery);
+      }).toList();
+    });
   }
 
   Future<void> _openConversation(Map<String, dynamic> user) async {
@@ -92,13 +168,18 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
       context.push('/direct-chat/$conversationId', extra: conversation);
     } on AuthApiException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.message)));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.message)));
       }
     } finally {
       if (mounted) setState(() => _isOpening = false);
     }
+  }
+  
+  void _inviteContact(Contact contact) {
+    // In a real app, this would open SMS with a prefilled message.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Invite sent to ${contact.displayName}'))
+    );
   }
 
   String _displayName(Map<String, dynamic> user) {
@@ -126,7 +207,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
           children: [
             Text('New Conversation', style: AppTextStyles.title),
             Text(
-              '${_users.length} Campuz contact${_users.length == 1 ? '' : 's'}',
+              '${_allTekchatUsers.length + _allUnmatchedContacts.length} Contacts',
               style: AppTextStyles.caption,
             ),
           ],
@@ -150,7 +231,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                         : IconButton(
                             onPressed: () {
                               _searchController.clear();
-                              _loadUsers();
+                              _filterLocally('');
                             },
                             icon: const Icon(Icons.close),
                           ),
@@ -171,7 +252,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
                 onTap: () => context.push('/create-hub'),
               ),
               const Divider(height: 1),
-              Expanded(child: _buildContent(query)),
+              Expanded(child: _buildContent()),
             ],
           ),
           if (_isOpening)
@@ -184,9 +265,19 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
     );
   }
 
-  Widget _buildContent(String query) {
+  Widget _buildContent() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
+    }
+    
+    if (_permissionDenied) {
+      return _EmptyState(
+        icon: Icons.perm_contact_calendar_outlined,
+        title: 'Contacts Access Denied',
+        message: 'TekChat needs access to your contacts to find your friends.',
+        actionLabel: 'Allow Access',
+        onAction: _loadContactsAndSync,
+      );
     }
 
     if (_error != null) {
@@ -195,62 +286,107 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
         title: 'Contacts unavailable',
         message: _error!,
         actionLabel: 'Try Again',
-        onAction: () => _loadUsers(query: query),
+        onAction: _loadContactsAndSync,
       );
     }
 
-    if (_users.isEmpty) {
+    if (_filteredTekchatUsers.isEmpty && _filteredUnmatchedContacts.isEmpty) {
       return _EmptyState(
-        icon: query.isEmpty ? Icons.people_outline : Icons.search_off,
-        title: query.isEmpty ? 'No Campuz contacts yet' : 'No search results',
-        message: query.isEmpty
-            ? 'Invite classmates to Campuz to start chatting.'
+        icon: _searchController.text.isEmpty ? Icons.people_outline : Icons.search_off,
+        title: _searchController.text.isEmpty ? 'No contacts found' : 'No search results',
+        message: _searchController.text.isEmpty
+            ? 'Add some contacts to your phone to get started.'
             : 'Try another name or phone number.',
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () => _loadUsers(query: query),
-      child: ListView.separated(
+      onRefresh: _loadContactsAndSync,
+      child: ListView(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _users.length,
-        separatorBuilder: (_, __) => const Divider(height: 1, indent: 80),
-        itemBuilder: (context, index) {
-          final user = _users[index];
-          final avatar = (user['avatar_url'] as String? ?? '').trim();
-          final phone = (user['phone_number'] as String? ?? '').trim();
-          final verified = user['is_verified'] as bool? ?? false;
-          final name = _displayName(user);
-
-          return ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 5,
+        children: [
+          if (_filteredTekchatUsers.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Contacts on TekChat',
+                style: AppTextStyles.label.copyWith(color: AppColors.primary),
+              ),
             ),
-            leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 50),
-            title: Row(
-              children: [
-                Flexible(
+            ..._filteredTekchatUsers.map((user) {
+              final avatar = (user['avatar_url'] as String? ?? '').trim();
+              final phone = (user['phone_number'] as String? ?? '').trim();
+              final verified = user['is_verified'] as bool? ?? false;
+              final name = _displayName(user);
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: AppAvatar(avatarUrl: avatar, fallbackName: name, size: 50),
+                title: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.label,
+                      ),
+                    ),
+                    if (verified) ...[
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.verified,
+                        size: 17,
+                        color: AppColors.primary,
+                      ),
+                    ],
+                  ],
+                ),
+                subtitle: phone.isEmpty ? null : Text(phone),
+                onTap: () => _openConversation(user),
+              );
+            }),
+          ],
+          if (_filteredTekchatUsers.isNotEmpty && _filteredUnmatchedContacts.isNotEmpty)
+            const Divider(height: 24, thickness: 1),
+          
+          if (_filteredUnmatchedContacts.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                'Invite to TekChat',
+                style: AppTextStyles.label.copyWith(color: AppColors.textSecondary),
+              ),
+            ),
+            ..._filteredUnmatchedContacts.map((contact) {
+              final name = contact.displayName;
+              final phone = contact.phones.isNotEmpty ? contact.phones.first.number : '';
+
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 5,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: AppColors.surfaceMuted,
+                  radius: 25,
                   child: Text(
-                    name,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.label,
+                    name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold),
                   ),
                 ),
-                if (verified) ...[
-                  const SizedBox(width: 6),
-                  Icon(
-                    Icons.verified,
-                    size: 17,
-                    color: AppColors.primary,
-                  ),
-                ],
-              ],
-            ),
-            subtitle: phone.isEmpty ? null : Text(phone),
-            onTap: () => _openConversation(user),
-          );
-        },
+                title: Text(name, style: AppTextStyles.label),
+                subtitle: phone.isEmpty ? null : Text(phone),
+                trailing: TextButton(
+                  onPressed: () => _inviteContact(contact),
+                  child: const Text('INVITE'),
+                ),
+              );
+            }),
+          ],
+        ],
       ),
     );
   }

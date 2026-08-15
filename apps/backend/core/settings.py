@@ -2,6 +2,10 @@ import os
 from datetime import timedelta
 from pathlib import Path
 import dj_database_url
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
 
 try:
     from dotenv import load_dotenv
@@ -23,25 +27,8 @@ if not SECRET_KEY:
     if DEBUG:
         SECRET_KEY = "django-insecure-o-v42%72)$lnjkcr-hnp4!7xenw(!&)rt!-mw_6$dk0fnzw(g4"
     else:
-        raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false.")
-
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
-    if host.strip()
-]
-
-# In development, accept any Host header so physical devices on the LAN can
-# reach the dev server by IP without pinning the address here.
-if DEBUG:
-    ALLOWED_HOSTS.append("*")
-
-
-# Application definition
-
-INSTALLED_APPS = [
-    "django.contrib.admin",
-    "django.contrib.auth",
+        raise RuntimeError(
+            "DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false.")
 
 ALLOWED_HOSTS = [
     host.strip()
@@ -208,13 +195,10 @@ if not DEBUG:
 # Connection String
 # --
 
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
 
-cloudinary.config( 
-  cloud_name = "pwutfure", 
-  api_key = "259557338688285", 
-  api_secret = "AXnXzhnuqFAUk_WIEyhIvbNO9zY",
-  secure = True
+cloudinary.config(
+    cloud_name="pwutfure",
+    api_key="259557338688285",
+    api_secret="AXnXzhnuqFAUk_WIEyhIvbNO9zY",
+    secure=True
 )

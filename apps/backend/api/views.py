@@ -403,6 +403,47 @@ class UserSearchView(generics.ListAPIView):
         return qs
 
 
+class SyncContactsView(APIView):
+    """
+    POST /api/users/sync-contacts/
+    Body: {"phone_numbers": ["+1234567890", ...]}
+
+    Returns registered Campuz users (excluding the requester) whose
+    phone numbers match the provided list.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        phone_numbers = request.data.get("phone_numbers", [])
+        if not isinstance(phone_numbers, list):
+            return Response(
+                {"error": "phone_numbers must be a list of strings."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Normalize phone numbers - removing spaces, dashes, parentheses
+        # In a real app we'd use phonenumbers library, but we'll do basic cleaning for now.
+        cleaned_numbers = []
+        for num in phone_numbers:
+            clean_num = ''.join(c for c in num if c.isdigit() or c == '+')
+            if clean_num:
+                cleaned_numbers.append(clean_num)
+
+        qs = (
+            User.objects.exclude(pk=self.request.user.pk)
+            .filter(
+                profile__is_verified=True,
+                profile__profile_setup_completed=True,
+                profile__phone_number__in=cleaned_numbers
+            )
+            .select_related("profile")
+        )
+
+        serializer = CampuzUserSerializer(qs, many=True, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
 # ---------------------------------------------------------------------------
 # Direct conversations
 # ---------------------------------------------------------------------------
