@@ -124,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _changeAvatar(String seed) async {
     final avatarUrl =
-        'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+        'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${Uri.encodeComponent(seed)}';
     try {
       await AuthApiService.profileSetup(avatarUrl: avatarUrl);
       if (!mounted) return;

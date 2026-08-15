@@ -26,7 +26,7 @@ class AppAvatar extends StatelessWidget {
     // Handle old format if it's cached or present
     if (url.startsWith('seed:')) {
       final seed = url.substring(5);
-      url = 'https://api.dicebear.com/7.x/adventurer/svg?seed=${Uri.encodeComponent(seed)}';
+      url = 'https://api.dicebear.com/7.x/adventurer-neutral/svg?seed=${Uri.encodeComponent(seed)}';
     } else if (url.isEmpty) {
       url = _getFallbackUrl();
     }
