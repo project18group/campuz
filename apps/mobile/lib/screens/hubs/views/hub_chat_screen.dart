@@ -20,6 +20,7 @@ import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HubChatScreen extends StatefulWidget {
   const HubChatScreen({super.key, this.hub, this.hubId});
@@ -69,12 +70,42 @@ class _HubChatScreenState extends State<HubChatScreen> {
   @override
   void initState() {
     super.initState();
+    _loadDraft();
+    _messageController.addListener(_saveDraft);
     _scrollController.addListener(_onScroll);
     _loadMessages(reset: true);
     _pollTimer = Timer.periodic(
       const Duration(seconds: 5),
       (_) => _loadMessages(reset: false, silent: true),
     );
+  }
+
+  Future<void> _loadDraft() async {
+    if (_hubId == 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final draft = prefs.getString('hub_draft_$_hubId');
+    if (draft != null && draft.isNotEmpty) {
+      _messageController.text = draft;
+    }
+  }
+
+  void _saveDraft() {
+    if (_hubId == 0) return;
+    final text = _messageController.text;
+    SharedPreferences.getInstance().then((prefs) {
+      if (text.isEmpty) {
+        prefs.remove('hub_draft_$_hubId');
+      } else {
+        prefs.setString('hub_draft_$_hubId', text);
+      }
+    });
+  }
+
+  void _clearDraft() {
+    if (_hubId == 0) return;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('hub_draft_$_hubId');
+    });
   }
 
   @override
@@ -222,6 +253,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
       if (!mounted) return;
 
       _messageController.clear();
+      _clearDraft();
       setState(() {
         final sentMessage = Map<String, dynamic>.from(message);
         final messageKey = _messageIdKey(sentMessage);
@@ -979,6 +1011,51 @@ class _HubChatScreenState extends State<HubChatScreen> {
     );
   }
 
+  void _confirmLeaveHub() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave hub'),
+        content: const Text(
+          'Are you sure you want to leave this hub? You can join again later if you are invited back.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await AuthApiService.updateHubMembership(
+                  hubId: _hubId,
+                  action: 'leave',
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('You left the hub.')),
+                );
+                context.go('/home');
+              } on AuthApiException catch (error) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(error.message)),
+                );
+              } catch (_) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Unable to leave hub right now')),
+                );
+              }
+            },
+            child: Text('Leave', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1025,19 +1102,33 @@ class _HubChatScreenState extends State<HubChatScreen> {
             onPressed: _isLoading ? null : () => _loadMessages(reset: true),
             icon: const Icon(Icons.refresh_rounded),
           ),
-          IconButton(
-            onPressed: () {
-              context.push(
-                '/hub-info',
-                extra: widget.hub ??
-                    {
-                      'id': _hubId,
-                      'name': _hubName,
-                      'members_count': _memberCount,
-                    },
-              );
-            },
+          PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'info') {
+                context.push(
+                  '/hub-info',
+                  extra: widget.hub ??
+                      {
+                        'id': _hubId,
+                        'name': _hubName,
+                        'members_count': _memberCount,
+                      },
+                );
+              } else if (value == 'leave') {
+                _confirmLeaveHub();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'info',
+                child: Text('Hub info'),
+              ),
+              PopupMenuItem<String>(
+                value: 'leave',
+                child: Text('Leave hub', style: TextStyle(color: AppColors.error)),
+              ),
+            ],
           ),
         ],
       ),
