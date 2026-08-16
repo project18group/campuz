@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
-import 'package:mobile/core/mock/mock_data.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 class AiScreen extends StatefulWidget {

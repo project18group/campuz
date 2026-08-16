@@ -1,0 +1,16 @@
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (namespace == null) {
+                    if (project.name == "image_gallery_saver") {
+                        namespace "com.example.imagegallerysaver"
+                    } else {
+                        namespace project.group
+                    }
+                }
+                compileSdkVersion 36
+            }
+        }
+    }
+}

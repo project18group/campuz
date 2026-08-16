@@ -173,12 +173,12 @@ class HubComposer extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onAttach,
-                icon: const Icon(Icons.attach_file),
+                icon: Icon(Icons.attach_file, color: AppColors.textSecondary),
               ),
               if (onEmoji != null)
                 IconButton(
                   onPressed: onEmoji,
-                  icon: const Icon(Icons.emoji_emotions_outlined),
+                  icon: Icon(Icons.emoji_emotions_outlined, color: AppColors.textSecondary),
                 ),
 
               Expanded(
@@ -214,7 +214,7 @@ class HubComposer extends StatelessWidget {
                     )
                   : IconButton(
                       onPressed: canSend ? onSend : null,
-                      icon: const Icon(Icons.send),
+                      icon: Icon(Icons.send, color: AppColors.primary),
                     ),
             ],
           ),

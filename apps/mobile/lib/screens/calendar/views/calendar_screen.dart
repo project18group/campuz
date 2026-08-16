@@ -108,7 +108,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: AppColors.textSecondary,
                         ),
                       ),
-                      activeColor: AppColors.primary,
+                      activeThumbColor: AppColors.primary,
                     ),
                   ),
                   const SizedBox(height: 16),

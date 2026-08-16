@@ -5,6 +5,8 @@ allprojects {
     }
 }
 
+apply(from = "fix_namespaces.gradle")
+
 val newBuildDir: Directory =
     rootProject.layout.buildDirectory
         .dir("../../build")

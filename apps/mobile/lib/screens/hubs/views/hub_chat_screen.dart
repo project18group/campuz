@@ -726,7 +726,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 Text(
                   senderName,
                   style: AppTextStyles.label.copyWith(
-                    color: isMine ? Colors.white70 : AppColors.primaryDeep,
+                    color: isMine ? Colors.white70 : AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                   ),

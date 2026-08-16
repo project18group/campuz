@@ -185,7 +185,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
         SnackBar(
           content: Text(
             message,
-            style: AppTextStyles.body.copyWith(color: Colors.white),
+            style: AppTextStyles.body.copyWith(color: AppColors.background),
           ),
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.textPrimary,
