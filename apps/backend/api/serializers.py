@@ -804,6 +804,7 @@ class ResourceSerializer(serializers.ModelSerializer):
 class TaskCreateSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    attachment = serializers.FileField(required=False, allow_null=True)
     course_name = serializers.CharField(max_length=100)
     due_date = serializers.DateTimeField()
     assigned_to_id = serializers.IntegerField(min_value=1)
@@ -829,6 +830,7 @@ class TaskCreateSerializer(serializers.Serializer):
 class TaskSubmitSerializer(serializers.Serializer):
     submission_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     submission_link = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    submission_file = serializers.FileField(required=False, allow_null=True)
 
     def validate_submission_text(self, value):
         if value is None:
@@ -875,6 +877,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "hub",
             "title",
             "description",
+            "attachment",
             "course_name",
             "due_date",
             "status",
@@ -882,6 +885,7 @@ class TaskSerializer(serializers.ModelSerializer):
             "assigned_to_name",
             "submission_text",
             "submission_link",
+            "submission_file",
             "submitted_at",
             "graded_by_name",
             "graded_at",

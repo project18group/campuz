@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -320,6 +322,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
         : null;
     _dueDate = _parseDueDate(task ?? const {}) ?? DateTime.now().add(const Duration(days: 3));
     bool sending = false;
+    File? selectedAttachment;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -362,6 +365,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                     courseName: courseName,
                     dueDate: _dueDate,
                     assignedToId: assigneeId,
+                    attachment: selectedAttachment,
                   );
                 }
 
@@ -510,6 +514,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
       text: (task['submission_link'] as String? ?? '').trim(),
     );
     bool sending = false;
+    File? submissionFile;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -529,6 +534,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   taskId: id,
                   submissionText: submissionTextController.text.trim(),
                   submissionLink: submissionLinkController.text.trim(),
+                  submissionFile: submissionFile,
                 );
                 if (!context.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {

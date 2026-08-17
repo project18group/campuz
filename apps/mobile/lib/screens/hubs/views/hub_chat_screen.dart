@@ -1249,7 +1249,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () => context.push('/shared-media/${widget.hub['id']}'),
+            onPressed: () => context.push('/shared-media/${widget.hub?['id']}'),
             icon: const Icon(Icons.folder_shared_rounded),
             tooltip: 'Class Resources',
           ),
@@ -1303,7 +1303,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                   right: 0,
                   child: Center(
                     child: GestureDetector(
-                      onTap: () => context.push('/shared-media/${widget.hub['id']}'),
+                      onTap: () => context.push('/shared-media/${widget.hub?['id']}'),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: BackdropFilter(

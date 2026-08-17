@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -169,10 +171,14 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
   }
 
   Future<void> _openResource(Map<String, dynamic> resource) async {
-    final url = (resource['url'] as String? ?? '').trim();
+    String? url = resource['file'] as String?;
+    if (url == null || url.trim().isEmpty) {
+      url = resource['url'] as String?;
+    }
+    url = (url ?? '').trim();
     if (url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No URL is available for this resource.')),
+        const SnackBar(content: Text('No URL or file is available for this resource.')),
       );
       return;
     }
@@ -256,6 +262,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
     final urlController = TextEditingController();
     String resourceType = 'pdf';
     bool sending = false;
+    File? selectedFile;
 
     await showModalBottomSheet<void>(
       context: context,
@@ -270,13 +277,14 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
             Future<void> submit() async {
               final title = titleController.text.trim();
               final url = urlController.text.trim();
-              if (title.isEmpty || url.isEmpty || sending) return;
+              if (title.isEmpty || (url.isEmpty && selectedFile == null) || sending) return;
               setSheetState(() => sending = true);
               try {
                 final created = await AuthApiService.createHubResource(
                   hubId: widget.hubId,
                   title: title,
-                  url: url,
+                  url: url.isEmpty ? null : url,
+                  file: selectedFile,
                   resourceType: resourceType,
                 );
                 if (!context.mounted) return;
@@ -331,6 +339,30 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                       TextField(
                         controller: urlController,
                         decoration: const InputDecoration(labelText: 'URL'),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final result = await FilePicker.platform.pickFiles();
+                                if (result != null && result.files.single.path != null) {
+                                  setSheetState(() {
+                                    selectedFile = File(result.files.single.path!);
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.attach_file),
+                              label: Text(selectedFile != null ? 'File selected' : 'Pick File'),
+                            ),
+                          ),
+                          if (selectedFile != null)
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setSheetState(() => selectedFile = null),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(

@@ -418,18 +418,42 @@ class AuthApiService {
     required String content,
     String priority = 'normal',
     bool sendAsSms = false,
+    File? attachment,
   }) async {
-    return _authorized(
-      (token) => _client.post(
-        Uri.parse('$_baseUrl/hubs/$hubId/broadcasts/'),
-        headers: _headers(token),
-        body: jsonEncode({
-          'title': title,
-          'content': content,
-          'priority': priority,
-          'send_as_sms': sendAsSms,
-        }),
-      ),
+    if (attachment == null) {
+      return _authorized(
+        (token) => _client.post(
+          Uri.parse('$_baseUrl/hubs/$hubId/broadcasts/'),
+          headers: _headers(token),
+          body: jsonEncode({
+            'title': title,
+            'content': content,
+            'priority': priority,
+            'send_as_sms': sendAsSms,
+          }),
+        ),
+      );
+    }
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$_baseUrl/hubs/$hubId/broadcasts/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields['title'] = title;
+        request.fields['content'] = content;
+        request.fields['priority'] = priority;
+        request.fields['send_as_sms'] = sendAsSms.toString();
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'attachment',
+            attachment.path,
+            filename: p.basename(attachment.path),
+          ),
+        );
+        return request.send();
+      },
     );
   }
 
@@ -548,16 +572,42 @@ class AuthApiService {
     required int taskId,
     String? submissionText,
     String? submissionLink,
+    File? submissionFile,
   }) async {
-    return _authorized(
-      (token) => _client.post(
-        Uri.parse('$_baseUrl/tasks/$taskId/submit/'),
-        headers: _headers(token),
-        body: jsonEncode({
-          if (submissionText != null) 'submission_text': submissionText,
-          if (submissionLink != null) 'submission_link': submissionLink,
-        }),
-      ),
+    if (submissionFile == null) {
+      return _authorized(
+        (token) => _client.post(
+          Uri.parse('$_baseUrl/tasks/$taskId/submit/'),
+          headers: _headers(token),
+          body: jsonEncode({
+            if (submissionText != null) 'submission_text': submissionText,
+            if (submissionLink != null) 'submission_link': submissionLink,
+          }),
+        ),
+      );
+    }
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$_baseUrl/tasks/$taskId/submit/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        if (submissionText != null) {
+          request.fields['submission_text'] = submissionText;
+        }
+        if (submissionLink != null) {
+          request.fields['submission_link'] = submissionLink;
+        }
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'submission_file',
+            submissionFile.path,
+            filename: p.basename(submissionFile.path),
+          ),
+        );
+        return request.send();
+      },
     );
   }
 
@@ -605,19 +655,42 @@ class AuthApiService {
   static Future<Map<String, dynamic>> createHubResource({
     required int hubId,
     required String title,
-    required String url,
+    String? url,
     required String resourceType,
+    File? file,
   }) async {
-    return _authorized(
-      (token) => _client.post(
-        Uri.parse('$_baseUrl/hubs/$hubId/resources/'),
-        headers: _headers(token),
-        body: jsonEncode({
-          'title': title,
-          'url': url,
-          'resource_type': resourceType,
-        }),
-      ),
+    if (file == null) {
+      return _authorized(
+        (token) => _client.post(
+          Uri.parse('$_baseUrl/hubs/$hubId/resources/'),
+          headers: _headers(token),
+          body: jsonEncode({
+            'title': title,
+            if (url != null) 'url': url,
+            'resource_type': resourceType,
+          }),
+        ),
+      );
+    }
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$_baseUrl/hubs/$hubId/resources/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields['title'] = title;
+        if (url != null) request.fields['url'] = url;
+        request.fields['resource_type'] = resourceType;
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'file',
+            file.path,
+            filename: p.basename(file.path),
+          ),
+        );
+        return request.send();
+      },
     );
   }
 

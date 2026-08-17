@@ -209,6 +209,7 @@ class Message(models.Model):
     hub = models.ForeignKey(Hub, on_delete=models.CASCADE, related_name="messages")
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="messages")
     content = models.TextField()
+    attachment = models.FileField(upload_to="broadcasts/%Y/%m/%d/", null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -331,6 +332,7 @@ class Broadcast(models.Model):
     )
     title = models.CharField(max_length=200)
     content = models.TextField()
+    attachment = models.FileField(upload_to="broadcasts/%Y/%m/%d/", null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     priority = models.CharField(
         max_length=10, choices=PRIORITY_CHOICES, default="normal"
@@ -355,7 +357,8 @@ class Resource(models.Model):
         choices=RESOURCE_TYPE_CHOICES,
         default="other",
     )
-    url = models.URLField(max_length=1000)
+    url = models.URLField(max_length=1000, blank=True, null=True)
+    file = models.FileField(upload_to="resources/%Y/%m/%d/", null=True, blank=True)
     uploaded_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name="uploaded_resources"
     )
@@ -376,7 +379,8 @@ class HubMeeting(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
-    meeting_url = models.URLField(max_length=1000)
+    meeting_url = models.URLField(max_length=1000, blank=True, null=True)
+    file = models.FileField(upload_to="resources/%Y/%m/%d/", null=True, blank=True)
     scheduled_for = models.DateTimeField()
     created_by = models.ForeignKey(
         User,
@@ -412,6 +416,7 @@ class TaskItem(models.Model):
     )
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True, null=True)
+    attachment = models.FileField(upload_to="tasks/attachments/%Y/%m/%d/", null=True, blank=True)
     course_name = models.CharField(max_length=100)
     due_date = models.DateTimeField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
@@ -422,6 +427,7 @@ class TaskItem(models.Model):
     )
     submission_text = models.TextField(blank=True, null=True)
     submission_link = models.URLField(max_length=1000, blank=True, null=True)
+    submission_file = models.FileField(upload_to="tasks/submissions/%Y/%m/%d/", null=True, blank=True)
     submitted_at = models.DateTimeField(null=True, blank=True)
     graded_by = models.ForeignKey(
         User,
@@ -610,6 +616,7 @@ class DirectMessage(models.Model):
         related_name="sent_direct_messages",
     )
     content = models.TextField()
+    attachment = models.FileField(upload_to="broadcasts/%Y/%m/%d/", null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
 

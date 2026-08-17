@@ -58,15 +58,16 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
         final title = item['title'] ?? 'Untitled';
         final url = item['url'] ?? item['file'] ?? '';
         final date = DateTime.tryParse(item['upload_date'] ?? '') ?? DateTime.now();
+        final sender = item['sender'] ?? 'Unknown';
 
         if (type == 'image') {
-          newImages.add(MediaImageItem(id: id, url: url, name: title, date: date, size: 0));
+          newImages.add(MediaImageItem(id: id, name: title, sender: sender, date: date, size: 0, gradient: const [Color(0xFF2563EB), Color(0xFF60A5FA)]));
         } else if (type == 'document') {
           final ext = url.split('.').last.toLowerCase();
           final docType = _docTypes.contains(ext) ? ext : 'pdf';
-          newDocs.add(MediaDocumentItem(id: id, url: url, name: title, date: date, size: 0, type: docType));
+          newDocs.add(MediaDocumentItem(id: id, name: title, type: docType, sender: sender, date: date, size: 0));
         } else if (type == 'link') {
-          newLinks.add(MediaLinkItem(id: id, url: url, title: title, date: date, domain: Uri.tryParse(url)?.host ?? 'Link'));
+          newLinks.add(MediaLinkItem(id: id, title: title, url: url, sender: sender, date: date));
         }
       }
 

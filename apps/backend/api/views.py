@@ -620,6 +620,27 @@ class HubViewSet(viewsets.ModelViewSet):
             user=self.request.user,
             defaults={"role": "admin"},
         )
+        
+        default_sections = [
+            ("General Chat", "general", "General discussion and chat", 1),
+            ("Announcements", "announcements", "Important updates from admins", 2),
+            ("Resources", "resources", "Shared files and links", 3),
+            ("Tasks", "tasks", "Assignments and to-dos", 4),
+            ("Live Sessions", "meetings", "Upcoming meetings and classes", 5),
+        ]
+        sections_to_create = []
+        for title, sec_type, desc, order in default_sections:
+            sections_to_create.append(
+                HubSection(
+                    hub=hub,
+                    title=title,
+                    section_type=sec_type,
+                    description=desc,
+                    order=order,
+                    is_enabled=True,
+                )
+            )
+        HubSection.objects.bulk_create(sections_to_create)
 
 
 class BroadcastViewSet(viewsets.ReadOnlyModelViewSet):

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
@@ -276,6 +278,7 @@ class _SectionAnnouncementsScreenState
         content: content,
         priority: _priority,
         sendAsSms: _sendAsSms && _canCreateBroadcasts,
+        attachment: _selectedFile,
       );
       if (!mounted) return;
       final broadcast = result;
@@ -313,8 +316,11 @@ class _SectionAnnouncementsScreenState
     }
   }
 
+  File? _selectedFile;
+
   void _openComposer() {
     if (!_canCreateBroadcasts) return;
+    _selectedFile = null;
 
     showModalBottomSheet<void>(
       context: context,
@@ -357,6 +363,30 @@ class _SectionAnnouncementsScreenState
                         decoration: const InputDecoration(
                           labelText: 'Content',
                         ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final result = await FilePicker.platform.pickFiles();
+                                if (result != null && result.files.single.path != null) {
+                                  setSheetState(() {
+                                    _selectedFile = File(result.files.single.path!);
+                                  });
+                                }
+                              },
+                              icon: const Icon(Icons.attach_file),
+                              label: Text(_selectedFile != null ? 'File selected' : 'Attach File (optional)'),
+                            ),
+                          ),
+                          if (_selectedFile != null)
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => setSheetState(() => _selectedFile = null),
+                            ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
