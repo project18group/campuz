@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:gal/gal.dart';
 
 /// Full-screen image viewer with Hero animation, pinch-to-zoom,
 /// double-tap zoom, pan, and swipe-down-to-dismiss.
@@ -125,21 +125,14 @@ class _ImageViewerPageState extends State<ImageViewerPage>
       }
 
       if (imageBytes != null) {
-        final result = await ImageGallerySaver.saveImage(
+        await Gal.putImageBytes(
           imageBytes,
-          quality: 100,
           name: "campuz_${DateTime.now().millisecondsSinceEpoch}",
         );
         if (!mounted) return;
-        if (result != null && result['isSuccess'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Image saved to gallery')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to save image')),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Image saved to gallery')),
+        );
       }
     } catch (e) {
       if (!mounted) return;

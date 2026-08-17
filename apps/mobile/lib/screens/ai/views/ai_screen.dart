@@ -92,7 +92,7 @@ class _AiScreenState extends State<AiScreen> {
                 child: Icon(
                   Icons.smart_toy_outlined,
                   size: 64,
-                  color: AppColors.primaryDeep,
+                  color: AppColors.primaryForeground,
                 ),
               ),
               const SizedBox(height: 24),
@@ -100,7 +100,7 @@ class _AiScreenState extends State<AiScreen> {
                 "Campuz AI Assistant",
                 style: AppTextStyles.heading.copyWith(
                   fontSize: 22,
-                  color: AppColors.primaryDeep,
+                  color: AppColors.primaryForeground,
                 ),
                 textAlign: TextAlign.center,
               ),

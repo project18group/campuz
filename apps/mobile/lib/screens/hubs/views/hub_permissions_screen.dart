@@ -97,7 +97,7 @@ class _HubPermissionsScreenState extends State<HubPermissionsScreen> {
                   children: [
                     Icon(
                       Icons.admin_panel_settings_outlined,
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

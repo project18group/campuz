@@ -481,7 +481,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                   ),
                   child: Icon(
                     Icons.video_call_outlined,
-                    color: AppColors.primaryDeep,
+                    color: AppColors.primaryForeground,
                   ),
                 ),
                 const SizedBox(width: 12),

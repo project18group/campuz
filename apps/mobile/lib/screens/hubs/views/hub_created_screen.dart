@@ -36,7 +36,7 @@ class HubCreatedScreen extends StatelessWidget {
                 child: Icon(
                   Icons.check_circle_outline,
                   size: 58,
-                  color: AppColors.primaryDeep,
+                  color: AppColors.primaryForeground,
                 ),
               ),
               const SizedBox(height: 24),

@@ -54,11 +54,16 @@ class _HomeScreenState extends State<HomeScreen> {
         final data = jsonDecode(cachedData) as Map<String, dynamic>;
         setState(() {
           _hubs = (data['hubs'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          _conversations = (data['conversations'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          _broadcasts = (data['broadcasts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          _resources = (data['resources'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _conversations =
+              (data['conversations'] as List?)?.cast<Map<String, dynamic>>() ??
+              [];
+          _broadcasts =
+              (data['broadcasts'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _resources =
+              (data['resources'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           _tasks = (data['tasks'] as List?)?.cast<Map<String, dynamic>>() ?? [];
-          _meetings = (data['meetings'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+          _meetings =
+              (data['meetings'] as List?)?.cast<Map<String, dynamic>>() ?? [];
           _isLoading = false;
         });
       }
@@ -83,17 +88,20 @@ class _HomeScreenState extends State<HomeScreen> {
           _meetings = (results[5] as List).cast<Map<String, dynamic>>();
           _isLoading = false;
         });
-        
+
         try {
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('home_cache', jsonEncode({
-            'hubs': _hubs,
-            'conversations': _conversations,
-            'broadcasts': _broadcasts,
-            'resources': _resources,
-            'tasks': _tasks,
-            'meetings': _meetings,
-          }));
+          await prefs.setString(
+            'home_cache',
+            jsonEncode({
+              'hubs': _hubs,
+              'conversations': _conversations,
+              'broadcasts': _broadcasts,
+              'resources': _resources,
+              'tasks': _tasks,
+              'meetings': _meetings,
+            }),
+          );
         } catch (_) {}
       }
     } on AuthApiException catch (error) {
@@ -114,7 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   String _conversationName(Map<String, dynamic> conversation) {
-    final user = conversation['other_user'] as Map<String, dynamic>? ?? const {};
+    final user =
+        conversation['other_user'] as Map<String, dynamic>? ?? const {};
     final displayName = (user['display_name'] as String? ?? '').trim();
     if (displayName.isNotEmpty) return displayName;
     final fullName = (user['full_name'] as String? ?? '').trim();
@@ -135,7 +144,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (time == null) return '';
     final local = time.toLocal();
     final now = DateTime.now();
-    final sameDay = now.year == local.year &&
+    final sameDay =
+        now.year == local.year &&
         now.month == local.month &&
         now.day == local.day;
     if (sameDay) {
@@ -177,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 'link':
         return const Color(0xFF7C3AED);
       default:
-        return AppColors.primaryDeep;
+        return AppColors.primaryForeground;
     }
   }
 
@@ -218,11 +228,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       body: _buildBody(),
-      floatingActionButton: AppFab(
-        onPressed: () async {
-          await context.push('/select-contact');
-          if (mounted) _loadHome();
-        },
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 100.0),
+        child: AppFab(
+          onPressed: () async {
+            await context.push('/select-contact');
+            if (mounted) _loadHome();
+          },
+        ),
       ),
     );
   }
@@ -458,7 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     emptyTitle,
                     style: AppTextStyles.label.copyWith(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -489,11 +502,14 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _recentMessageCard(Map<String, dynamic> conversation) {
-    final user = conversation['other_user'] as Map<String, dynamic>? ?? const {};
-    final lastMessage = conversation['last_message'] as Map<String, dynamic>? ?? const {};
+    final user =
+        conversation['other_user'] as Map<String, dynamic>? ?? const {};
+    final lastMessage =
+        conversation['last_message'] as Map<String, dynamic>? ?? const {};
     final avatar = (user['avatar_url'] as String? ?? '').trim();
     final name = _conversationName(conversation);
-    final preview = (lastMessage['content'] as String? ?? 'No messages yet').trim();
+    final preview = (lastMessage['content'] as String? ?? 'No messages yet')
+        .trim();
     final unreadCount = conversation['unread_count'] as int? ?? 0;
     final timestamp = _formatTime(_parseDate(lastMessage['timestamp']));
     final id = conversation['id'];
@@ -524,12 +540,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
+                      style: AppTextStyles.label.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   if (unreadCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(999),
@@ -550,14 +571,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 preview,
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const Spacer(),
               Align(
                 alignment: Alignment.bottomRight,
                 child: Text(
                   timestamp,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -571,7 +596,8 @@ class _HomeScreenState extends State<HomeScreen> {
     final title = (broadcast['title'] as String? ?? 'Announcement').trim();
     final content = (broadcast['content'] as String? ?? '').trim();
     final priority = (broadcast['priority'] as String? ?? 'normal').trim();
-    final senderName = (broadcast['sender_name'] as String? ?? 'Campuz user').trim();
+    final senderName = (broadcast['sender_name'] as String? ?? 'Campuz user')
+        .trim();
     final hubId = broadcast['hub'] as int?;
     final hubName = _hubName(hubId);
     return SizedBox(
@@ -628,7 +654,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: _priorityColor(priority).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(999),
@@ -656,7 +685,9 @@ class _HomeScreenState extends State<HomeScreen> {
               content,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
         ),
@@ -667,7 +698,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _resourceCard(Map<String, dynamic> resource) {
     final title = (resource['title'] as String? ?? 'Resource').trim();
     final type = (resource['resource_type'] as String? ?? 'other').trim();
-    final uploadedBy = (resource['uploaded_by_name'] as String? ?? 'Campuz user').trim();
+    final uploadedBy =
+        (resource['uploaded_by_name'] as String? ?? 'Campuz user').trim();
     final hubId = resource['hub'] as int?;
     final hubName = _hubName(hubId);
     final url = (resource['url'] as String? ?? '').trim();
@@ -724,14 +756,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 '$hubName - $uploadedBy',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -766,18 +802,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 34,
                   height: 34,
                   decoration: BoxDecoration(
-                    color: AppColors.primaryDeep.withValues(alpha: 0.10),
+                    color: AppColors.primaryForeground.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.assignment_turned_in_rounded,
-                    color: AppColors.primaryDeep,
+                    color: AppColors.primaryForeground,
                     size: 18,
                   ),
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.10),
                     borderRadius: BorderRadius.circular(999),
@@ -785,7 +824,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Text(
                     status.toUpperCase(),
                     style: AppTextStyles.caption.copyWith(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       fontWeight: FontWeight.w800,
                       fontSize: 10,
                     ),
@@ -805,14 +844,18 @@ class _HomeScreenState extends State<HomeScreen> {
               course.isEmpty ? hubName : '$course - $hubName',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+              style: AppTextStyles.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
             ),
             const Spacer(),
             Align(
               alignment: Alignment.bottomRight,
               child: Text(
                 'Due $dueDate',
-                style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -850,12 +893,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 34,
                     height: 34,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryDeep.withValues(alpha: 0.10),
+                      color: AppColors.primaryForeground.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.videocam_rounded,
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       size: 18,
                     ),
                   ),
@@ -873,21 +916,27 @@ class _HomeScreenState extends State<HomeScreen> {
                 title,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.label.copyWith(fontWeight: FontWeight.w700),
+                style: AppTextStyles.label.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(height: 6),
               Text(
                 description.isEmpty ? hubName : '$description - $hubName',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
               const Spacer(),
               Align(
                 alignment: Alignment.bottomRight,
                 child: Text(
                   scheduledText.isEmpty ? hubName : scheduledText,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ),
             ],
@@ -916,7 +965,7 @@ class _HomeScreenState extends State<HomeScreen> {
         backgroundColor: AppColors.primary.withValues(alpha: 0.10),
         child: Text(
           initials.isEmpty ? 'H' : initials,
-          style: AppTextStyles.title.copyWith(color: AppColors.primaryDeep),
+          style: AppTextStyles.title.copyWith(color: AppColors.primaryForeground),
         ),
       ),
       title: Text(
@@ -930,20 +979,19 @@ class _HomeScreenState extends State<HomeScreen> {
         overflow: TextOverflow.ellipsis,
         style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
       ),
-      onTap: id != null
-          ? () => context.push('/hub/$id', extra: hub)
-          : null,
+      onTap: id != null ? () => context.push('/hub/$id', extra: hub) : null,
     );
   }
 
   Widget _conversationTile(Map<String, dynamic> conversation) {
-    final user = conversation['other_user'] as Map<String, dynamic>? ?? const {};
+    final user =
+        conversation['other_user'] as Map<String, dynamic>? ?? const {};
     final lastMessage = conversation['last_message'] as Map<String, dynamic>?;
     final avatar = (user['avatar_url'] as String? ?? '').trim();
     final name = _conversationName(conversation);
     final unreadCount = conversation['unread_count'] as int? ?? 0;
-    final content =
-        (lastMessage?['content'] as String? ?? 'No messages yet').trim();
+    final content = (lastMessage?['content'] as String? ?? 'No messages yet')
+        .trim();
     final id = conversation['id'];
 
     return ListTile(

@@ -142,7 +142,7 @@ class _StartupScreenState extends State<StartupScreen>
                               height: 120,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: AppColors.primaryDeep,
+                                color: AppColors.primaryForeground,
                                 border: Border.all(
                                   color: AppColors.primary,
                                   width: 3,

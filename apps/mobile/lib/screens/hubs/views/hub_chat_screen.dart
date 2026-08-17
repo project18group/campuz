@@ -20,6 +20,7 @@ import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/core/utils/image_cropper_utils.dart';
 
 class HubChatScreen extends StatefulWidget {
   const HubChatScreen({super.key, this.hub, this.hubId});
@@ -407,11 +408,30 @@ class _HubChatScreenState extends State<HubChatScreen> {
         }
         break;
       case 'delete':
-        setState(() {
-          _messages.removeWhere(
-            (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
-          );
-        });
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete Message', style: AppTextStyles.heading),
+            content: Text('Are you sure you want to delete this message?', style: AppTextStyles.body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Delete', style: TextStyle(color: AppColors.error)),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true && mounted) {
+          setState(() {
+            _messages.removeWhere(
+              (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
+            );
+          });
+        }
         break;
     }
   }
@@ -519,7 +539,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
             );
             if (result == null || result.files.isEmpty || !mounted) return;
 
-            final firstFile = result.files.first;
+            final croppedFiles = await ImageCropperUtils.cropImages(result.files);
+            if (croppedFiles.isEmpty || !mounted) return;
+
+            final firstFile = croppedFiles.first;
             if (firstFile.path != null) {
               final caption = await showModalBottomSheet<String>(
                 context: context,
@@ -539,7 +562,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
             setState(() {
               _pendingAttachments.addAll(
-                result.files.where(
+                croppedFiles.where(
                   (file) => file.path != null && file.path!.isNotEmpty,
                 ),
               );
@@ -699,27 +722,30 @@ class _HubChatScreenState extends State<HubChatScreen> {
         onMenuItemTapped: (item) => _handleMessageAction(message, item),
         child: Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 360),
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-            decoration: BoxDecoration(
-              color: isMine ? AppColors.primaryDeep : AppColors.surface,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(18),
-                topRight: const Radius.circular(18),
-                bottomLeft: Radius.circular(isMine ? 18 : 4),
-                bottomRight: Radius.circular(isMine ? 4 : 18),
-              ),
-              border: isMine ? null : Border.all(color: AppColors.border),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0D000000),
-                  blurRadius: 10,
-                  offset: Offset(0, 4),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                constraints: const BoxConstraints(maxWidth: 360),
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: isMine ? AppColors.primaryDeep : AppColors.surface,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: Radius.circular(isMine ? 18 : 4),
+                    bottomRight: Radius.circular(isMine ? 4 : 18),
+                  ),
+                  border: isMine ? null : Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0D000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -793,9 +819,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                   ),
                                   child: AspectRatio(
                                     aspectRatio: 1.08,
-                                    child: Hero(
-                                      tag: url,
-                                      child: Image.network(
+                                    child: Image.network(
                                         url,
                                         fit: BoxFit.cover,
                                         loadingBuilder:
@@ -832,7 +856,6 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                             },
                                       ),
                                     ),
-                                  ),
                                 ),
                               Padding(
                                 padding: EdgeInsets.fromLTRB(
@@ -948,6 +971,17 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 ],
               ],
             ),
+            ),
+              Positioned(
+                bottom: -4,
+                right: isMine ? 20 : null,
+                left: isMine ? null : 20,
+                child: StackedReactions(
+                  messageId: _messageIdKey(message),
+                  controller: _reactionsController,
+                ),
+              ),
+            ],
           ),
         ),
       ),

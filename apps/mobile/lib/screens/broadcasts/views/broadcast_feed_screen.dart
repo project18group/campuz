@@ -141,7 +141,7 @@ class _BroadcastFeedScreenState extends State<BroadcastFeedScreen> {
                         title,
                         style: AppTextStyles.heading.copyWith(
                           fontSize: 18,
-                          color: AppColors.primaryDeep,
+                          color: AppColors.primaryForeground,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -159,7 +159,7 @@ class _BroadcastFeedScreenState extends State<BroadcastFeedScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(

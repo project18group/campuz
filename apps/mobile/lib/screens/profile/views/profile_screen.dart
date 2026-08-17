@@ -216,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Text(
                   number,
                   style: AppTextStyles.caption.copyWith(
-                    color: AppColors.primaryDeep,
+                    color: AppColors.primaryForeground,
                     fontWeight: FontWeight.w800,
                     fontSize: 10.5,
                   ),
@@ -224,7 +224,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
             const SizedBox(width: 9),
-            Icon(icon, size: 17, color: AppColors.primaryDeep),
+            Icon(icon, size: 17, color: AppColors.primaryForeground),
             const SizedBox(width: 7),
             Text(
               label,
@@ -336,7 +336,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                                 child: Icon(
                                   Icons.more_horiz_rounded,
-                                  color: AppColors.primaryDeep,
+                                  color: AppColors.primaryForeground,
                                 ),
                               );
                             }
@@ -657,7 +657,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? subtitle,
     bool destructive = false,
   }) {
-    final color = destructive ? AppColors.error : AppColors.primaryDeep;
+    final color = destructive ? AppColors.error : AppColors.primaryForeground;
 
     return ListTile(
       onTap: onTap,

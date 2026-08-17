@@ -219,7 +219,7 @@ class _SectionAnnouncementsScreenState
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(

@@ -9,6 +9,7 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/core/utils/image_cropper_utils.dart';
 
 class SectionGeneralScreen extends StatefulWidget {
   final int hubId;
@@ -313,9 +314,10 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
       type: FileType.any,
     );
     if (result == null || !mounted) return;
+    final pickedFiles = await ImageCropperUtils.cropImages(result.files);
     setState(() {
       _pendingAttachments.addAll(
-        result.files.where((file) => file.path != null && file.path!.isNotEmpty),
+        pickedFiles.where((file) => file.path != null && file.path!.isNotEmpty),
       );
     });
   }
@@ -437,7 +439,7 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
             Text(
               senderName,
               style: AppTextStyles.label.copyWith(
-                color: isMine ? Colors.white70 : AppColors.primaryDeep,
+                color: isMine ? Colors.white70 : AppColors.primaryForeground,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),

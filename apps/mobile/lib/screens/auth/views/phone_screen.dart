@@ -125,7 +125,7 @@ class _PhoneScreenState extends State<PhoneScreen> {
                       ),
                       child: Icon(
                         Icons.phone_rounded,
-                        color: AppColors.primaryDeep,
+                        color: AppColors.primaryForeground,
                         size: 34,
                       ),
                     ),

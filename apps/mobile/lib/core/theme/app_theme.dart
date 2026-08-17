@@ -77,8 +77,8 @@ class AppTheme {
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.primaryDeep,
-        side: BorderSide(color: AppColors.primaryDeep, width: 1.25),
+        foregroundColor: AppColors.primaryForeground,
+        side: BorderSide(color: AppColors.primaryForeground, width: 1.25),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         textStyle: AppTextStyles.title.copyWith(fontWeight: FontWeight.w600),
       ),
@@ -96,7 +96,7 @@ class AppTheme {
     ),
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
       backgroundColor: AppColors.surface,
-      selectedItemColor: AppColors.primaryDeep,
+      selectedItemColor: AppColors.primaryForeground,
       unselectedItemColor: AppColors.textSecondary,
       showUnselectedLabels: true,
       type: BottomNavigationBarType.fixed,
@@ -131,7 +131,7 @@ class AppTheme {
         borderSide: BorderSide(color: AppColors.error, width: 1.6),
       ),
     ),
-    iconTheme: IconThemeData(color: AppColors.primaryDeep),
+    iconTheme: IconThemeData(color: AppColors.primaryForeground),
     textSelectionTheme: TextSelectionThemeData(
       cursorColor: AppColors.primary,
       selectionColor: AppColors.surfaceMuted,

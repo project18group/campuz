@@ -33,7 +33,7 @@ class EmptyHomeState extends StatelessWidget {
               'Welcome to Campuz',
               textAlign: TextAlign.center,
               style: AppTextStyles.display.copyWith(
-                color: AppColors.primaryDeep,
+                color: AppColors.primaryForeground,
                 fontSize: 30,
               ),
             ),
@@ -71,9 +71,9 @@ class EmptyHomeState extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: () => context.push('/create-hub'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primaryDeep,
+                  foregroundColor: AppColors.primaryForeground,
                   side: BorderSide(
-                    color: AppColors.primaryDeep,
+                    color: AppColors.primaryForeground,
                     width: 1.4,
                   ),
                   shape: RoundedRectangleBorder(
@@ -83,7 +83,7 @@ class EmptyHomeState extends StatelessWidget {
                 child: Text(
                   'Create Hub',
                   style: AppTextStyles.title.copyWith(
-                    color: AppColors.primaryDeep,
+                    color: AppColors.primaryForeground,
                   ),
                 ),
               ),

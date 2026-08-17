@@ -30,7 +30,7 @@ class AimBackground extends StatelessWidget {
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      AppColors.primaryDeep,
+                      AppColors.primaryForeground,
                       AppColors.primary,
                     ],
                   ),
@@ -58,10 +58,10 @@ class _AimBackdrop extends StatelessWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.primaryDeep,
+                  AppColors.primaryForeground,
                   AppColors.primaryDark,
                   AppColors.primary,
-                  AppColors.primaryDeep,
+                  AppColors.primaryForeground,
                 ],
                 stops: [0.0, 0.34, 0.72, 1.0],
               ),

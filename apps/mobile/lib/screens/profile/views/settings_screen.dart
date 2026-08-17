@@ -144,7 +144,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           Text(
                             '${_autoRefreshSeconds.round()}s',
                             style: AppTextStyles.label.copyWith(
-                              color: AppColors.primaryDeep,
+                              color: AppColors.primaryForeground,
                               fontWeight: FontWeight.w800,
                             ),
                           ),

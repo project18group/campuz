@@ -25,7 +25,7 @@ class _BackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.primaryDeep.withValues(alpha: 0.85)
+      ..color = AppColors.primaryForeground.withValues(alpha: 0.85)
       ..style = PaintingStyle.fill;
 
     // Draw the base background color

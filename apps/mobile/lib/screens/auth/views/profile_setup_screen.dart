@@ -202,7 +202,7 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                     'Creating your account...',
                     style: AppTextStyles.heading.copyWith(
                       fontSize: 20,
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                     ),
                   ),
                   const SizedBox(height: 8),

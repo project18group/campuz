@@ -198,7 +198,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     width: 2,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       borderRadius: BorderRadius.circular(99),
                     ),
                   ),
@@ -241,7 +241,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     width: 56,
                     height: 64,
                     textStyle: AppTextStyles.heading.copyWith(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                     ),
@@ -249,12 +249,12 @@ class _OtpScreenState extends State<OtpScreen> {
                       color: AppColors.surface,
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: AppColors.primaryDeep,
+                        color: AppColors.primaryForeground,
                         width: 2,
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.primaryDeep.withValues(alpha: 0.16),
+                          color: AppColors.primaryForeground.withValues(alpha: 0.16),
                           blurRadius: 18,
                           offset: const Offset(0, 10),
                         ),
@@ -265,7 +265,7 @@ class _OtpScreenState extends State<OtpScreen> {
                     width: 56,
                     height: 64,
                     textStyle: AppTextStyles.heading.copyWith(
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                     ),

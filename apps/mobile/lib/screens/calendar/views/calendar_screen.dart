@@ -56,7 +56,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Icon(
                       Icons.calendar_month,
                       size: 64,
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -64,7 +64,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     "Calendar Sync",
                     style: AppTextStyles.heading.copyWith(
                       fontSize: 22,
-                      color: AppColors.primaryDeep,
+                      color: AppColors.primaryForeground,
                     ),
                     textAlign: TextAlign.center,
                   ),

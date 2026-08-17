@@ -181,7 +181,7 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
                 ),
                 child: Icon(
                   _sectionIcon(sectionType),
-                  color: AppColors.primaryDeep,
+                  color: AppColors.primaryForeground,
                   size: 24,
                 ),
               ),

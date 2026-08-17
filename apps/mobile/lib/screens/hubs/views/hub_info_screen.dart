@@ -192,7 +192,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                           ? 'Are you sure you want to demote $displayName to a regular member?'
                           : 'Are you sure you want to promote $displayName to an admin? They will have full control over the hub.',
                       actionLabel: role == 'admin' ? 'Demote' : 'Promote',
-                      actionColor: AppColors.primaryDeep,
+                      actionColor: AppColors.primaryForeground,
                       onConfirm: () => _runAction(
                         action: role == 'admin' ? 'demote' : 'promote',
                         userId: _memberUserId(member),
@@ -600,7 +600,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
       child: Text(
         isAdmin ? 'Admin' : 'Member',
         style: AppTextStyles.caption.copyWith(
-          color: isAdmin ? AppColors.primaryDeep : AppColors.textSecondary,
+          color: isAdmin ? AppColors.primaryForeground : AppColors.textSecondary,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -906,7 +906,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               child: Text(
                 'You can manage members in this hub',
                 style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primaryDeep,
+                  color: AppColors.primaryForeground,
                   fontWeight: FontWeight.w700,
                 ),
               ),

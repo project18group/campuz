@@ -5,6 +5,7 @@ class AppColors {
   static Color primary = const Color(0xFFB10E15);
   static Color primaryDark = const Color(0xFF6E070B);
   static Color primaryDeep = const Color(0xFF4F0508);
+  static Color primaryForeground = const Color(0xFF4F0508);
   static Color accent = const Color(0xFFE84A4A);
 
   static Color background = const Color(0xFFF7F1EF);
@@ -26,6 +27,7 @@ class AppColors {
     primary = const Color(0xFFB10E15);
     primaryDark = const Color(0xFF6E070B);
     primaryDeep = const Color(0xFF4F0508);
+    primaryForeground = const Color(0xFF4F0508);
     accent = const Color(0xFFE84A4A);
 
     background = const Color(0xFFF7F1EF);
@@ -48,6 +50,7 @@ class AppColors {
     primary = const Color(0xFFB10E15);
     primaryDark = const Color(0xFF4F0508);
     primaryDeep = const Color(0xFF250103);
+    primaryForeground = Colors.white;
     accent = const Color(0xFFD63C3C);
 
     background = const Color(0xFF140D0C);

@@ -109,32 +109,37 @@ class _AppShellState extends State<AppShell> {
                 ProfileScreen(),
               ],
             ),
-            bottomNavigationBar: SafeArea(
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(24),
-                  border: Border.all(
+            bottomNavigationBar: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface.withValues(alpha: 0.85),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                border: Border(
+                  top: BorderSide(
                     color: AppColors.border.withValues(alpha: 0.5),
                     width: 1,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.shadow.withValues(alpha: 0.2),
-                      blurRadius: 16,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.shadow.withValues(alpha: 0.2),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(24),
+                ),
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  child: SafeArea(
                     child: BottomNavigationBar(
                       currentIndex: currentIndex,
                       onTap: (index) => _onTabTapped(context, index),
-                      selectedItemColor: AppColors.primaryDeep,
+                      selectedItemColor: AppColors.primaryForeground,
                       unselectedItemColor: AppColors.textSecondary,
                       backgroundColor: Colors.transparent,
                       elevation: 0,
@@ -189,7 +194,7 @@ class _AppShellState extends State<AppShell> {
       ),
       decoration: BoxDecoration(
         color: isActive
-            ? AppColors.primaryDeep.withValues(alpha: 0.1)
+            ? AppColors.primaryForeground.withValues(alpha: 0.1)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(16),
       ),
