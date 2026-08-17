@@ -432,7 +432,7 @@ class _CreateSectionSheetState extends State<_CreateSectionSheet> {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<String>(
-                  value: _sectionType,
+                  initialValue: _sectionType,
                   decoration: const InputDecoration(
                     labelText: 'Section Type',
                   ),

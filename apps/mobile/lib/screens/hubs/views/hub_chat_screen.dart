@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
-import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:mobile/shared/widgets/linkified_text.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
@@ -15,7 +15,6 @@ import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
-import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
@@ -764,14 +763,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 ),
                 if (content.isNotEmpty) ...[
                   const SizedBox(height: 6),
-                  Linkify(
+                  LinkifiedText(
                     text: content,
-                    onOpen: (link) async {
-                      final url = Uri.parse(link.url);
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
-                      }
-                    },
                     style: AppTextStyles.body.copyWith(
                       color: isMine ? Colors.white : AppColors.textPrimary,
                       height: 1.35,
@@ -1256,7 +1249,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         ),
         actions: [
           IconButton(
-            onPressed: () => context.push('/shared-media'),
+            onPressed: () => context.push('/shared-media/${widget.hub['id']}'),
             icon: const Icon(Icons.folder_shared_rounded),
             tooltip: 'Class Resources',
           ),
@@ -1310,7 +1303,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                   right: 0,
                   child: Center(
                     child: GestureDetector(
-                      onTap: () => context.push('/shared-media'),
+                      onTap: () => context.push('/shared-media/${widget.hub['id']}'),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(24),
                         child: BackdropFilter(

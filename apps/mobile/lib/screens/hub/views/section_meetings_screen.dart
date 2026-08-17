@@ -445,7 +445,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
     urlController.dispose();
   }
 
-  Widget _buildMeetingCard(Map<String, dynamic> meeting) {
+  Widget _buildMeetingCard(BuildContext context, Map<String, dynamic> meeting) {
     final title = (meeting['title'] as String? ?? '').trim();
     final description = (meeting['description'] as String? ?? '').trim();
     final creatorName = _displayName(meeting);
@@ -638,7 +638,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         itemCount: _meetings.length,
         separatorBuilder: (_, __) => const SizedBox(height: 14),
-        itemBuilder: (context, index) => _buildMeetingCard(_meetings[index]),
+        itemBuilder: (context, index) => _buildMeetingCard(context, _meetings[index]),
       ),
     );
   }

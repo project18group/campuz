@@ -51,8 +51,8 @@ class _LinkifiedTextState extends State<LinkifiedText> {
           recognizer: TapGestureRecognizer()
             ..onTap = () async {
               final uri = Uri.tryParse(normalized);
-              if (uri != null) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              if (uri != null && await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.inAppBrowserView);
               }
             },
         ),

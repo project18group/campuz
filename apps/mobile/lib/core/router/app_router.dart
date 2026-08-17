@@ -106,8 +106,11 @@ final appRouter = GoRouter(
       builder: (context, state) => const ScanQrScreen(),
     ),
     GoRoute(
-      path: "/shared-media",
-      builder: (context, state) => const SharedMediaScreen(),
+      path: "/shared-media/:hubId",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        return SharedMediaScreen(hubId: hubId);
+      },
     ),
     GoRoute(
       path: "/select-contact",

@@ -1690,10 +1690,12 @@ class HubMessageView(APIView):
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
             hub_sms_service.queue_hub_sms_broadcast(message.id)
 
-        return Response(
-            MessageSerializer(message, context={"request": request}).data,
-            status=status.HTTP_201_CREATED,
-        )
+        response_data = MessageSerializer(message, context={"request": request}).data
+        response_data.update({
+            "send_as_sms": send_as_sms,
+            "eligible_sms_recipients": eligible_sms_recipients,
+        })
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class SMSDeliveryWebhookView(APIView):

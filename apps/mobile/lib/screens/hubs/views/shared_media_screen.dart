@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/screens/hubs/data/mock_shared_media.dart';
 
 /// Sprint 14 — Shared Media screen.
@@ -11,7 +12,9 @@ import 'package:mobile/screens/hubs/data/mock_shared_media.dart';
 /// Links tabs. Mock data only (see lib/screens/hubs/data/mock_shared_media.dart).
 /// Navigated to via MaterialPageRoute; no required params by design.
 class SharedMediaScreen extends StatefulWidget {
-  const SharedMediaScreen({super.key});
+  final int hubId;
+
+  const SharedMediaScreen({super.key, required this.hubId});
 
   @override
   State<SharedMediaScreen> createState() => _SharedMediaScreenState();
@@ -30,8 +33,61 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
 
   static const List<String> _docTypes = ['pdf', 'docx', 'pptx', 'zip'];
 
+  bool _isLoading = true;
+  List<MediaImageItem> _allImages = [];
+  List<MediaDocumentItem> _allDocs = [];
+  List<MediaLinkItem> _allLinks = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadResources();
+  }
+
+  Future<void> _loadResources() async {
+    setState(() => _isLoading = true);
+    try {
+      final list = await AuthApiService.getResources(hubId: widget.hubId);
+      final newImages = <MediaImageItem>[];
+      final newDocs = <MediaDocumentItem>[];
+      final newLinks = <MediaLinkItem>[];
+
+      for (final item in list) {
+        final id = item['id'].toString();
+        final type = item['resource_type'];
+        final title = item['title'] ?? 'Untitled';
+        final url = item['url'] ?? item['file'] ?? '';
+        final date = DateTime.tryParse(item['upload_date'] ?? '') ?? DateTime.now();
+
+        if (type == 'image') {
+          newImages.add(MediaImageItem(id: id, url: url, name: title, date: date, size: 0));
+        } else if (type == 'document') {
+          final ext = url.split('.').last.toLowerCase();
+          final docType = _docTypes.contains(ext) ? ext : 'pdf';
+          newDocs.add(MediaDocumentItem(id: id, url: url, name: title, date: date, size: 0, type: docType));
+        } else if (type == 'link') {
+          newLinks.add(MediaLinkItem(id: id, url: url, title: title, date: date, domain: Uri.tryParse(url)?.host ?? 'Link'));
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _allImages = newImages;
+          _allDocs = newDocs;
+          _allLinks = newLinks;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showSnack('Failed to load resources');
+      }
+    }
+  }
+
   // ---------------------------------------------------------------------
-  // Sorting / filtering helpers (operate on copies of the mock lists)
+  // Sorting / filtering helpers (operate on copies of the lists)
   // ---------------------------------------------------------------------
 
   bool _inDateRange(DateTime date) {
@@ -46,7 +102,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
   }
 
   List<MediaImageItem> get _images {
-    final items = mockSharedImages.where((i) => _inDateRange(i.date)).toList();
+    final items = _allImages.where((i) => _inDateRange(i.date)).toList();
     switch (_sort) {
       case _SortOption.dateNewest:
         items.sort((a, b) => b.date.compareTo(a.date));
@@ -63,7 +119,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
   }
 
   List<MediaDocumentItem> get _documents {
-    final items = mockSharedDocuments
+    final items = _allDocs
         .where(
           (d) =>
               _inDateRange(d.date) &&
@@ -86,7 +142,7 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
   }
 
   List<MediaLinkItem> get _links {
-    final items = mockSharedLinks.where((l) => _inDateRange(l.date)).toList();
+    final items = _allLinks.where((l) => _inDateRange(l.date)).toList();
     switch (_sort) {
       case _SortOption.dateNewest:
         items.sort((a, b) => b.date.compareTo(a.date));
@@ -274,9 +330,11 @@ class _SharedMediaScreenState extends State<SharedMediaScreen> {
             ),
           ),
           child: SafeArea(
-            child: TabBarView(
-              children: [_buildImagesTab(), _buildDocumentsTab(), _buildLinksTab()],
-            ),
+            child: _isLoading 
+                ? const Center(child: CircularProgressIndicator()) 
+                : TabBarView(
+                  children: [_buildImagesTab(), _buildDocumentsTab(), _buildLinksTab()],
+                ),
           ),
         ),
       ),

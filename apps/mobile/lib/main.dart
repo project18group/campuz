@@ -35,7 +35,6 @@ class CampuzApp extends StatelessWidget {
         }
 
         return MaterialApp.router(
-          key: ValueKey(currentMode), // Force rebuild when theme changes
           debugShowCheckedModeBanner: false,
           theme: AppTheme.theme,
           routerConfig: appRouter,

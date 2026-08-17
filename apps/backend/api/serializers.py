@@ -277,7 +277,7 @@ class DirectMessageSerializer(serializers.ModelSerializer):
 
     def get_attachments(self, obj):
         request = self.context.get("request")
-        return DirectMessageAttachmentSerializer(
+        return MessageAttachmentSerializer(
             obj.attachments.all(),
             many=True,
             context={"request": request},
