@@ -113,7 +113,7 @@ class _AppShellState extends State<AppShell> {
               decoration: BoxDecoration(
                 color: AppColors.surface.withValues(alpha: 0.85),
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
+                  top: Radius.circular(0),
                 ),
                 border: Border(
                   top: BorderSide(
@@ -123,7 +123,7 @@ class _AppShellState extends State<AppShell> {
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.shadow.withValues(alpha: 0.2),
+                    color: AppColors.shadow.withValues(alpha: 0.1),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -131,10 +131,10 @@ class _AppShellState extends State<AppShell> {
               ),
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(24),
+                  top: Radius.circular(0),
                 ),
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+                  filter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
                   child: SafeArea(
                     child: BottomNavigationBar(
                       currentIndex: currentIndex,

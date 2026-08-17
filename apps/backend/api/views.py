@@ -1690,6 +1690,14 @@ class HubMessageView(APIView):
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
             hub_sms_service.queue_hub_sms_broadcast(message.id)
 
+        return Response(
+            MessageSerializer(message, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SMSDeliveryWebhookView(APIView):
+    """
     Arkesel sends sms_id and status in the query string. The endpoint must stay
     open so the provider can reach it.
     """
