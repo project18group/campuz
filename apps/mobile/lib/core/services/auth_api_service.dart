@@ -508,19 +508,46 @@ class AuthApiService {
     required DateTime dueDate,
     required int assignedToId,
     String? description,
+    File? attachment,
   }) async {
-    return _authorized(
-      (token) => _client.post(
-        Uri.parse('$_baseUrl/hubs/$hubId/tasks/'),
-        headers: _headers(token),
-        body: jsonEncode({
-          'title': title,
-          'course_name': courseName,
-          'due_date': dueDate.toUtc().toIso8601String(),
-          'assigned_to_id': assignedToId,
-          if (description != null) 'description': description,
-        }),
-      ),
+    if (attachment == null) {
+      return _authorized(
+        (token) => _client.post(
+          Uri.parse('$_baseUrl/hubs/$hubId/tasks/'),
+          headers: _headers(token),
+          body: jsonEncode({
+            'title': title,
+            'course_name': courseName,
+            'due_date': dueDate.toUtc().toIso8601String(),
+            'assigned_to_id': assignedToId,
+            if (description != null) 'description': description,
+          }),
+        ),
+      );
+    }
+    return _authorizedMultipart(
+      (token) async {
+        final request = http.MultipartRequest(
+          'POST',
+          Uri.parse('$_baseUrl/hubs/$hubId/tasks/'),
+        );
+        request.headers.addAll(_headers(token, includeContentType: false));
+        request.fields['title'] = title;
+        request.fields['course_name'] = courseName;
+        request.fields['due_date'] = dueDate.toUtc().toIso8601String();
+        request.fields['assigned_to_id'] = assignedToId.toString();
+        if (description != null) {
+          request.fields['description'] = description;
+        }
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'attachment',
+            attachment.path,
+            filename: p.basename(attachment.path),
+          ),
+        );
+        return request.send();
+      },
     );
   }
 

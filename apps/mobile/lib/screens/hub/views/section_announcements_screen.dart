@@ -370,7 +370,7 @@ class _SectionAnnouncementsScreenState
                           Expanded(
                             child: OutlinedButton.icon(
                               onPressed: () async {
-                                final result = await FilePicker.platform.pickFiles();
+                                final result = await FilePicker.pickFiles();
                                 if (result != null && result.files.single.path != null) {
                                   setSheetState(() {
                                     _selectedFile = File(result.files.single.path!);
