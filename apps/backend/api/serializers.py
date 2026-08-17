@@ -511,6 +511,7 @@ class HubSerializer(serializers.ModelSerializer):
             "sections",
             "current_user_role",
             "can_manage_members",
+            "sms_credits",
             "created_at",
         ]
         read_only_fields = ["creator", "members", "sections"]

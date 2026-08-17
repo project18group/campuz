@@ -219,6 +219,35 @@ class AuthApiService {
   // Hubs
   // ---------------------------------------------------------------------------
 
+
+  // ---------------------------------------------------------------------------
+  // Hub Sections
+  // ---------------------------------------------------------------------------
+
+  /// Creates a new section within a hub (Admin only).
+  static Future<Map<String, dynamic>> createHubSection({
+    required int hubId,
+    required String title,
+    required String sectionType,
+    String description = '',
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/sections/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'title': title,
+          'section_type': sectionType,
+          'description': description,
+        }),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Messaging
+  // ---------------------------------------------------------------------------
+
   static Future<List<Map<String, dynamic>>> getHubs() async {
     final result = await _authorized(
       (token) => _client.get(
@@ -1145,6 +1174,19 @@ class AuthApiService {
         Uri.parse('$_baseUrl/hubs/$hubId/sms-topup/initialize/'),
         headers: _headers(token),
         body: jsonEncode({'bundle': bundle}),
+      ),
+    );
+  }
+
+  static Future<Map<String, dynamic>> verifySmsTopUp({
+    required int hubId,
+    required String reference,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/verify_topup/'),
+        headers: _headers(token),
+        body: jsonEncode({'reference': reference}),
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -186,9 +187,9 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   }
 
   void _inviteContact(Contact contact) {
-    // In a real app, this would open SMS with a prefilled message.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Invite sent to ${contact.displayName}')),
+    Share.share(
+      'Join me on Campuz! Let\'s connect and stay updated. Download the app today to get started!',
+      subject: 'Invitation to Campuz',
     );
   }
 

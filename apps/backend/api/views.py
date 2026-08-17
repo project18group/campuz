@@ -1884,6 +1884,43 @@ class HubSmsTopUpInitializeView(APIView):
             logger.error(f"Paystack initialize failed: {resp.text}")
             return Response({"error": "Payment initialization failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+    @action(detail=True, methods=["post"], url_path="verify_topup")
+    def verify_topup(self, request, pk=None):
+        hub = self.get_object()
+        membership = HubMember.objects.filter(hub=hub, user=request.user).first()
+        if not membership or membership.role != "admin":
+            return Response({"error": "Only admins can verify top-ups."}, status=status.HTTP_403_FORBIDDEN)
+            
+        reference = request.data.get("reference")
+        if not reference:
+            return Response({"error": "Reference is required."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+        }
+        resp = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
+        if resp.status_code == 200:
+            data = resp.json().get("data", {})
+            if data.get("status") == "success":
+                metadata = data.get("metadata", {})
+                bundle_size = metadata.get("bundle_size")
+                if bundle_size:
+                    from .models import SmsCreditTransaction
+                    if not SmsCreditTransaction.objects.filter(reference=reference).exists():
+                        hub.sms_credits += int(bundle_size)
+                        hub.save(update_fields=["sms_credits"])
+                        SmsCreditTransaction.objects.create(
+                            hub=hub,
+                            transaction_type="credit",
+                            amount=int(bundle_size),
+                            reference=reference,
+                            description=f"Paystack topup of {bundle_size} SMS credits"
+                        )
+                return Response({"status": "success", "sms_credits": hub.sms_credits}, status=status.HTTP_200_OK)
+            return Response({"status": "failed_or_pending"}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"error": "Paystack verification failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 class PaystackWebhookView(APIView):
     permission_classes = [AllowAny]
     

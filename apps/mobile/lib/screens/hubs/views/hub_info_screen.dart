@@ -881,8 +881,8 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryForeground,
-                foregroundColor: Colors.white,
+                backgroundColor: AppColors.primary,
+                foregroundColor: AppColors.textOnPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(999),
                 ),

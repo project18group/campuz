@@ -13,11 +13,13 @@ import 'package:url_launcher/url_launcher.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  static final GlobalKey<HomeScreenState> homeKey = GlobalKey<HomeScreenState>();
+
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomeScreen> createState() => HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _hubs = const [];
   List<Map<String, dynamic>> _conversations = const [];
   List<Map<String, dynamic>> _broadcasts = const [];
@@ -26,6 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Map<String, dynamic>> _meetings = const [];
   bool _isLoading = true;
   String? _error;
+
+  void refreshHome() {
+    _loadHome();
+  }
 
   bool get _isEmpty =>
       _hubs.isEmpty &&
@@ -287,30 +293,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           _overviewCard(),
           const SizedBox(height: 16),
-          _summarySection(
-            title: 'Recent Messages',
-            subtitle: 'Latest conversation updates from your network.',
-            emptyTitle: 'No messages yet',
-            emptyBody: 'Start a direct chat to see message previews here.',
-            children: _conversations.take(3).map(_recentMessageCard).toList(),
-          ),
-          const SizedBox(height: 14),
-          _summarySection(
-            title: 'Announcements',
-            subtitle: 'Priority broadcasts from your hubs.',
-            emptyTitle: 'No announcements',
-            emptyBody: 'When admins post updates, they will appear here.',
-            children: _broadcasts.take(3).map(_announcementCard).toList(),
-          ),
-          const SizedBox(height: 14),
-          _summarySection(
-            title: 'Resources',
-            subtitle: 'Shared files and useful links.',
-            emptyTitle: 'No resources',
-            emptyBody: 'Hub uploads and links will show up here.',
-            children: _resources.take(3).map(_resourceCard).toList(),
-          ),
-          const SizedBox(height: 14),
+          _sectionHeader('Academic Hubs'),
+          const SizedBox(height: 8),
+          ..._hubs.map(_hubTile),
+          const SizedBox(height: 16),
           _summarySection(
             title: 'Tasks',
             subtitle: 'Your most recent assignments.',
@@ -326,10 +312,30 @@ class _HomeScreenState extends State<HomeScreen> {
             emptyBody: 'Scheduled sessions from your hubs will show here.',
             children: _meetings.take(3).map(_meetingCard).toList(),
           ),
-          const SizedBox(height: 16),
-          _sectionHeader('Academic Hubs'),
-          const SizedBox(height: 8),
-          ..._hubs.map(_hubTile),
+          const SizedBox(height: 14),
+          _summarySection(
+            title: 'Resources',
+            subtitle: 'Shared files and useful links.',
+            emptyTitle: 'No resources',
+            emptyBody: 'Hub uploads and links will show up here.',
+            children: _resources.take(3).map(_resourceCard).toList(),
+          ),
+          const SizedBox(height: 14),
+          _summarySection(
+            title: 'Announcements',
+            subtitle: 'Priority broadcasts from your hubs.',
+            emptyTitle: 'No announcements',
+            emptyBody: 'When admins post updates, they will appear here.',
+            children: _broadcasts.take(3).map(_announcementCard).toList(),
+          ),
+          const SizedBox(height: 14),
+          _summarySection(
+            title: 'Recent Messages',
+            subtitle: 'Latest conversation updates from your network.',
+            emptyTitle: 'No messages yet',
+            emptyBody: 'Start a direct chat to see message previews here.',
+            children: _conversations.take(3).map(_recentMessageCard).toList(),
+          ),
           const SizedBox(height: 16),
           _sectionHeader('Direct Conversations'),
           const SizedBox(height: 8),

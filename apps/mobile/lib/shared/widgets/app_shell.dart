@@ -67,6 +67,13 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
+    if (_getCurrentIndex(context) == index) {
+      if (index == 0) {
+        HomeScreen.homeKey.currentState?.refreshHome();
+      }
+      return;
+    }
+
     if (_pageController.hasClients) {
       _pageController.animateToPage(
         index,
@@ -102,11 +109,11 @@ class _AppShellState extends State<AppShell> {
             body: PageView(
               controller: _pageController,
               onPageChanged: (index) => _onPageChanged(context, index),
-              children: const [
-                HomeScreen(),
-                SessionsScreen(),
-                AiScreen(),
-                ProfileScreen(),
+              children: [
+                HomeScreen(key: HomeScreen.homeKey),
+                const SessionsScreen(),
+                const AiScreen(),
+                const ProfileScreen(),
               ],
             ),
             bottomNavigationBar: Container(

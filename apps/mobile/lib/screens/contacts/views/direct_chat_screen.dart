@@ -4,6 +4,7 @@ import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/services/auth_session.dart';
@@ -14,6 +15,7 @@ import 'package:mobile/shared/widgets/linkified_text.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/core/utils/image_cropper_utils.dart';
+import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
 
 class DirectChatScreen extends StatefulWidget {
   const DirectChatScreen({
@@ -423,10 +425,42 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     FilePickerResult? result;
     if (choice == 'images') {
       result = await FilePicker.pickFiles(
-        allowMultiple: true,
+        allowMultiple: false,
         withData: false,
         type: FileType.image,
       );
+      
+      if (result == null || result.files.isEmpty || !mounted) return;
+      final file = result.files.first;
+      if (file.path == null) return;
+
+      final croppedFiles = await ImageCropperUtils.cropImages([file]);
+      if (croppedFiles.isEmpty || !mounted) return;
+      
+      final croppedFile = croppedFiles.first;
+      if (croppedFile.path == null) return;
+
+      final previewResult = await Navigator.of(context).push<MediaPreviewResult>(
+        MaterialPageRoute(
+          builder: (_) => MediaPreviewScreen(
+            initialFile: File(croppedFile.path!),
+          ),
+        ),
+      );
+
+      if (previewResult != null && mounted) {
+        if (previewResult.caption != null) {
+          _messageController.text = previewResult.caption!;
+        }
+        setState(() {
+          _pendingAttachments.add(PlatformFile(
+            path: previewResult.file.path,
+            name: file.name,
+            size: previewResult.file.lengthSync(),
+          ));
+        });
+      }
+      return;
     } else if (choice == 'documents') {
       result = await FilePicker.pickFiles(
         allowMultiple: true,
@@ -443,10 +477,9 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     }
 
     if (result == null || !mounted) return;
-    final pickedFiles = await ImageCropperUtils.cropImages(result.files);
     setState(() {
       _pendingAttachments.addAll(
-        pickedFiles.where((file) => file.path != null && file.path!.isNotEmpty),
+        result!.files.where((file) => file.path != null && file.path!.isNotEmpty),
       );
     });
   }
@@ -737,24 +770,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                                   ),
                                   child: AspectRatio(
                                     aspectRatio: 1.08,
-                                    child: Image.network(
-                                      url,
+                                    child: CachedNetworkImage(
+                                      imageUrl: url,
                                       fit: BoxFit.cover,
-                                      loadingBuilder: (context, child, loadingProgress) {
-                                        if (loadingProgress == null) return child;
-                                        return const Center(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(18),
-                                            child: CircularProgressIndicator(strokeWidth: 2),
-                                          ),
-                                        );
-                                      },
-                                      errorBuilder: (context, error, stackTrace) {
+                                      placeholder: (context, url) => const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(18),
+                                          child: CircularProgressIndicator(strokeWidth: 2),
+                                        ),
+                                      ),
+                                      errorWidget: (context, url, error) {
                                         return Container(
                                           color: color.withValues(alpha: 0.14),
                                           alignment: Alignment.center,
-                                          padding: const EdgeInsets.all(18),
-                                          child: Icon(icon, color: color, size: 34),
+                                          child: Icon(Icons.broken_image_rounded, color: color, size: 32),
                                         );
                                       },
                                     ),

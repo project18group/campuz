@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'dart:ui';
+import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
@@ -16,6 +18,7 @@ import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
 import 'package:mobile/screens/hubs/widget/attachment_preview_sheet.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
+import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -533,41 +536,43 @@ class _HubChatScreenState extends State<HubChatScreen> {
           },
           onPickGallery: () async {
             final result = await FilePicker.pickFiles(
-              allowMultiple: true,
+              allowMultiple: false,
               withData: false,
               type: FileType.image,
             );
             if (result == null || result.files.isEmpty || !mounted) return;
 
-            final croppedFiles = await ImageCropperUtils.cropImages(result.files);
+            final file = result.files.first;
+            if (file.path == null) return;
+
+            // Initial crop
+            final croppedFiles = await ImageCropperUtils.cropImages([file]);
             if (croppedFiles.isEmpty || !mounted) return;
+            
+            final croppedFile = croppedFiles.first;
+            if (croppedFile.path == null) return;
 
-            final firstFile = croppedFiles.first;
-            if (firstFile.path != null) {
-              final caption = await showModalBottomSheet<String>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Colors.transparent,
-                builder: (context) => AttachmentPreviewSheet(
-                  filePath: firstFile.path!,
-                  fileName: firstFile.name,
-                  fileType: 'image',
+            final previewResult = await Navigator.of(context).push<MediaPreviewResult>(
+              MaterialPageRoute(
+                builder: (_) => MediaPreviewScreen(
+                  initialFile: File(croppedFile.path!),
                 ),
-              );
+              ),
+            );
 
-              if (caption != null && caption.isNotEmpty) {
-                _messageController.text = caption;
+            if (previewResult != null && mounted) {
+              if (previewResult.caption != null) {
+                _messageController.text = previewResult.caption!;
               }
+              setState(() {
+                _pendingAttachments.add(PlatformFile(
+                  path: previewResult.file.path,
+                  name: file.name,
+                  size: previewResult.file.lengthSync(),
+                ));
+                _sendAsSms = false;
+              });
             }
-
-            setState(() {
-              _pendingAttachments.addAll(
-                croppedFiles.where(
-                  (file) => file.path != null && file.path!.isNotEmpty,
-                ),
-              );
-              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
-            });
           },
           onPickCamera: () async {
             final result = await FilePicker.pickFiles(
@@ -819,43 +824,32 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                   ),
                                   child: AspectRatio(
                                     aspectRatio: 1.08,
-                                    child: Image.network(
-                                        url,
-                                        fit: BoxFit.cover,
-                                        loadingBuilder:
-                                            (context, child, loadingProgress) {
-                                              if (loadingProgress == null) {
-                                                return child;
-                                              }
-                                              return const Center(
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(18),
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                ),
-                                              );
-                                            },
-                                        errorBuilder:
-                                            (context, error, stackTrace) {
-                                              return Container(
-                                                color: color.withValues(
-                                                  alpha: 0.14,
-                                                ),
-                                                alignment: Alignment.center,
-                                                padding: const EdgeInsets.all(
-                                                  18,
-                                                ),
-                                                child: Icon(
-                                                  icon,
-                                                  color: color,
-                                                  size: 34,
-                                                ),
-                                              );
-                                            },
+                                    child: CachedNetworkImage(
+                                      imageUrl: url,
+                                      fit: BoxFit.cover,
+                                      placeholder: (context, url) => const Center(
+                                        child: Padding(
+                                          padding: EdgeInsets.all(18),
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        ),
                                       ),
+                                      errorWidget: (context, url, error) {
+                                        return Container(
+                                          color: color.withValues(
+                                            alpha: 0.14,
+                                          ),
+                                          alignment: Alignment.center,
+                                          child: Icon(
+                                            Icons.broken_image_rounded,
+                                            color: color,
+                                            size: 32,
+                                          ),
+                                        );
+                                      },
                                     ),
+                                  ),
                                 ),
                               Padding(
                                 padding: EdgeInsets.fromLTRB(

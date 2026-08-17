@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/screens/hub/views/section_general_screen.dart';
 import 'package:mobile/screens/hub/views/section_announcements_screen.dart';
 import 'package:mobile/screens/hub/views/section_meetings_screen.dart';
@@ -52,6 +53,34 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
     }
   }
 
+  bool get _isAdmin {
+    final members = widget.hub['members'] as List<dynamic>? ?? [];
+    for (final m in members) {
+      if (m is Map && m['is_self'] == true && m['role'] == 'admin') {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _showCreateSectionSheet() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CreateSectionSheet(
+        hubId: widget.hub['id'] as int,
+        onCreated: (newSection) {
+          setState(() {
+            final sections = List<Map<String, dynamic>>.from(widget.hub['sections'] ?? []);
+            sections.add(newSection);
+            widget.hub['sections'] = sections;
+          });
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -65,6 +94,13 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: _isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: _showCreateSectionSheet,
+              icon: const Icon(Icons.add),
+              label: const Text('Add Section'),
+            )
+          : null,
     );
   }
 
@@ -295,6 +331,153 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => screen),
+    );
+  }
+}
+
+class _CreateSectionSheet extends StatefulWidget {
+  final int hubId;
+  final ValueChanged<Map<String, dynamic>> onCreated;
+
+  const _CreateSectionSheet({required this.hubId, required this.onCreated});
+
+  @override
+  State<_CreateSectionSheet> createState() => _CreateSectionSheetState();
+}
+
+class _CreateSectionSheetState extends State<_CreateSectionSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _titleController = TextEditingController();
+  final _descController = TextEditingController();
+  String _sectionType = 'general';
+  bool _isLoading = false;
+
+  final _sectionTypes = [
+    {'value': 'general', 'label': 'General Chat', 'icon': Icons.chat_bubble_outline},
+    {'value': 'announcements', 'label': 'Announcements', 'icon': Icons.campaign_outlined},
+    {'value': 'resources', 'label': 'Resources', 'icon': Icons.folder_outlined},
+    {'value': 'meetings', 'label': 'Live Sessions', 'icon': Icons.video_call_outlined},
+    {'value': 'tasks', 'label': 'Tasks', 'icon': Icons.task_alt_outlined},
+  ];
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final newSection = await AuthApiService.createHubSection(
+        hubId: widget.hubId,
+        title: _titleController.text.trim(),
+        sectionType: _sectionType,
+        description: _descController.text.trim(),
+      );
+      if (mounted) {
+        widget.onCreated(newSection);
+        Navigator.pop(context);
+      }
+    } on AuthApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message)),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'Create Section',
+                  style: AppTextStyles.heading.copyWith(fontSize: 22),
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(
+                    labelText: 'Section Title',
+                    hintText: 'e.g., General Discussion',
+                  ),
+                  validator: (v) =>
+                      v == null || v.trim().isEmpty ? 'Required' : null,
+                  textCapitalization: TextCapitalization.words,
+                ),
+                const SizedBox(height: 16),
+                DropdownButtonFormField<String>(
+                  value: _sectionType,
+                  decoration: const InputDecoration(
+                    labelText: 'Section Type',
+                  ),
+                  items: _sectionTypes.map((type) {
+                    return DropdownMenuItem(
+                      value: type['value'] as String,
+                      child: Row(
+                        children: [
+                          Icon(type['icon'] as IconData, size: 20),
+                          const SizedBox(width: 12),
+                          Text(type['label'] as String),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    if (val != null) setState(() => _sectionType = val);
+                  },
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _descController,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (Optional)',
+                    hintText: 'Briefly describe this section...',
+                  ),
+                  maxLines: 3,
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: _isLoading ? null : _submit,
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Create'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
