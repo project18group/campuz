@@ -1027,37 +1027,45 @@ class _HubChatScreenState extends State<HubChatScreen> {
     }
 
     if (_messages.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.forum_outlined,
-                size: 64,
-                color: AppColors.textSecondary.withValues(alpha: 0.45),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'No messages yet',
-                style: AppTextStyles.heading.copyWith(fontSize: 18),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Start the discussion for $_hubName.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(
-                  color: AppColors.textSecondary,
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        children: [
+          if (!_hasMore) _buildChatHeader(),
+          const SizedBox(height: 32),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.forum_outlined,
+                  size: 64,
+                  color: AppColors.textSecondary.withValues(alpha: 0.45),
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+                Text(
+                  'No messages yet',
+                  style: AppTextStyles.heading.copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start the discussion for $_hubName.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       );
     }
 
-    final itemCount = _messages.length + (_hasMore ? 1 : 0);
+    final bool showHeader = !_hasMore;
+    final int headerCount = showHeader ? 1 : 0;
+    final int loadMoreCount = _hasMore ? 1 : 0;
+    final itemCount = _messages.length + loadMoreCount + headerCount;
+
     return RefreshIndicator(
       onRefresh: () => _loadMessages(reset: true),
       child: ListView.builder(
@@ -1065,7 +1073,12 @@ class _HubChatScreenState extends State<HubChatScreen> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
         itemCount: itemCount,
         itemBuilder: (context, index) {
-          if (_hasMore && index == 0) {
+          if (showHeader && index == 0) {
+            return _buildChatHeader();
+          }
+          final adjustedIndex = index - headerCount;
+
+          if (_hasMore && adjustedIndex == 0) {
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: Center(
@@ -1088,9 +1101,53 @@ class _HubChatScreenState extends State<HubChatScreen> {
             );
           }
 
-          final messageIndex = index - (_hasMore ? 1 : 0);
+          final messageIndex = adjustedIndex - loadMoreCount;
           return _buildMessageBubble(_messages[messageIndex]);
         },
+      ),
+    );
+  }
+
+  Widget _buildChatHeader() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24, top: 24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          AppAvatar(
+            avatarUrl: widget.hub?['cover_image_url'] as String? ?? '',
+            fallbackName: _hubName,
+            size: 80,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _hubName,
+            style: AppTextStyles.heading.copyWith(fontSize: 22),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$_memberCount members',
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: () => context.push('/hubs/$_hubId/settings'),
+            icon: const Icon(Icons.person_add_rounded, size: 20),
+            label: const Text('Invite Members'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              foregroundColor: AppColors.primary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
       ),
     );
   }

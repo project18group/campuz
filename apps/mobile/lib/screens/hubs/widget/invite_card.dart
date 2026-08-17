@@ -131,7 +131,17 @@ class _InviteCardState extends State<InviteCard> {
                 SizedBox(
                   width: 220,
                   height: 220,
-                  child: QrImageView(data: inviteUrl),
+                  child: QrImageView(
+                    data: inviteUrl,
+                    eyeStyle: QrEyeStyle(
+                      eyeShape: QrEyeShape.square,
+                      color: AppColors.textPrimary,
+                    ),
+                    dataModuleStyle: QrDataModuleStyle(
+                      dataModuleShape: QrDataModuleShape.square,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 Text(

@@ -244,7 +244,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null) {
+    if (_error != null && _hubs.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),

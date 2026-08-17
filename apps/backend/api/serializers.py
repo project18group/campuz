@@ -550,9 +550,12 @@ class HubSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
 
         if cover_image_file is not None:
-            upload_result = cloudinary.uploader.upload(cover_image_file, folder="campuz_hubs")
-            instance.cover_image_url = upload_result.get("secure_url")
-            instance.save(update_fields=["cover_image_url"])
+            try:
+                upload_result = cloudinary.uploader.upload(cover_image_file, folder="campuz_hubs")
+                instance.cover_image_url = upload_result.get("secure_url")
+                instance.save(update_fields=["cover_image_url"])
+            except Exception as e:
+                raise serializers.ValidationError({"cover_image_file": f"Failed to upload image: {str(e)}"})
 
         return instance
 

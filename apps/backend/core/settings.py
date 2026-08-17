@@ -5,11 +5,10 @@ import dj_database_url
 import cloudinary
 import cloudinary.uploader
 import cloudinary.api
+from dotenv import load_dotenv
 
 
 try:
-    from dotenv import load_dotenv
-
     load_dotenv()
 except ImportError:
     pass
@@ -206,8 +205,8 @@ if not DEBUG:
 
 
 cloudinary.config(
-    cloud_name="pwutfure",
-    api_key="259557338688285",
-    api_secret="AXnXzhnuqFAUk_WIEyhIvbNO9zY",
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME",),
+    api_key=os.getenv("CLOUDINARY_API_KEY",),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET",),
     secure=True
 )
