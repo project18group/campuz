@@ -731,6 +731,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
         padding: const EdgeInsets.only(bottom: 24),
         children: [
           _buildHeader(),
+          _buildSmsBalanceSection(),
           if (_canManageMembers)
             InviteCard(
               hubId: _hubId,
@@ -822,6 +823,74 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSmsBalanceSection() {
+    if (!_canManageMembers) return const SizedBox.shrink();
+    final smsCredits = (_hub ?? widget.hub)?['sms_credits'] ?? 0;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.sms_outlined, color: AppColors.primaryForeground),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'SMS Balance',
+                    style: AppTextStyles.body.copyWith(
+                      color: AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '$smsCredits credits remaining',
+                    style: AppTextStyles.title.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.primaryForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final didTopUp = await context.push('/hub/$_hubId/top-up');
+                if (didTopUp == true) {
+                  _loadMembers();
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryForeground,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text('Top Up'),
+            ),
+          ],
+        ),
       ),
     );
   }

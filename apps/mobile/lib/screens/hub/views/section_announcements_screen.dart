@@ -376,24 +376,44 @@ class _SectionAnnouncementsScreenState
                         },
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Send as SMS',
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: FontWeight.w700,
+                      Builder(
+                        builder: (context) {
+                          final smsCredits = (widget.hub?['sms_credits'] as num?)?.toInt() ?? 0;
+                          final canSendSms = smsCredits > 0;
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Send as SMS',
+                                      style: AppTextStyles.body.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      'Balance: $smsCredits credits',
+                                      style: AppTextStyles.caption.copyWith(
+                                        color: canSendSms ? AppColors.textSecondary : AppColors.error,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ),
-                          Switch(
-                            value: _sendAsSms,
-                            onChanged: (value) {
-                              setSheetState(() => _sendAsSms = value);
-                              setState(() => _sendAsSms = value);
-                            },
-                          ),
-                        ],
+                              Switch(
+                                value: _sendAsSms && canSendSms,
+                                onChanged: canSendSms
+                                    ? (value) {
+                                        setSheetState(() => _sendAsSms = value);
+                                        setState(() => _sendAsSms = value);
+                                      }
+                                    : null,
+                              ),
+                            ],
+                          );
+                        }
                       ),
                       const SizedBox(height: 16),
                       SizedBox(

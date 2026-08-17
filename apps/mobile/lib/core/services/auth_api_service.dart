@@ -1135,4 +1135,17 @@ class AuthApiService {
   }) async {
     return _authorized((token) => _client.delete(Uri.parse('$_baseUrl/meetings/$meetingId/'), headers: _headers(token)));
   }
+
+  static Future<Map<String, dynamic>> initializeSmsTopUp({
+    required int hubId,
+    required String bundle,
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/hubs/$hubId/sms-topup/initialize/'),
+        headers: _headers(token),
+        body: jsonEncode({'bundle': bundle}),
+      ),
+    );
+  }
 }

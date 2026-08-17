@@ -7,6 +7,7 @@ import 'package:mobile/screens/contacts/views/direct_chat_screen.dart';
 import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
 import 'package:mobile/screens/hub/views/hub_detail_screen.dart';
+import 'package:mobile/screens/hub/views/top_up_screen.dart';
 import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_chat_screen.dart';
 import 'package:mobile/screens/hubs/views/hub_created_screen.dart';
@@ -87,6 +88,13 @@ final appRouter = GoRouter(
         final hubId = int.parse(state.pathParameters['hubId']!);
         final hub = state.extra as Map<String, dynamic>?;
         return HubDetailScreen(hub: hub ?? {'id': hubId});
+      },
+    ),
+    GoRoute(
+      path: "/hub/:hubId/top-up",
+      builder: (context, state) {
+        final hubId = int.parse(state.pathParameters['hubId']!);
+        return TopUpScreen(hubId: hubId);
       },
     ),
     GoRoute(

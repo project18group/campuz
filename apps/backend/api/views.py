@@ -1689,23 +1689,6 @@ class HubMessageView(APIView):
         if send_as_sms:
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
             hub_sms_service.queue_hub_sms_broadcast(message.id)
-        return Response(
-            {
-                **MessageSerializer(message, context={"request": request}).data,
-                "send_as_sms": send_as_sms,
-                "sms_delivery_queued": send_as_sms,
-                "sms_tracking_enabled": bool(
-                    send_as_sms and eligible_sms_recipients > 0
-                ),
-                "sms_eligible_recipients": eligible_sms_recipients,
-            },
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class SMSDeliveryWebhookView(APIView):
-    """
-    Public Arkesel delivery callback endpoint.
 
     Arkesel sends sms_id and status in the query string. The endpoint must stay
     open so the provider can reach it.
@@ -1837,3 +1820,95 @@ class NotificationReadStatusView(APIView):
             id__in=notification_ids, user=request.user
         ).update(is_read=True)
         return Response({"message": "Notifications marked as read."}, status=status.HTTP_200_OK)
+
+
+import hmac
+import hashlib
+import requests
+from django.conf import settings
+from rest_framework.permissions import AllowAny
+
+class HubSmsTopUpInitializeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, hub_id):
+        hub = self._hub_or_404(hub_id) if hasattr(self, '_hub_or_404') else Hub.objects.filter(id=hub_id).first()
+        if not hub:
+            return Response({"error": "Hub not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        if not _is_hub_admin(request.user, hub_id):
+            return Response({"error": "Only Hub admins can purchase SMS credits."}, status=status.HTTP_403_FORBIDDEN)
+        
+        bundle = request.data.get("bundle")
+        bundles = {
+            "100": 5,
+            "500": 25,
+            "1000": 50
+        }
+        
+        if str(bundle) not in bundles:
+            return Response({"error": "Invalid bundle selected."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        amount_ghs = bundles[str(bundle)]
+        amount_kobo = amount_ghs * 100
+        
+        headers = {
+            "Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}",
+            "Content-Type": "application/json"
+        }
+        reference = f"topup_{hub_id}_{uuid.uuid4().hex[:10]}"
+        data = {
+            "email": request.user.email or "user@campuz.com",
+            "amount": amount_kobo,
+            "reference": reference,
+            "callback_url": "https://campuz-api.onrender.com/payment/callback/",
+            "metadata": {
+                "hub_id": hub_id,
+                "bundle_size": int(bundle),
+                "user_id": request.user.id
+            }
+        }
+        
+        resp = requests.post("https://api.paystack.co/transaction/initialize", json=data, headers=headers)
+        if resp.status_code == 200:
+            return Response(resp.json()["data"], status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Paystack initialize failed: {resp.text}")
+            return Response({"error": "Payment initialization failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class PaystackWebhookView(APIView):
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        secret = settings.PAYSTACK_SECRET_KEY
+        signature = request.headers.get("x-paystack-signature")
+        if not signature:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+            
+        hash = hmac.new(secret.encode("utf-8"), request.body, hashlib.sha512).hexdigest()
+        if hash != signature:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+            
+        payload = request.data
+        if payload.get("event") == "charge.success":
+            data = payload.get("data", {})
+            metadata = data.get("metadata", {})
+            hub_id = metadata.get("hub_id")
+            bundle_size = metadata.get("bundle_size")
+            reference = data.get("reference")
+            
+            if hub_id and bundle_size:
+                hub = Hub.objects.filter(id=hub_id).first()
+                if hub:
+                    from .models import SmsCreditTransaction
+                    if not SmsCreditTransaction.objects.filter(reference=reference).exists():
+                        hub.sms_credits += int(bundle_size)
+                        hub.save(update_fields=["sms_credits"])
+                        SmsCreditTransaction.objects.create(
+                            hub=hub,
+                            transaction_type="credit",
+                            amount=int(bundle_size),
+                            reference=reference,
+                            description=f"Paystack topup of {bundle_size} SMS credits"
+                        )
+        return Response(status=status.HTTP_200_OK)

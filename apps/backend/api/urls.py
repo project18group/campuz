@@ -90,6 +90,16 @@ urlpatterns = [
         views.HubInviteJoinView.as_view(),
         name="hub-invite-join",
     ),
+    path(
+        "hubs/<int:hub_id>/sms-topup/initialize/",
+        views.HubSmsTopUpInitializeView.as_view(),
+        name="hub-sms-topup-initialize",
+    ),
+    path(
+        "webhooks/paystack/",
+        views.PaystackWebhookView.as_view(),
+        name="paystack-webhook",
+    ),
 
     # Notifications
     path(

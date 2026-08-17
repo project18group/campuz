@@ -114,8 +114,10 @@ class Hub(models.Model):
         User,
         through="HubMember",
         related_name="joined_hubs",
-        # blank=True,
     )
+
+    sms_credits = models.PositiveIntegerField(default=50)
+    is_premium = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -125,7 +127,6 @@ class Hub(models.Model):
 
 # Hub members are managed through the HubMember model, which allows for role-based access control within each hub.
 class HubMember(models.Model):
-
     ROLE_CHOICES = [
         ("admin", "Admin"),
         ("member", "Member"),
@@ -640,136 +641,7 @@ class DirectMessageAttachment(models.Model):
         return self.file_name
 
 
-class AdminInvitationCode(models.Model):
-    """
-    One-time invitation codes issued by system admins to grant hub creation
-    privileges. Each code is unique, single-use, and optionally has an expiry.
-    """
 
-    code = models.CharField(
-        max_length=50,
-        unique=True,
-        help_text="Unique invitation code (e.g., KNUST-CS-2026)",
-    )
-    created_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="created_invitation_codes",
-        help_text="Admin who created this code",
-    )
-    is_used = models.BooleanField(default=False)
-    used_by = models.ForeignKey(
-        User,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name="redeemed_invitation_codes",
-        help_text="User who redeemed this code",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    used_at = models.DateTimeField(null=True, blank=True)
-    expires_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Optional expiration timestamp",
-    )
-    is_active = models.BooleanField(
-        default=True,
-        help_text="Deactivated codes cannot be redeemed",
-    )
-
-    def __str__(self):
-        return f"{self.code} ({'used' if self.is_used else 'active'})"
-
-    class Meta:
-        verbose_name = "Admin Invitation Code"
-        verbose_name_plural = "Admin Invitation Codes"
-
-
-class DirectConversation(models.Model):
-    """
-    A 1:1 conversation between two users. Ordered users ensure uniqueness.
-    """
-
-    user_1 = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="direct_conversations_as_user1",
-    )
-    user_2 = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="direct_conversations_as_user2",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=("user_1", "user_2"),
-                name="unique_direct_conversation",
-            ),
-            models.CheckConstraint(
-                condition=~models.Q(user_1=models.F("user_2")),
-                name="direct_conversation_distinct_users",
-            ),
-        ]
-        ordering = ["-updated_at"]
-
-    def __str__(self):
-        return f"Conversation: {self.user_1.username} ↔ {self.user_2.username}"
-
-
-class DirectMessage(models.Model):
-    """
-    Messages within a DirectConversation.
-    """
-
-    conversation = models.ForeignKey(
-        DirectConversation,
-        on_delete=models.CASCADE,
-        related_name="messages",
-    )
-    sender = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="sent_direct_messages",
-    )
-    content = models.TextField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
-
-    class Meta:
-        ordering = ["timestamp"]
-
-    def __str__(self):
-        return f"{self.sender.username} -> {self.content[:30]}"
-
-
-class DirectMessageAttachment(models.Model):
-    """
-    A file attached to a direct message.
-    """
-
-    message = models.ForeignKey(
-        DirectMessage,
-        on_delete=models.CASCADE,
-        related_name="attachments",
-    )
-    file = models.FileField(upload_to="direct_messages/%Y/%m/%d/")
-    file_name = models.CharField(max_length=255)
-    mime_type = models.CharField(max_length=100, blank=True, null=True)
-    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ["created_at", "id"]
-
-    def __str__(self):
-        return self.file_name
 
 
 class DeviceToken(models.Model):
@@ -792,3 +664,27 @@ class AppNotification(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.title}"
+
+
+class SmsCreditTransaction(models.Model):
+    TRANSACTION_TYPES = [
+        ("credit", "Credit"),
+        ("debit", "Debit"),
+    ]
+
+    hub = models.ForeignKey(
+        Hub,
+        on_delete=models.CASCADE,
+        related_name="sms_transactions",
+    )
+    amount = models.PositiveIntegerField()
+    transaction_type = models.CharField(max_length=10, choices=TRANSACTION_TYPES)
+    reference = models.CharField(max_length=255, unique=True, null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.hub.name} - {self.transaction_type} {self.amount}"

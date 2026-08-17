@@ -37,11 +37,11 @@ def _build_sms_message(broadcast: Broadcast) -> str:
     return f"Campuz | {hub_name} | {title} - {content} ({sender_name})"
 
 
-def get_eligible_recipients(broadcast: Broadcast):
+def get_eligible_recipients(hub_id: int, sender_id: int):
     members = (
         HubMember.objects.select_related("user", "user__profile")
-        .filter(hub_id=broadcast.hub_id)
-        .exclude(user_id=broadcast.sender_id)
+        .filter(hub_id=hub_id)
+        .exclude(user_id=sender_id)
         .order_by("user_id")
     )
     for membership in members:
@@ -54,8 +54,8 @@ def get_eligible_recipients(broadcast: Broadcast):
         yield membership.user, phone_number
 
 
-def count_eligible_recipients(broadcast: Broadcast) -> int:
-    return sum(1 for _ in get_eligible_recipients(broadcast))
+def count_eligible_recipients(hub_id: int, sender_id: int) -> int:
+    return sum(1 for _ in get_eligible_recipients(hub_id, sender_id))
 
 
 def queue_broadcast_sms_delivery(broadcast_id: int) -> None:
@@ -82,7 +82,7 @@ def _deliver_broadcast_sms(broadcast_id: int) -> None:
             logger.warning("[broadcast_sms_service] Broadcast %s not found", broadcast_id)
             return
 
-        recipients = list(get_eligible_recipients(broadcast))
+        recipients = list(get_eligible_recipients(broadcast.hub_id, broadcast.sender_id))
         if not recipients:
             logger.info(
                 "[broadcast_sms_service] No eligible SMS recipients for broadcast %s",
