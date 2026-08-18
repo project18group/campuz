@@ -428,11 +428,35 @@ class _HubChatScreenState extends State<HubChatScreen> {
           ),
         );
         if (confirm == true && mounted) {
-          setState(() {
-            _messages.removeWhere(
-              (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
-            );
-          });
+          final messageId = message['id'];
+          if (messageId != null) {
+            try {
+              await AuthApiService.deleteMessage(messageId as int);
+              if (mounted) {
+                setState(() {
+                  _messages.removeWhere(
+                    (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
+                  );
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Message deleted')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to delete message: $e')),
+                );
+              }
+            }
+          } else {
+            // Local-only message
+            setState(() {
+              _messages.removeWhere(
+                (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
+              );
+            });
+          }
         }
         break;
     }

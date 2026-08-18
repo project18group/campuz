@@ -105,7 +105,7 @@ class ProfileSetupSerializer(serializers.ModelSerializer):
         write_only=True,
         help_text="Optional admin invitation code (e.g., KNUST-CS-2026)",
     )
-    avatar_file = serializers.ImageField(required=False, write_only=True)
+    avatar_file = serializers.FileField(required=False, write_only=True)
     remove_avatar = serializers.BooleanField(required=False, write_only=True, default=False)
 
     class Meta:
@@ -495,7 +495,7 @@ class HubSerializer(serializers.ModelSerializer):
     sections = HubSectionSerializer(many=True, read_only=True)
     current_user_role = serializers.SerializerMethodField()
     can_manage_members = serializers.SerializerMethodField()
-    cover_image_file = serializers.ImageField(required=False, write_only=True)
+    cover_image_file = serializers.FileField(required=False, write_only=True)
 
     class Meta:
         model = Hub

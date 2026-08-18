@@ -338,6 +338,15 @@ class AuthApiService {
     );
   }
 
+  static Future<void> deleteMessage(int messageId) async {
+    await _authorized(
+      (token) => _client.delete(
+        Uri.parse('$_baseUrl/messages/$messageId/'),
+        headers: _headers(token),
+      ),
+    );
+  }
+
   static Future<Map<String, dynamic>> sendHubMessage({
     required int hubId,
     required String content,
