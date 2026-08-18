@@ -1139,7 +1139,31 @@ class _HubChatScreenState extends State<HubChatScreen> {
     );
   }
 
+  bool get _isAdmin => widget.hub?['can_manage_members'] == true;
+
   Widget _buildComposer() {
+    if (!_isAdmin) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: Text(
+            'Students cannot post in hubs. Get admin access.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Container(
