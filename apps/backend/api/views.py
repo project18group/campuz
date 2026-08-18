@@ -1923,26 +1923,40 @@ class HubSmsTopUpInitializeView(APIView):
         }
         resp = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
         if resp.status_code == 200:
-            data = resp.json().get("data", {})
-            if data.get("status") == "success":
-                metadata = data.get("metadata", {})
-                bundle_size = metadata.get("bundle_size")
-                if bundle_size:
-                    from .models import SmsCreditTransaction
-                    if not SmsCreditTransaction.objects.filter(reference=reference).exists():
-                        hub.sms_credits += int(bundle_size)
-                        hub.save(update_fields=["sms_credits"])
-                        SmsCreditTransaction.objects.create(
-                            hub=hub,
-                            transaction_type="credit",
-                            amount=int(bundle_size),
-                            reference=reference,
-                            description=f"Paystack topup of {bundle_size} SMS credits"
-                        )
-                return Response({"status": "success", "sms_credits": hub.sms_credits}, status=status.HTTP_200_OK)
-            return Response({"status": "failed_or_pending"}, status=status.HTTP_400_BAD_REQUEST)
+            try:
+                data = resp.json().get("data", {})
+                if data.get("status") == "success":
+                    metadata = data.get("metadata", {})
+                    if isinstance(metadata, str):
+                        import json
+                        try:
+                            metadata = json.loads(metadata)
+                        except json.JSONDecodeError:
+                            metadata = {}
+                    
+                    bundle_size = metadata.get("bundle_size")
+                    if bundle_size:
+                        from .models import SmsCreditTransaction
+                        if not SmsCreditTransaction.objects.filter(reference=reference).exists():
+                            # Protect against None sms_credits
+                            current_credits = hub.sms_credits if hub.sms_credits is not None else 50
+                            hub.sms_credits = current_credits + int(bundle_size)
+                            hub.save(update_fields=["sms_credits"])
+                            SmsCreditTransaction.objects.create(
+                                hub=hub,
+                                transaction_type="credit",
+                                amount=int(bundle_size),
+                                reference=reference,
+                                description=f"Paystack topup of {bundle_size} SMS credits"
+                            )
+                    return Response({"status": "success", "sms_credits": hub.sms_credits}, status=status.HTTP_200_OK)
+                return Response({"status": "failed_or_pending"}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Error in verify_topup: {str(e)}")
+                return Response({"error": f"Server error: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         else:
-            return Response({"error": "Paystack verification failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({"error": f"Paystack verification failed. Status: {resp.status_code}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PaystackWebhookView(APIView):
     permission_classes = [AllowAny]

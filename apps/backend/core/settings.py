@@ -160,8 +160,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Campuz API",
-    "DESCRIPTION": "API endpoints for the Campuz backend",
+    "TITLE": "TekChat API",
+    "DESCRIPTION": "API endpoints for the Campuz, TekChat backend",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
