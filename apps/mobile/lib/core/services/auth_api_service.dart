@@ -839,20 +839,7 @@ class AuthApiService {
     AuthSession.accessToken ??= access;
     AuthSession.refreshToken ??= await SecureTokenStorage.readRefreshToken();
     AuthSession.username ??= await SecureTokenStorage.readUsername();
-    try {
-      await currentUser();
-      return true;
-    } on AuthApiException {
-      if (await refreshSession()) {
-        try {
-          await currentUser();
-          return true;
-        } on AuthApiException {
-          return false;
-        }
-      }
-      return false;
-    }
+    return true;
   }
 
   static Future<void> signOut() async {

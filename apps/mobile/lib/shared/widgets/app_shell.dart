@@ -46,9 +46,9 @@ class _AppShellState extends State<AppShell> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final currentIndex = _getCurrentIndex(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final currentIndex = _getCurrentIndex(context);
       if (_pageController.hasClients &&
           _pageController.page?.round() != currentIndex) {
         _pageController.jumpToPage(currentIndex);
