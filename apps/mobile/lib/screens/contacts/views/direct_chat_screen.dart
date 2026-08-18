@@ -342,32 +342,65 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final replyPrefix = replyMessage == null
           ? ''
           : '> ${_messageAuthor(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
+      final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final tempMessage = {
+        'id': tempId,
+        'content': '$replyPrefix$content',
+        'is_mine': true,
+        'is_read': false,
+        'is_pending': true,
+        'timestamp': DateTime.now().toIso8601String(),
+        'attachments': [],
+      };
+
+      setState(() {
+        _messages.add(tempMessage);
+        _messageController.clear();
+        _pendingAttachments.clear();
+        _replyToMessage = null;
+      });
+      _scrollToBottom();
+      
       final message = await AuthApiService.sendDirectMessage(
         conversationId: widget.conversationId,
         content: '$replyPrefix$content',
         attachments: List<PlatformFile>.from(_pendingAttachments),
       );
       if (!mounted) return;
-      _messageController.clear();
       setState(() {
         final sentMessage = Map<String, dynamic>.from(message);
-        if (!_hasMessage(sentMessage)) {
+        final index = _messages.indexWhere((m) => m['id'] == tempId);
+        if (index != -1) {
+          _messages[index] = sentMessage;
+        } else if (!_hasMessage(sentMessage)) {
           _messages.add(sentMessage);
         }
-        _pendingAttachments.clear();
-        _replyToMessage = null;
         _isSending = false;
       });
       _scrollToBottom();
     } on AuthApiException catch (error) {
       if (!mounted) return;
-      setState(() => _isSending = false);
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.message)),
       );
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isSending = false);
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to send message right now.')),
       );
@@ -662,6 +695,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     final timestamp = _formatTimestamp(_parseTimestamp(message));
     final isRead = message['is_read'] as bool? ?? false;
     final attachments = (message['attachments'] as List?) ?? const [];
+    final isPending = message['is_pending'] as bool? ?? false;
+    final isFailed = message['is_failed'] as bool? ?? false;
 
     return ChatMessageWrapper(
       messageId: _messageFingerprint(message),
@@ -898,11 +933,13 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                     if (isMine) ...[
                       const SizedBox(width: 3),
                       Icon(
+                        isFailed ? Icons.error_outline_rounded :
+                        isPending ? Icons.access_time_rounded :
                         isRead ? Icons.done_all_rounded : Icons.done_rounded,
                         size: 12,
-                        color: isRead
-                            ? const Color(0xFF53BDEB)
-                            : Colors.white70,
+                        color: isFailed ? Colors.red :
+                               isPending ? Colors.white70 :
+                               isRead ? const Color(0xFF53BDEB) : Colors.white70,
                       ),
                     ],
                   ],
@@ -1208,17 +1245,8 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                   ),
                   const SizedBox(width: 8),
                   IconButton.filled(
-                    onPressed: _isSending ? null : _send,
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.send_rounded),
+                    onPressed: _send,
+                    icon: const Icon(Icons.send_rounded),
                   ),
                 ],
               ),

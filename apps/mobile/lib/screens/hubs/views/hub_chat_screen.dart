@@ -244,45 +244,74 @@ class _HubChatScreenState extends State<HubChatScreen> {
       final replyPrefix = replyMessage == null
           ? ''
           : '> ${_displayName(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
+      final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      final tempMessage = {
+        'id': tempId,
+        'content': '$replyPrefix$content',
+        'is_mine': true,
+        'sender': {'username': AuthSession.username ?? 'Me'},
+        'timestamp': DateTime.now().toIso8601String(),
+        'is_pending': true,
+        'attachments': [],
+        'send_as_sms': _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
+      };
+
+      setState(() {
+        _messages.add(tempMessage);
+        _messageController.clear();
+        _clearDraft();
+        _pendingAttachments.clear();
+        _replyToMessage = null;
+      });
+      _scrollToBottom();
+
       final message = await AuthApiService.sendHubMessage(
         hubId: _hubId,
         content: '$replyPrefix$content',
-        sendAsSms: _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
+        sendAsSms: tempMessage['send_as_sms'] == true,
         attachments: List<PlatformFile>.from(_pendingAttachments),
       );
 
       if (!mounted) return;
 
-      _messageController.clear();
-      _clearDraft();
       setState(() {
         final sentMessage = Map<String, dynamic>.from(message);
         final messageKey = _messageIdKey(sentMessage);
-        if (!_hasMessageWithId(messageKey)) {
+        final index = _messages.indexWhere((m) => m['id'] == tempId);
+        if (index != -1) {
+          _messages[index] = sentMessage;
+        } else if (!_hasMessageWithId(messageKey)) {
           _messages.add(sentMessage);
         }
-        _pendingAttachments.clear();
-        _replyToMessage = null;
         _isSending = false;
         if (_sendAsSms && !_canSendAsSms) {
-          _sendAsSms = false;
-        }
-        if (_pendingAttachments.isNotEmpty ||
-            sentMessage['attachments'] is List &&
-                (sentMessage['attachments'] as List).isNotEmpty) {
           _sendAsSms = false;
         }
       });
       _scrollToBottom();
     } on AuthApiException catch (error) {
       if (!mounted) return;
-      setState(() => _isSending = false);
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(error.message)));
     } catch (_) {
       if (!mounted) return;
-      setState(() => _isSending = false);
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Unable to send message right now')),
       );
@@ -947,11 +976,32 @@ class _HubChatScreenState extends State<HubChatScreen> {
                   const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Text(
-                    timestamp,
-                    style: AppTextStyles.caption.copyWith(
-                      color: isMine ? Colors.white60 : AppColors.textSecondary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timestamp,
+                        style: AppTextStyles.caption.copyWith(
+                          color: isMine ? Colors.white60 : AppColors.textSecondary,
+                        ),
+                      ),
+                      if (isMine) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          (message['is_failed'] == true) 
+                              ? Icons.error_outline_rounded 
+                              : (message['is_pending'] == true)
+                                  ? Icons.access_time_rounded
+                                  : Icons.done_rounded,
+                          size: 13,
+                          color: (message['is_failed'] == true)
+                              ? Colors.red 
+                              : (message['is_pending'] == true)
+                                  ? Colors.white60
+                                  : const Color(0xFF53BDEB),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 if (smsSent) ...[
@@ -1198,8 +1248,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
         child: HubComposer(
           showSendAsSms: _canSendAsSms,
           sendAsSms: _sendAsSms,
-          isSending: _isSending,
-          canSend: !_isSending,
+          isSending: false,
+          canSend: true,
           controller: _messageController,
           attachments: _pendingAttachments,
           onSmsChanged: _confirmSendAsSms,
