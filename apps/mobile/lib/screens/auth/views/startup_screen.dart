@@ -68,7 +68,13 @@ class _StartupScreenState extends State<StartupScreen>
     if (!mounted) return;
 
     if (isValid) {
-      context.go('/home');
+      final cachedUser = await AuthApiService.readCachedCurrentUser();
+      final hasDisplayName = cachedUser != null && (cachedUser['display_name'] as String? ?? '').trim().isNotEmpty;
+      if (hasDisplayName) {
+        context.go('/home');
+      } else {
+        context.go('/profile-setup');
+      }
       return;
     }
 

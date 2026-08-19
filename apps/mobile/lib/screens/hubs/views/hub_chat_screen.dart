@@ -385,10 +385,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
     return '${content.substring(0, 90)}...';
   }
 
-  ChatReactionsConfig _reactionConfigForMessage(bool isMine) {
+  ChatReactionsConfig _reactionConfigForMessage(bool isMine, bool isAdmin) {
     return ChatReactionsConfig(
       availableReactions: const ['👍', '❤️', '😂', '😮', '😢', '😠', '➕'],
-      menuItems: isMine
+      menuItems: isMine || isAdmin
           ? const [
               MenuItem(label: 'Reply', icon: Icons.reply),
               MenuItem(label: 'Copy', icon: Icons.copy),
@@ -774,7 +774,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
       child: ChatMessageWrapper(
         messageId: _messageIdKey(message),
         controller: _reactionsController,
-        config: _reactionConfigForMessage(isMine),
+        config: _reactionConfigForMessage(isMine, _isAdmin),
         alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
         onMenuItemTapped: (item) => _handleMessageAction(message, item),
         child: Align(
@@ -992,7 +992,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                               ? Icons.error_outline_rounded 
                               : (message['is_pending'] == true)
                                   ? Icons.access_time_rounded
-                                  : Icons.done_rounded,
+                                  : Icons.done_all_rounded,
                           size: 13,
                           color: (message['is_failed'] == true)
                               ? Colors.red 

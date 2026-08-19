@@ -1280,7 +1280,7 @@ class AuthApiService {
   }) async {
     return _authorized(
       (token) => _client.post(
-        Uri.parse('$_baseUrl/hubs/$hubId/verify_topup/'),
+        Uri.parse('$_baseUrl/hubs/$hubId/sms-topup/verify/'),
         headers: _headers(token),
         body: jsonEncode({'reference': reference}),
       ),

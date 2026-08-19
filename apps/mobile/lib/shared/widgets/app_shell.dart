@@ -25,7 +25,7 @@ class _AppShellState extends State<AppShell> {
   late final PageController _pageController;
 
   int _getCurrentIndex(BuildContext context) {
-    final String location = GoRouterState.of(context).uri.toString();
+    final String location = GoRouter.of(context).routerDelegate.currentConfiguration.uri.toString();
     if (location.startsWith('/sessions')) return 1;
     if (location.startsWith('/ai')) return 2;
     if (location.startsWith('/profile')) return 3;
@@ -89,7 +89,7 @@ class _AppShellState extends State<AppShell> {
       return;
     }
 
-    if (GoRouterState.of(context).uri.toString() != _tabRoutes[index]) {
+    if (GoRouter.of(context).routerDelegate.currentConfiguration.uri.toString() != _tabRoutes[index]) {
       context.go(_tabRoutes[index]);
     }
   }
