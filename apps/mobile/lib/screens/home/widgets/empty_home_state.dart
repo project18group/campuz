@@ -47,7 +47,7 @@ class EmptyHomeState extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              'Join a hub to start receiving messages.\nIf you are creating the space for your class, make a hub to start sharing updates.',
+              'Join a hub to start receiving messages.\nAre you a coure representative?, make a hub to start sharing updates.',
               textAlign: TextAlign.center,
               style: AppTextStyles.body.copyWith(
                 color: AppColors.textSecondary,
