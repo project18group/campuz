@@ -139,7 +139,10 @@ class _ResourceListScreenState extends State<ResourceListScreen> {
   }
 
   Future<void> _openResource(Map<String, dynamic> resource) async {
-    final url = (resource['url'] as String? ?? '').trim();
+    final url = (resource['url'] as String? ??
+            resource['file'] as String? ??
+            '')
+        .trim();
     final uri = Uri.tryParse(url);
     if (uri == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -220,6 +223,7 @@ class _ResourceListScreenState extends State<ResourceListScreen> {
     final type = (resource['resource_type'] as String? ?? 'other').trim().toLowerCase();
     final uploadedBy = _uploadedBy(resource);
     final uploadDate = _formatDate(_parseUploadDate(resource));
+    final sizeBytes = (resource['size_bytes'] as num?)?.toInt();
 
     return Card(
       elevation: 0,
@@ -286,6 +290,19 @@ class _ResourceListScreenState extends State<ResourceListScreen> {
                         ),
                       ),
                     ),
+                    if (sizeBytes != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        sizeBytes < 1024
+                            ? '$sizeBytes B'
+                            : sizeBytes < 1024 * 1024
+                                ? '${(sizeBytes / 1024).toStringAsFixed(1)} KB'
+                                : '${(sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

@@ -780,6 +780,8 @@ class ResourceSerializer(serializers.ModelSerializer):
     is_mine = serializers.SerializerMethodField()
     can_manage = serializers.SerializerMethodField()
     file = serializers.SerializerMethodField()
+    file_name = serializers.SerializerMethodField()
+    size_bytes = serializers.SerializerMethodField()
 
     class Meta:
         model = Resource
@@ -790,6 +792,8 @@ class ResourceSerializer(serializers.ModelSerializer):
             "resource_type",
             "url",
             "file",
+            "file_name",
+            "size_bytes",
             "uploaded_by",
             "uploaded_by_name",
             "is_mine",
@@ -803,6 +807,8 @@ class ResourceSerializer(serializers.ModelSerializer):
             "is_mine",
             "can_manage",
             "file",
+            "file_name",
+            "size_bytes",
             "upload_date",
         ]
 
@@ -835,6 +841,22 @@ class ResourceSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         url = obj.file.url
         return request.build_absolute_uri(url) if request else url
+
+    def get_file_name(self, obj):
+        if not obj.file:
+            return None
+        try:
+            return obj.file.name.rsplit("/", 1)[-1]
+        except Exception:
+            return None
+
+    def get_size_bytes(self, obj):
+        if not obj.file:
+            return None
+        try:
+            return obj.file.size
+        except Exception:
+            return None
 
 
 class TaskCreateSerializer(serializers.Serializer):
