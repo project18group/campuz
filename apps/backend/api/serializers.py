@@ -314,6 +314,8 @@ class DirectMessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
+        if not self.get_is_image(obj) and "/image/upload/" in url:
+            url = url.replace("/image/upload/", "/raw/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):
@@ -552,10 +554,13 @@ class HubSerializer(serializers.ModelSerializer):
 
         if cover_image_file is not None:
             try:
-                upload_result = cloudinary.uploader.upload(cover_image_file, folder="campuz_hubs")
+                import cloudinary.uploader
+                upload_result = cloudinary.uploader.upload(cover_image_file.read(), folder="campuz_hubs", resource_type="auto")
                 instance.cover_image_url = upload_result.get("secure_url")
                 instance.save(update_fields=["cover_image_url"])
             except Exception as e:
+                import logging
+                logging.getLogger(__name__).error(f"Cloudinary upload failed: {str(e)}")
                 raise serializers.ValidationError({"cover_image_file": f"Failed to upload image: {str(e)}"})
 
         return instance
@@ -590,6 +595,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     sender_name = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    attachment_url = serializers.SerializerMethodField()
     sms_delivery_count = serializers.SerializerMethodField()
     sms_sent_count = serializers.SerializerMethodField()
     sms_failed_count = serializers.SerializerMethodField()
@@ -605,6 +611,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
             "title",
             "content",
             "priority",
+            "attachment_url",
             "timestamp",
             "sms_delivery_count",
             "sms_sent_count",
@@ -616,6 +623,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
             "sender_name",
             "is_mine",
             "timestamp",
+            "attachment_url",
             "sms_delivery_count",
             "sms_sent_count",
             "sms_failed_count",
@@ -634,6 +642,13 @@ class BroadcastSerializer(serializers.ModelSerializer):
     def get_is_mine(self, obj):
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and obj.sender_id == request.user.id)
+
+    def get_attachment_url(self, obj):
+        if not obj.attachment:
+            return None
+        request = self.context.get("request")
+        url = obj.attachment.url
+        return request.build_absolute_uri(url) if request else url
 
     def get_sms_delivery_count(self, obj):
         return obj.sms_deliveries.count()
@@ -735,7 +750,8 @@ class ResourceCreateSerializer(serializers.Serializer):
     ]
 
     title = serializers.CharField(max_length=200)
-    url = serializers.URLField(max_length=1000)
+    url = serializers.URLField(max_length=1000, required=False, allow_blank=True, allow_null=True)
+    file = serializers.FileField(required=False, allow_null=True)
     resource_type = serializers.ChoiceField(
         choices=RESOURCE_TYPE_CHOICES,
         default="other",
@@ -747,12 +763,23 @@ class ResourceCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Title cannot be blank.")
         return value
 
+    def validate(self, attrs):
+        url = (attrs.get("url") or "").strip()
+        file_obj = attrs.get("file")
+        if not url and file_obj is None:
+            raise serializers.ValidationError(
+                "Provide either a URL or a file to upload."
+            )
+        attrs["url"] = url
+        return attrs
+
 
 class ResourceSerializer(serializers.ModelSerializer):
     uploaded_by = UserSerializer(read_only=True)
     uploaded_by_name = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
     can_manage = serializers.SerializerMethodField()
+    file = serializers.SerializerMethodField()
 
     class Meta:
         model = Resource
@@ -762,6 +789,7 @@ class ResourceSerializer(serializers.ModelSerializer):
             "title",
             "resource_type",
             "url",
+            "file",
             "uploaded_by",
             "uploaded_by_name",
             "is_mine",
@@ -774,6 +802,7 @@ class ResourceSerializer(serializers.ModelSerializer):
             "uploaded_by_name",
             "is_mine",
             "can_manage",
+            "file",
             "upload_date",
         ]
 
@@ -799,6 +828,13 @@ class ResourceSerializer(serializers.ModelSerializer):
             return True
         membership = obj.hub.hub_members.filter(user=request.user).first()
         return bool(membership and membership.role == "admin")
+
+    def get_file(self, obj):
+        if not obj.file:
+            return None
+        request = self.context.get("request")
+        url = obj.file.url
+        return request.build_absolute_uri(url) if request else url
 
 
 class TaskCreateSerializer(serializers.Serializer):
@@ -1059,6 +1095,8 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
+        if not self.get_is_image(obj) and "/image/upload/" in url:
+            url = url.replace("/image/upload/", "/raw/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):

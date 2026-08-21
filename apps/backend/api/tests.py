@@ -19,6 +19,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from api.models import (
     AdminInvitationCode,
+    Broadcast,
     DirectMessage,
     Hub,
     HubInvite,
@@ -366,6 +367,52 @@ class HubContractTests(APITestCase):
         meeting_list = self.creator_client.get(f"/api/meetings/?hub={hub.id}")
         self.assertEqual(meeting_list.status_code, HTTP_200_OK)
         self.assertEqual(len(meeting_list.data["results"]), 1)
+
+    def test_resource_file_upload_round_trip(self):
+        hub = self._create_hub()
+        upload = SimpleUploadedFile(
+            "lecture-notes.pdf",
+            b"%PDF-1.4 test upload",
+            content_type="application/pdf",
+        )
+
+        response = self.creator_client.post(
+            f"/api/hubs/{hub.id}/resources/",
+            {
+                "title": "Lecture Notes",
+                "resource_type": "pdf",
+                "file": upload,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, HTTP_201_CREATED)
+        self.assertTrue(response.data["file"])
+        self.assertEqual(response.data["title"], "Lecture Notes")
+        self.assertEqual(response.data["resource_type"], "pdf")
+
+    def test_broadcast_attachment_blocks_sms_only_path(self):
+        hub = self._create_hub()
+        upload = SimpleUploadedFile(
+            "announcement.pdf",
+            b"%PDF-1.4 broadcast upload",
+            content_type="application/pdf",
+        )
+
+        response = self.creator_client.post(
+            f"/api/hubs/{hub.id}/broadcasts/",
+            {
+                "title": "Lecture Update",
+                "content": "Slides are attached.",
+                "priority": "normal",
+                "send_as_sms": True,
+                "attachment": upload,
+            },
+            format="multipart",
+        )
+
+        self.assertEqual(response.status_code, HTTP_400_BAD_REQUEST)
+        self.assertIn("text-only broadcasts", response.data["error"])
 
     def test_invites_can_be_created_and_joined(self):
         hub = self._create_hub()

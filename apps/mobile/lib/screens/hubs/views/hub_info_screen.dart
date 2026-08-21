@@ -323,7 +323,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
       String query,
       void Function(void Function()) setModalState,
     ) async {
-      if (!sheetIsOpen) return;
+      if (!sheetIsOpen || !mounted) return;
       setModalState(() {
         loading = true;
         error = null;
@@ -416,7 +416,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                         debounce?.cancel();
                         debounce = Timer(
                           const Duration(milliseconds: 300),
-                          () => searchUsers(value.trim(), setModalState),
+                          () {
+                            if (!sheetIsOpen || !mounted) return;
+                            searchUsers(value.trim(), setModalState);
+                          },
                         );
                       },
                     ),
@@ -492,12 +495,15 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
                         onPressed: selectedIds.isEmpty || submitting
                             ? null
                             : () async {
+                                debounce?.cancel();
+                                final selectedUserIds = selectedIds.toList()
+                                  ..sort();
                                 setModalState(() => submitting = true);
                                 try {
                                   await AuthApiService.updateHubMembership(
                                     hubId: _hubId,
                                     action: 'add',
-                                    userIds: selectedIds.toList()..sort(),
+                                    userIds: selectedUserIds,
                                   );
                                   if (!context.mounted) return;
                                   sheetIsOpen = false;

@@ -898,16 +898,23 @@ class ResourceViewSet(viewsets.ModelViewSet):
                 {"error": "Only Hub admins can upload resources."},
                 status=status.HTTP_403_FORBIDDEN,
             )
-
         serializer = ResourceCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        file_obj = serializer.validated_data.get("file") or request.FILES.get("file")
+        url_val = (serializer.validated_data.get("url") or "").strip()
+
         resource = Resource.objects.create(
             hub=hub,
             uploaded_by=request.user,
-            title=serializer.validated_data["title"],
-            url=serializer.validated_data["url"],
-            resource_type=serializer.validated_data["resource_type"],
+            title=serializer.validated_data.get("title", ""),
+            url=url_val,
+            resource_type=serializer.validated_data.get("resource_type", "other"),
+            file=file_obj,
         )
+        if file_obj and not url_val:
+            resource.url = resource.file.url if resource.file else ""
+            resource.save(update_fields=["url"])
         read_serializer = ResourceSerializer(resource, context={"request": request})
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -1219,14 +1226,21 @@ class HubBroadcastView(APIView):
 
         serializer = BroadcastCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        attachment = request.FILES.get("attachment")
+        send_as_sms = bool(serializer.validated_data.get("send_as_sms"))
+        if send_as_sms and attachment:
+            return Response(
+                {"error": "SMS delivery is only available for text-only broadcasts."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         broadcast = Broadcast.objects.create(
             hub=hub,
             sender=request.user,
             title=serializer.validated_data["title"],
             content=serializer.validated_data["content"],
             priority=serializer.validated_data["priority"],
+            attachment=attachment,
         )
-        send_as_sms = bool(serializer.validated_data.get("send_as_sms"))
         eligible_sms_recipients = 0
         if send_as_sms:
             eligible_sms_recipients = broadcast_sms_service.count_eligible_recipients(
@@ -1685,6 +1699,12 @@ class HubMessageView(APIView):
 
         content = str(request.data.get("content", "")).strip()
         attachments = request.FILES.getlist("attachments")
+        send_as_sms = _request_bool(request.data.get("send_as_sms"))
+        if send_as_sms and attachments:
+            return Response(
+                {"error": "SMS delivery is only available for text-only hub messages."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not content and not attachments:
             return Response(
                 {"error": "Message content or an attachment is required."},
@@ -1700,12 +1720,6 @@ class HubMessageView(APIView):
                 mime_type=getattr(upload, "content_type", None),
                 size_bytes=getattr(upload, "size", None),
             )
-        send_as_sms = _request_bool(request.data.get("send_as_sms"))
-        if send_as_sms and attachments:
-            return Response(
-                {"error": "SMS delivery is only available for text-only hub messages."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         eligible_sms_recipients = 0
         if send_as_sms:
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
@@ -1714,7 +1728,10 @@ class HubMessageView(APIView):
         response_data = MessageSerializer(message, context={"request": request}).data
         response_data.update({
             "send_as_sms": send_as_sms,
+            "sms_delivery_queued": send_as_sms,
+            "sms_tracking_enabled": bool(send_as_sms and eligible_sms_recipients > 0),
             "eligible_sms_recipients": eligible_sms_recipients,
+            "sms_eligible_recipients": eligible_sms_recipients,
         })
         return Response(response_data, status=status.HTTP_201_CREATED)
 
@@ -1907,11 +1924,14 @@ class HubSmsTopUpInitializeView(APIView):
             logger.error(f"Paystack initialize failed: {resp.text}")
             return Response({"error": "Payment initialization failed."}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    @action(detail=True, methods=["post"], url_path="verify_topup")
-    def verify_topup(self, request, pk=None):
-        hub = self.get_object()
-        membership = HubMember.objects.filter(hub=hub, user=request.user).first()
-        if not membership or membership.role != "admin":
+class HubSmsTopUpVerifyView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, hub_id):
+        hub = Hub.objects.filter(id=hub_id).first()
+        if not hub:
+            return Response({"error": "Hub not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not _is_hub_admin(request.user, hub_id):
             return Response({"error": "Only admins can verify top-ups."}, status=status.HTTP_403_FORBIDDEN)
             
         reference = request.data.get("reference")

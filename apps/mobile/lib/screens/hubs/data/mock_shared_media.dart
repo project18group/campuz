@@ -9,6 +9,7 @@ class MediaImageItem {
   final String sender;
   final DateTime date;
   final int size; // bytes
+  final String? url;
   final List<Color> gradient;
 
   const MediaImageItem({
@@ -17,6 +18,7 @@ class MediaImageItem {
     required this.sender,
     required this.date,
     required this.size,
+    this.url,
     required this.gradient,
   });
 }
@@ -28,6 +30,7 @@ class MediaDocumentItem {
   final String sender;
   final DateTime date;
   final int size; // bytes
+  final String? url;
 
   const MediaDocumentItem({
     required this.id,
@@ -36,6 +39,7 @@ class MediaDocumentItem {
     required this.sender,
     required this.date,
     required this.size,
+    this.url,
   });
 
   String get formattedSize {

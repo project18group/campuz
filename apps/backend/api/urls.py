@@ -96,6 +96,11 @@ urlpatterns = [
         name="hub-sms-topup-initialize",
     ),
     path(
+        "hubs/<int:hub_id>/sms-topup/verify/",
+        views.HubSmsTopUpVerifyView.as_view(),
+        name="hub-sms-topup-verify",
+    ),
+    path(
         "webhooks/paystack/",
         views.PaystackWebhookView.as_view(),
         name="paystack-webhook",
