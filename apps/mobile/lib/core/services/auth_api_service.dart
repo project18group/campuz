@@ -1113,8 +1113,17 @@ class AuthApiService {
   }
 
   static Future<List<dynamic>> getNotifications() async {
-    final response = await _authorized((token) => _client.get(Uri.parse('$_baseUrl/notifications/'), headers: _headers(token)));
-    return response as List<dynamic>;
+    final response = await _authorized(
+      (token) => _client.get(
+        Uri.parse('$_baseUrl/notifications/'),
+        headers: _headers(token),
+      ),
+    );
+    final list = response['results'] ?? response['data'] ?? response;
+    if (list is List) {
+      return list;
+    }
+    return const <dynamic>[];
   }
 
   static Future<void> markNotificationsAsRead({required List<int> notificationIds}) async {
@@ -1201,7 +1210,7 @@ class AuthApiService {
     if (!needsMultipart) {
       return _authorized(
         (token) => _client.post(
-          Uri.parse('$_baseUrl/conversations/$conversationId/messages/'),
+          Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
           headers: _headers(token),
           body: jsonEncode(body),
         ),
@@ -1212,7 +1221,7 @@ class AuthApiService {
       (token) async {
         final request = http.MultipartRequest(
           'POST',
-          Uri.parse('$_baseUrl/conversations/$conversationId/messages/'),
+          Uri.parse('$_baseUrl/conversations/direct/$conversationId/messages/'),
         );
         request.headers.addAll(_headers(token, includeContentType: false));
         request.fields.addAll(

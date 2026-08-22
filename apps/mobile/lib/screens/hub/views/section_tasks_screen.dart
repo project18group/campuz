@@ -253,7 +253,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
       },
     );
 
-    if (confirmed != true) return;
+    if (!mounted || confirmed != true) return;
 
     setState(() => _isSaving = true);
     try {
@@ -368,7 +368,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   );
                 }
 
-                if (!context.mounted) return;
+                if (!context.mounted || !sheetContext.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
@@ -535,7 +535,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   submissionLink: submissionLinkController.text.trim(),
                   submissionFile: submissionFile,
                 );
-                if (!context.mounted) return;
+                if (!context.mounted || !sheetContext.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
@@ -645,7 +645,7 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                   grade: grade,
                   feedback: _feedbackController.text.trim(),
                 );
-                if (!context.mounted) return;
+                if (!context.mounted || !sheetContext.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }

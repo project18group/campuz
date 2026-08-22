@@ -3,13 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 
-/// Sprint 15 — Notification architecture (mock, no plugin dependencies).
+/// Notification architecture for in-app alerts.
 ///
-/// This service is a UI-facing facade for in-app notifications. It currently
-/// runs entirely on mock data; the real implementation will be backed by the
-/// Django server (see the TODO(django) placeholder methods at the bottom)
-/// and, later, a push plugin such as firebase_messaging /
-/// flutter_local_notifications.
+/// This service keeps a local in-memory view for the UI but can also hydrate
+/// notifications from the Django backend and sync read state back to it.
+/// Push delivery can be layered on top later with a messaging plugin.
 
 /// A single in-app notification.
 @immutable
@@ -228,18 +226,20 @@ class NotificationService {
   Future<void> fetchNotificationsFromServer() async {
     try {
       final data = await AuthApiService.getNotifications();
-      // data might be a list directly or a paginated response with a "results" key.
-      // Assuming it's a list or has a "results" key.
-      final List results = data;
-      
-      final parsed = results.map((n) {
+      final List<dynamic> results = data;
+
+      final parsed = results.map((dynamic notification) {
+        final n = notification is Map<String, dynamic> ? notification : <String, dynamic>{};
+        final hubValue = n['hub'];
+        final hubId = hubValue?.toString() ?? '';
+        final hubName = (n['hub_name'] as String? ?? '').trim();
         return AppNotification(
           id: n['id'].toString(),
-          hubId: n['hub']?.toString() ?? '',
-          hubName: 'Hub ${n['hub']}', // Ideally this comes from the API
-          title: n['title'] ?? '',
-          body: n['body'] ?? '',
-          timestamp: DateTime.parse(n['created_at']),
+          hubId: hubId,
+          hubName: hubName.isNotEmpty ? hubName : 'Hub $hubId',
+          title: (n['title'] as String? ?? '').trim(),
+          body: (n['body'] as String? ?? '').trim(),
+          timestamp: DateTime.tryParse((n['created_at'] as String? ?? '').trim()) ?? DateTime.now(),
           isRead: n['is_read'] ?? false,
         );
       }).toList();

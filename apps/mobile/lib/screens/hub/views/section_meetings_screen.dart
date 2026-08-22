@@ -199,7 +199,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
       },
     );
 
-    if (confirmed != true) return;
+    if (!mounted || confirmed != true) return;
 
     setState(() => _isSaving = true);
     try {
@@ -321,7 +321,7 @@ class _SectionMeetingsScreenState extends State<SectionMeetingsScreen> {
                   );
                 }
 
-                if (!context.mounted) return;
+                if (!context.mounted || !sheetContext.mounted) return;
                 setState(() => _isSaving = false);
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();

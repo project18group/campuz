@@ -241,6 +241,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
     setState(() => _isSending = true);
     try {
       final replyMessage = _replyToMessage;
+      final attachmentsToSend = List<PlatformFile>.from(_pendingAttachments);
       final replyPrefix = replyMessage == null
           ? ''
           : '> ${_displayName(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
@@ -269,7 +270,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         hubId: _hubId,
         content: '$replyPrefix$content',
         sendAsSms: tempMessage['send_as_sms'] == true,
-        attachments: List<PlatformFile>.from(_pendingAttachments),
+        attachments: attachmentsToSend,
       );
 
       if (!mounted) return;

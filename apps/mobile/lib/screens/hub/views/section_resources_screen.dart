@@ -227,7 +227,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
       },
     );
 
-    if (confirmed != true || _isSaving) return;
+    if (!mounted || confirmed != true || _isSaving) return;
 
     setState(() => _isSaving = true);
     try {
@@ -287,11 +287,11 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                   file: selectedFile,
                   resourceType: resourceType,
                 );
-                if (!context.mounted) return;
+                if (!mounted) return;
                 setState(() {
                   _resources.insert(0, Map<String, dynamic>.from(created));
                 });
-                if (!context.mounted) return;
+                if (!mounted || !sheetContext.mounted) return;
                 if (Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
@@ -347,9 +347,11 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 final result = await FilePicker.pickFiles();
-                                if (result != null && result.files.single.path != null) {
+                                if (result != null &&
+                                    result.files.isNotEmpty &&
+                                    result.files.first.path != null) {
                                   setSheetState(() {
-                                    selectedFile = File(result.files.single.path!);
+                                    selectedFile = File(result.files.first.path!);
                                   });
                                 }
                               },

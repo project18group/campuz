@@ -56,11 +56,10 @@ class _EditHubSheetState extends State<EditHubSheet> {
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
-    if (picked != null) {
-      setState(() {
-        _selectedImage = File(picked.path);
-      });
-    }
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedImage = File(picked.path);
+    });
   }
 
   Future<void> _save() async {

@@ -181,11 +181,12 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
 
     setState(() => _isSending = true);
     try {
+      final attachmentsToSend = List<PlatformFile>.from(_pendingAttachments);
       final message = await AuthApiService.sendHubMessage(
         hubId: widget.hubId,
         content: content,
         sendAsSms: _sendAsSms && _canSendAsSms,
-        attachments: List<PlatformFile>.from(_pendingAttachments),
+        attachments: attachmentsToSend,
       );
 
       if (!mounted) return;

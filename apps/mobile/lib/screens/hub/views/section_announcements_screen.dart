@@ -371,9 +371,11 @@ class _SectionAnnouncementsScreenState
                             child: OutlinedButton.icon(
                               onPressed: () async {
                                 final result = await FilePicker.pickFiles();
-                                if (result != null && result.files.single.path != null) {
+                                if (result != null &&
+                                    result.files.isNotEmpty &&
+                                    result.files.first.path != null) {
                                   setSheetState(() {
-                                    _selectedFile = File(result.files.single.path!);
+                                    _selectedFile = File(result.files.first.path!);
                                   });
                                 }
                               },

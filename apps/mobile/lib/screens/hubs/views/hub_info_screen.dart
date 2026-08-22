@@ -357,7 +357,7 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
       }
     }
 
-    await showModalBottomSheet<void>(
+    final sheetFuture = showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
@@ -554,9 +554,12 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
       },
     );
 
-    debounce?.cancel();
-    sheetIsOpen = false;
-    searchController.dispose();
+    sheetFuture.whenComplete(() {
+      sheetIsOpen = false;
+      debounce?.cancel();
+      searchController.dispose();
+    });
+    await sheetFuture;
   }
 
   int? _memberUserId(Map<String, dynamic> member) {

@@ -339,6 +339,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
     setState(() => _isSending = true);
     try {
       final replyMessage = _replyToMessage;
+      final attachmentsToSend = List<PlatformFile>.from(_pendingAttachments);
       final replyPrefix = replyMessage == null
           ? ''
           : '> ${_messageAuthor(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
@@ -364,7 +365,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final message = await AuthApiService.sendDirectMessage(
         conversationId: widget.conversationId,
         content: '$replyPrefix$content',
-        attachments: List<PlatformFile>.from(_pendingAttachments),
+        attachments: attachmentsToSend,
       );
       if (!mounted) return;
       setState(() {
