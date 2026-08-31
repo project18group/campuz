@@ -23,6 +23,12 @@ import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/core/utils/image_cropper_utils.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:mobile/screens/hubs/widget/audio_message_player.dart';
 
 class HubChatScreen extends StatefulWidget {
   const HubChatScreen({super.key, this.hub, this.hubId});
@@ -42,6 +48,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
   );
   final List<Map<String, dynamic>> _messages = [];
   final List<PlatformFile> _pendingAttachments = [];
+  final Map<int, String> _onlineUsers = {};
+  final Set<String> _typingUsers = {};
+  Timer? _typingTimer;
 
   bool _isLoading = true;
   bool _isSending = false;
@@ -50,8 +59,14 @@ class _HubChatScreenState extends State<HubChatScreen> {
   bool _sendAsSms = false;
   String? _error;
   int _nextPage = 1;
-  Timer? _pollTimer;
+  WebSocketChannel? _channel;
   Map<String, dynamic>? _replyToMessage;
+
+  bool _isRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingDurationTimer;
+  final _audioRecorder = AudioRecorder();
+  String? _recordingPath;
 
   int get _hubId {
     final value = widget.hub?['id'] ?? widget.hubId;
@@ -75,12 +90,86 @@ class _HubChatScreenState extends State<HubChatScreen> {
     super.initState();
     _loadDraft();
     _messageController.addListener(_saveDraft);
+    _messageController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
     _loadMessages(reset: true);
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _loadMessages(reset: false, silent: true),
-    );
+    _initWebSocket();
+  }
+
+  Future<void> _initWebSocket() async {
+    if (_hubId == 0) return;
+    
+    try {
+      final token = await AuthApiService.getAccessToken();
+      if (token == null) return;
+      
+      final wsUrl = Uri.parse('${AuthApiService.wsBaseUrl}/ws/hub/$_hubId/?token=$token');
+      _channel = WebSocketChannel.connect(wsUrl);
+      
+      _channel!.stream.listen(
+        (data) {
+          if (!mounted) return;
+          try {
+            final payload = jsonDecode(data);
+            if (payload['type'] == 'chat_message') {
+              final message = payload['message'];
+              final existingIds = _messages.map(_messageIdKey).toSet();
+              if (!existingIds.contains(_messageIdKey(message))) {
+                setState(() {
+                  _messages.insert(0, message);
+                });
+                _scrollToBottom();
+              }
+            } else if (payload['type'] == 'presence_update') {
+              final userId = payload['user_id'] as int?;
+              final userName = payload['user_name'] as String?;
+              if (userId != null && userName != null && userName.isNotEmpty) {
+                setState(() {
+                  if (payload['status'] == 'online') {
+                    _onlineUsers[userId] = userName;
+                  } else {
+                    _onlineUsers.remove(userId);
+                  }
+                });
+              }
+            } else if (payload['type'] == 'typing_update') {
+              final userName = payload['user_name'] as String?;
+              if (userName != null && userName.isNotEmpty && userName != AuthSession.username) {
+                setState(() {
+                  if (payload['is_typing'] == true) {
+                    _typingUsers.add(userName);
+                  } else {
+                    _typingUsers.remove(userName);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        },
+      );
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  void _onTextChanged() {
+    if (_channel == null) return;
+    
+    final text = _messageController.text;
+    if (text.isNotEmpty) {
+      _channel!.sink.add(jsonEncode({'type': 'typing', 'is_typing': true}));
+      _typingTimer?.cancel();
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          _channel?.sink.add(jsonEncode({'type': 'typing', 'is_typing': false}));
+        }
+      });
+    } else {
+      _typingTimer?.cancel();
+      _channel!.sink.add(jsonEncode({'type': 'typing', 'is_typing': false}));
+    }
   }
 
   Future<void> _loadDraft() async {
@@ -113,7 +202,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
   @override
   void dispose() {
-    _pollTimer?.cancel();
+    _typingTimer?.cancel();
+    _recordingDurationTimer?.cancel();
+    _audioRecorder.dispose();
+    _channel?.sink.close();
     _messageController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
@@ -242,19 +334,26 @@ class _HubChatScreenState extends State<HubChatScreen> {
     try {
       final replyMessage = _replyToMessage;
       final attachmentsToSend = List<PlatformFile>.from(_pendingAttachments);
-      final replyPrefix = replyMessage == null
-          ? ''
-          : '> ${_displayName(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
       final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      
+      final replyTo = replyMessage != null
+          ? {
+              'id': replyMessage['id'],
+              'sender_name': _displayName(replyMessage),
+              'snippet': _replySnippet(replyMessage)
+            }
+          : null;
+
       final tempMessage = {
         'id': tempId,
-        'content': '$replyPrefix$content',
+        'content': content,
         'is_mine': true,
         'sender': {'username': AuthSession.username ?? 'Me'},
         'timestamp': DateTime.now().toIso8601String(),
         'is_pending': true,
         'attachments': [],
         'send_as_sms': _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
+        'reply_to': replyTo,
       };
 
       setState(() {
@@ -268,7 +367,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
       final message = await AuthApiService.sendHubMessage(
         hubId: _hubId,
-        content: '$replyPrefix$content',
+        content: content,
+        parentId: replyMessage?['id'],
         sendAsSms: tempMessage['send_as_sms'] == true,
         attachments: attachmentsToSend,
       );
@@ -497,6 +597,13 @@ class _HubChatScreenState extends State<HubChatScreen> {
     final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
     return mime.startsWith('image/') ||
         {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext);
+  }
+
+  bool _isAudioAttachment(Map<String, dynamic> attachment) {
+    final ext = (attachment['extension'] as String? ?? '').toLowerCase();
+    final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
+    return mime.startsWith('audio/') ||
+        {'mp3', 'm4a', 'wav', 'aac', 'ogg'}.contains(ext);
   }
 
   IconData _attachmentIconFor(Map<String, dynamic> attachment) {
@@ -744,6 +851,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
     final senderName = isMine ? 'You' : _displayName(message);
     final timestamp = _formatTimestamp(_parseTimestamp(message));
     final attachments = (message['attachments'] as List?) ?? const [];
+    final replyTo = message['reply_to'] as Map<String, dynamic>?;
+    final senderId = message['sender']?['id'] as int?;
+    final isOnline = !isMine && senderId != null && _onlineUsers.containsKey(senderId);
     final smsSent =
         message['send_as_sms'] == true ||
         message['sms_delivery_queued'] == true ||
@@ -807,14 +917,75 @@ class _HubChatScreenState extends State<HubChatScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  senderName,
-                  style: AppTextStyles.label.copyWith(
-                    color: isMine ? Colors.white70 : AppColors.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        senderName,
+                        style: AppTextStyles.label.copyWith(
+                          color: isMine ? Colors.white70 : AppColors.textSecondary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isOnline) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+                if (replyTo != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isMine ? Colors.white.withValues(alpha: 0.15) : AppColors.primaryDeep.withValues(alpha: 0.05),
+                      border: Border(
+                        left: BorderSide(
+                          color: isMine ? Colors.white54 : AppColors.primaryDeep,
+                          width: 3,
+                        ),
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          replyTo['sender_name']?.toString() ?? 'User',
+                          style: AppTextStyles.label.copyWith(
+                            color: isMine ? Colors.white : AppColors.primaryDeep,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          replyTo['snippet']?.toString() ?? '',
+                          style: AppTextStyles.body.copyWith(
+                            color: isMine ? Colors.white70 : AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 if (content.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   LinkifiedText(
@@ -840,8 +1011,17 @@ class _HubChatScreenState extends State<HubChatScreen> {
                         (attachment['file_name'] as String? ?? 'Attachment')
                             .trim();
                     final isImage = _isImageAttachment(attachment);
+                    final isAudio = _isAudioAttachment(attachment);
                     final color = _attachmentColorFor(attachment);
                     final icon = _attachmentIconFor(attachment);
+                    
+                    if (isAudio && url.isNotEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: AudioMessagePlayer(url: url, isMine: isMine),
+                      );
+                    }
+                    
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 6),
                       child: GestureDetector(
@@ -1246,18 +1426,68 @@ class _HubChatScreenState extends State<HubChatScreen> {
           color: AppColors.surface,
           border: Border(top: BorderSide(color: AppColors.border)),
         ),
-        child: HubComposer(
-          showSendAsSms: _canSendAsSms,
-          sendAsSms: _sendAsSms,
-          isSending: false,
-          canSend: true,
-          controller: _messageController,
-          attachments: _pendingAttachments,
-          onSmsChanged: _confirmSendAsSms,
-          onAttach: _pickAttachments,
-          onEmoji: _showEmojiPicker,
-          onRemoveAttachment: _removePendingAttachment,
-          onSend: _sendMessage,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_replyToMessage != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: AppColors.background,
+                child: Row(
+                  children: [
+                    const Icon(Icons.reply, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _displayName(_replyToMessage!),
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            (_replyToMessage!['content'] as String?) ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _replyToMessage = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            HubComposer(
+              showSendAsSms: _canSendAsSms,
+              sendAsSms: _sendAsSms,
+              isSending: _isSending,
+              canSend: _messageController.text.trim().isNotEmpty ||
+                  _pendingAttachments.isNotEmpty,
+              controller: _messageController,
+              attachments: _pendingAttachments,
+              onSmsChanged: _confirmSendAsSms,
+              onAttach: _pickAttachments,
+              onEmoji: _showEmojiPicker,
+              onRemoveAttachment: _removePendingAttachment,
+              onSend: _sendMessage,
+              isRecording: _isRecording,
+              recordingDuration: _recordingDuration,
+              onStartRecording: _startRecording,
+              onStopRecording: _stopRecording,
+              onCancelRecording: _cancelRecording,
+            ),
+          ],
         ),
       ),
     );
@@ -1473,6 +1703,20 @@ class _HubChatScreenState extends State<HubChatScreen> {
               ],
             ),
           ),
+          if (_typingUsers.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              color: AppColors.background,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_typingUsers.join(', ')} ${_typingUsers.length > 1 ? 'are' : 'is'} typing...',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
           _buildComposer(),
         ],
       ),

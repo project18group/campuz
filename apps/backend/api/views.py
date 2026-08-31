@@ -13,6 +13,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView  # noqa: F401 — re-exported
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from .models import (
     DirectConversation,
@@ -1698,6 +1700,14 @@ class HubMessageView(APIView):
             )
 
         content = str(request.data.get("content", "")).strip()
+        parent_id = request.data.get("parent_id")
+        parent = None
+        if parent_id:
+            try:
+                parent = Message.objects.get(id=parent_id, hub=hub)
+            except Message.DoesNotExist:
+                pass
+                
         attachments = request.FILES.getlist("attachments")
         send_as_sms = _request_bool(request.data.get("send_as_sms"))
         if send_as_sms and attachments:
@@ -1711,7 +1721,7 @@ class HubMessageView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        message = Message.objects.create(hub=hub, sender=request.user, content=content)
+        message = Message.objects.create(hub=hub, sender=request.user, content=content, parent=parent)
         for upload in attachments:
             MessageAttachment.objects.create(
                 message=message,
@@ -1733,6 +1743,17 @@ class HubMessageView(APIView):
             "eligible_sms_recipients": eligible_sms_recipients,
             "sms_eligible_recipients": eligible_sms_recipients,
         })
+        
+        # Broadcast message to WebSocket group
+        channel_layer = get_channel_layer()
+        async_to_sync(channel_layer.group_send)(
+            f"hub_{hub_id}",
+            {
+                "type": "chat_message",
+                "message": MessageSerializer(message, context={"request": request}).data
+            }
+        )
+        
         return Response(response_data, status=status.HTTP_201_CREATED)
 
 

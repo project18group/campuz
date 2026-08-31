@@ -1040,6 +1040,7 @@ class MessageSerializer(serializers.ModelSerializer):
     attachments = serializers.SerializerMethodField()
     attachment_count = serializers.SerializerMethodField()
     has_attachments = serializers.SerializerMethodField()
+    reply_to = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -1051,6 +1052,8 @@ class MessageSerializer(serializers.ModelSerializer):
             "is_mine",
             "content",
             "timestamp",
+            "parent",
+            "reply_to",
             "attachments",
             "attachment_count",
             "has_attachments",
@@ -1059,6 +1062,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "sender",
             "sender_name",
             "is_mine",
+            "reply_to",
             "attachments",
             "attachment_count",
             "has_attachments",
@@ -1073,6 +1077,24 @@ class MessageSerializer(serializers.ModelSerializer):
             return display_name
         full_name = (profile.full_name or "").strip()
         return full_name or "Campuz user"
+
+    def get_reply_to(self, obj):
+        if not obj.parent:
+            return None
+        profile = getattr(obj.parent.sender, "profile", None)
+        sender_name = "Campuz user"
+        if profile:
+            sender_name = (profile.display_name or profile.full_name or "Campuz user").strip()
+            
+        snippet = obj.parent.content[:50]
+        if len(obj.parent.content) > 50:
+            snippet += "..."
+            
+        return {
+            "id": obj.parent.id,
+            "sender_name": sender_name,
+            "snippet": snippet,
+        }
 
     def get_is_mine(self, obj):
         request = self.context.get("request")

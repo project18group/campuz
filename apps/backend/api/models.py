@@ -210,6 +210,7 @@ class Message(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name="messages")
     content = models.TextField()
     attachment = models.FileField(upload_to="broadcasts/%Y/%m/%d/", null=True, blank=True)
+    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
     timestamp = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

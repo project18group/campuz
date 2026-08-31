@@ -28,6 +28,18 @@ class AuthApiService {
     return "https://campuz-api.onrender.com/api";
   }
 
+  static String get wsBaseUrl {
+    if (_baseUrl.startsWith('http://')) {
+      return _baseUrl.replaceFirst('http://', 'ws://').replaceAll(RegExp(r'/api$'), '');
+    }
+    return _baseUrl.replaceFirst('https://', 'wss://').replaceAll(RegExp(r'/api$'), '');
+  }
+
+  static Future<String?> getAccessToken() async {
+    return SecureTokenStorage.getAccessToken();
+  }
+
+
   // ---------------------------------------------------------------------------
   // Phone-OTP authentication
   // ---------------------------------------------------------------------------
@@ -350,6 +362,7 @@ class AuthApiService {
   static Future<Map<String, dynamic>> sendHubMessage({
     required int hubId,
     required String content,
+    int? parentId,
     bool sendAsSms = false,
     List<PlatformFile>? attachments,
   }) async {
@@ -358,6 +371,9 @@ class AuthApiService {
       'content': content,
       'send_as_sms': sendAsSms,
     };
+    if (parentId != null) {
+      body['parent_id'] = parentId;
+    }
 
     if (!needsMultipart) {
       return _authorized(

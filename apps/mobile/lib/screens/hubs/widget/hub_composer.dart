@@ -15,6 +15,11 @@ class HubComposer extends StatelessWidget {
   final VoidCallback? onEmoji;
   final VoidCallback onSend;
   final ValueChanged<int>? onRemoveAttachment;
+  final bool isRecording;
+  final Duration recordingDuration;
+  final VoidCallback? onStartRecording;
+  final VoidCallback? onStopRecording;
+  final VoidCallback? onCancelRecording;
 
   const HubComposer({
     super.key,
@@ -29,6 +34,11 @@ class HubComposer extends StatelessWidget {
     this.onEmoji,
     required this.onSend,
     this.onRemoveAttachment,
+    this.isRecording = false,
+    this.recordingDuration = Duration.zero,
+    this.onStartRecording,
+    this.onStopRecording,
+    this.onCancelRecording,
   });
 
   Widget _buildAttachmentChip(PlatformFile file, int index) {
@@ -182,40 +192,77 @@ class HubComposer extends StatelessWidget {
                 ),
 
               Expanded(
-                child: TextField(
-                  controller: controller,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w500,
-                    fontSize: 15,
-                  ),
-                  keyboardType: TextInputType.multiline,
-                  maxLines: null,
-                  minLines: 1,
-                  decoration: InputDecoration(
-                    hintText: "Type a message",
-                    hintStyle: AppTextStyles.label,
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(25),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+                child: isRecording
+                    ? Row(
+                        children: [
+                          const Icon(Icons.mic, color: Colors.red),
+                          const SizedBox(width: 8),
+                          Text(
+                            '${recordingDuration.inMinutes.toString().padLeft(2, '0')}:${(recordingDuration.inSeconds % 60).toString().padLeft(2, '0')}',
+                            style: AppTextStyles.body.copyWith(color: Colors.red),
+                          ),
+                          const Spacer(),
+                          TextButton(
+                            onPressed: onCancelRecording,
+                            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                          ),
+                        ],
+                      )
+                    : TextField(
+                        controller: controller,
+                        style: AppTextStyles.body.copyWith(
+                          fontWeight: FontWeight.w500,
+                          fontSize: 15,
+                        ),
+                        keyboardType: TextInputType.multiline,
+                        maxLines: null,
+                        minLines: 1,
+                        decoration: InputDecoration(
+                          hintText: "Type a message",
+                          hintStyle: AppTextStyles.label,
+                          filled: true,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(25),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
               ),
 
-              isSending
-                  ? const Padding(
-                      padding: EdgeInsets.all(12.0),
-                      child: SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+              if (isRecording)
+                IconButton(
+                  onPressed: onStopRecording,
+                  icon: const Icon(Icons.send, color: AppColors.primary),
+                )
+              else if (isSending)
+                const Padding(
+                  padding: EdgeInsets.all(12.0),
+                  child: SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                )
+              else
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: controller,
+                  builder: (context, value, child) {
+                    if (value.text.trim().isNotEmpty) {
+                      return IconButton(
+                        onPressed: canSend ? onSend : null,
+                        icon: const Icon(Icons.send, color: AppColors.primary),
+                      );
+                    }
+                    return GestureDetector(
+                      onLongPress: onStartRecording,
+                      onLongPressUp: onStopRecording,
+                      child: IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.mic, color: AppColors.primary),
                       ),
-                    )
-                  : IconButton(
-                      onPressed: canSend ? onSend : null,
-                      icon: Icon(Icons.send, color: AppColors.primary),
-                    ),
+                    );
+                  },
+                ),
             ],
           ),
         ],
