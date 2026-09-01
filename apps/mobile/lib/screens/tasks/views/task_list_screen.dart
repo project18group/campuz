@@ -5,6 +5,7 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
 
 class TaskListScreen extends StatefulWidget {
   const TaskListScreen({super.key});
@@ -480,6 +481,30 @@ class _TaskListScreenState extends State<TaskListScreen> {
                   ),
                 ],
               ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  if (dueDate != null) {
+                    final Event event = Event(
+                      title: task['title'] ?? 'Task Deadline',
+                      description: task['description'] ?? '',
+                      location: 'Campuz App',
+                      startDate: dueDate,
+                      endDate: dueDate.add(const Duration(hours: 1)),
+                    );
+                    Add2Calendar.addEvent2Cal(event);
+                  }
+                },
+                icon: const Icon(Icons.edit_calendar_rounded, size: 18),
+                label: const Text('Sync to Calendar'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: BorderSide(color: AppColors.primary.withValues(alpha: 0.3)),
+                ),
+              ),
             ),
           ],
         ),

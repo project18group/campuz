@@ -6,11 +6,16 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 
+import 'package:mobile/core/services/push_notification_service.dart';
+
 // Global theme notifier
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize push notifications (handles Firebase Core init as well)
+  await PushNotificationService.initialize();
 
   // Load saved theme mode from SharedPreferences
   final prefs = await SharedPreferences.getInstance();

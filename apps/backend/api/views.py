@@ -69,6 +69,9 @@ from .serializers import (
     _mark_otp_requested,
 )
 from .services import broadcast_sms_service, hub_sms_service, sms_service
+from .services.push_service import send_push_notification
+from .services.deadline_extractor import extract_deadline
+
 
 logger = logging.getLogger(__name__)
 
@@ -1250,6 +1253,31 @@ class HubBroadcastView(APIView):
             )
             broadcast_sms_service.queue_broadcast_sms_delivery(broadcast.id)
 
+        # 1. Extract deadline intelligently
+        deadline = extract_deadline(broadcast.content)
+        if deadline:
+            try:
+                TaskItem.objects.create(
+                    hub=hub,
+                    title=broadcast.title,
+                    description=broadcast.content,
+                    course_name="Broadcast Task",
+                    due_date=deadline,
+                    assigned_to=request.user,
+                )
+            except Exception as e:
+                logger.error(f"Failed to create extracted task: {e}")
+
+        # 2. Push Notifications
+        for member in hub.members.exclude(id=request.user.id):
+            send_push_notification(
+                user=member,
+                hub=hub,
+                title=f"Broadcast: {broadcast.title}",
+                body=broadcast.content[:100],
+                data={"hub_id": str(hub.id), "type": "broadcast"}
+            )
+
         response = BroadcastSerializer(broadcast, context={"request": request}).data
         response.update(
             {
@@ -1257,6 +1285,7 @@ class HubBroadcastView(APIView):
                 "sms_delivery_queued": send_as_sms,
                 "sms_tracking_enabled": bool(send_as_sms and eligible_sms_recipients > 0),
                 "sms_eligible_recipients": eligible_sms_recipients,
+                "extracted_deadline": deadline.isoformat() if deadline else None,
             }
         )
         return Response(response, status=status.HTTP_201_CREATED)
@@ -1734,6 +1763,32 @@ class HubMessageView(APIView):
         if send_as_sms:
             eligible_sms_recipients = hub_sms_service.count_eligible_recipients(message)
             hub_sms_service.queue_hub_sms_broadcast(message.id)
+            
+        # 1. Extract deadline intelligently
+        deadline = extract_deadline(content)
+        if deadline:
+            try:
+                TaskItem.objects.create(
+                    hub=hub,
+                    title=content[:50] + "..." if len(content) > 50 else content,
+                    description=content,
+                    course_name="Extracted Task",
+                    due_date=deadline,
+                    assigned_to=request.user,
+                )
+            except Exception as e:
+                logger.error(f"Failed to create extracted task: {e}")
+
+        # 2. Push Notifications
+        sender_name = request.user.profile.display_name or request.user.profile.full_name or "Someone"
+        for member in hub.members.exclude(id=request.user.id):
+            send_push_notification(
+                user=member,
+                hub=hub,
+                title=f"New message in {hub.name}",
+                body=f"{sender_name}: {content[:100]}",
+                data={"hub_id": str(hub.id), "type": "message"}
+            )
 
         response_data = MessageSerializer(message, context={"request": request}).data
         response_data.update({
@@ -1742,6 +1797,7 @@ class HubMessageView(APIView):
             "sms_tracking_enabled": bool(send_as_sms and eligible_sms_recipients > 0),
             "eligible_sms_recipients": eligible_sms_recipients,
             "sms_eligible_recipients": eligible_sms_recipients,
+            "extracted_deadline": deadline.isoformat() if deadline else None,
         })
         
         # Broadcast message to WebSocket group
