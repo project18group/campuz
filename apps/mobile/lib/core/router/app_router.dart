@@ -25,6 +25,7 @@ import 'package:mobile/screens/resources/views/resource_list_screen.dart';
 import 'package:mobile/screens/tasks/views/task_list_screen.dart';
 import 'package:mobile/screens/calendar/views/calendar_screen.dart';
 import 'package:mobile/screens/sessions/views/sessions_screen.dart';
+import 'package:mobile/screens/analytics/views/analytics_dashboard_screen.dart';
 import 'package:mobile/shared/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
@@ -189,6 +190,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: "/settings",
       builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: "/analytics",
+      builder: (context, state) => const AnalyticsDashboardScreen(),
     ),
   ],
 );

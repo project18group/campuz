@@ -4,6 +4,7 @@ import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
 
 // Global theme notifier
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
@@ -15,6 +16,9 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final isDarkMode = prefs.getBool('settings_dark_mode') ?? false;
   themeNotifier.value = isDarkMode ? ThemeMode.dark : ThemeMode.light;
+
+  // Sync any offline messages in the background
+  AuthApiService.syncOfflineQueue().catchError((_) {});
 
   runApp(const CampuzApp());
 }

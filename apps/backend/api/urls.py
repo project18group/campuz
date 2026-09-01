@@ -123,5 +123,11 @@ urlpatterns = [
         name="notification-read-status",
     ),
 
+    path(
+        "analytics/",
+        views.AnalyticsView.as_view(),
+        name="analytics-dashboard",
+    ),
+
     path("", include(router.urls)),
 ]

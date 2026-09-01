@@ -2035,3 +2035,25 @@ class PaystackWebhookView(APIView):
                             description=f"Paystack topup of {bundle_size} SMS credits"
                         )
         return Response(status=status.HTTP_200_OK)
+
+class AnalyticsView(APIView):
+    """
+    Returns real-time analytics for the current user.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        hubs = Hub.objects.filter(members__user=user)
+        total_hubs = hubs.count()
+        total_messages = Message.objects.filter(sender=user).count()
+        
+        # Total members across all hubs the user is part of (excluding duplicates)
+        total_peers = User.objects.filter(hubmember__hub__in=hubs).distinct().count()
+
+        return Response({
+            "total_hubs_joined": total_hubs,
+            "total_messages_sent": total_messages,
+            "total_peers_reached": total_peers,
+            "active_now": 1, # Minimal placeholder
+        })

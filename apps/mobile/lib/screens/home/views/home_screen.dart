@@ -227,6 +227,10 @@ class HomeScreenState extends State<HomeScreen> {
         ),
         actions: [
           IconButton(
+            icon: const Icon(Icons.analytics_rounded),
+            onPressed: () => context.push('/analytics'),
+          ),
+          IconButton(
             icon: const Icon(Icons.search),
             onPressed: () => context.push('/select-contact'),
           ),

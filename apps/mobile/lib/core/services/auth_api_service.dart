@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:file_picker/file_picker.dart';
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/services/secure_token_storage.dart';
+import 'package:mobile/core/services/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthApiException implements Exception {
@@ -261,17 +262,23 @@ class AuthApiService {
   // ---------------------------------------------------------------------------
 
   static Future<List<Map<String, dynamic>>> getHubs() async {
-    final result = await _authorized(
-      (token) => _client.get(
-        Uri.parse('$_baseUrl/hubs/'),
-        headers: _headers(token),
-      ),
-    );
-    final list = result['data'];
-    if (list is List) {
-      return list.whereType<Map<String, dynamic>>().toList();
+    try {
+      final result = await _authorized(
+        (token) => _client.get(
+          Uri.parse('$_baseUrl/hubs/'),
+          headers: _headers(token),
+        ),
+      );
+      final list = result['data'];
+      if (list is List) {
+        final hubs = list.whereType<Map<String, dynamic>>().toList();
+        await DatabaseHelper.instance.saveHubs(hubs);
+        return hubs;
+      }
+      return <Map<String, dynamic>>[];
+    } catch (e) {
+      return await DatabaseHelper.instance.getHubs();
     }
-    return <Map<String, dynamic>>[];
   }
 
   static Future<Map<String, dynamic>> createHub({
@@ -345,9 +352,26 @@ class AuthApiService {
     final uri = Uri.parse('$_baseUrl/hubs/$hubId/messages/').replace(
       queryParameters: {'page': '$page'},
     );
-    return _authorized(
-      (token) => _client.get(uri, headers: _headers(token)),
-    );
+    try {
+      final result = await _authorized(
+        (token) => _client.get(uri, headers: _headers(token)),
+      );
+      
+      if (page == 1 && result['data'] is List) {
+        final messages = (result['data'] as List).whereType<Map<String, dynamic>>().toList();
+        await DatabaseHelper.instance.saveMessages(hubId, messages);
+      }
+      return result;
+    } catch (e) {
+      if (page == 1) {
+        final cachedMessages = await DatabaseHelper.instance.getMessages(hubId);
+        return {
+          'data': cachedMessages,
+          'meta': {'has_next': false, 'page': 1},
+        };
+      }
+      rethrow;
+    }
   }
 
   static Future<void> deleteMessage(int messageId) async {
@@ -375,40 +399,65 @@ class AuthApiService {
       body['parent_id'] = parentId;
     }
 
-    if (!needsMultipart) {
-      return _authorized(
-        (token) => _client.post(
-          Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
-          headers: _headers(token),
-          body: jsonEncode(body),
-        ),
-      );
-    }
+    try {
+      if (!needsMultipart) {
+        return await _authorized(
+          (token) => _client.post(
+            Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
+            headers: _headers(token),
+            body: jsonEncode(body),
+          ),
+        );
+      }
 
-    return _authorizedMultipart(
-      (token) async {
-        final request = http.MultipartRequest(
-          'POST',
-          Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
-        );
-        request.headers.addAll(_headers(token, includeContentType: false));
-        request.fields.addAll(
-          body.map((key, value) => MapEntry(key, value.toString())),
-        );
-        for (final file in attachments) {
-          if (file.path != null) {
-            request.files.add(
-              await http.MultipartFile.fromPath(
-                'attachments',
-                file.path!,
-                filename: file.name,
-              ),
-            );
+      return await _authorizedMultipart(
+        (token) async {
+          final request = http.MultipartRequest(
+            'POST',
+            Uri.parse('$_baseUrl/hubs/$hubId/messages/'),
+          );
+          request.headers.addAll(_headers(token, includeContentType: false));
+          request.fields.addAll(
+            body.map((key, value) => MapEntry(key, value.toString())),
+          );
+          for (final file in attachments) {
+            if (file.path != null) {
+              request.files.add(
+                await http.MultipartFile.fromPath(
+                  'attachments',
+                  file.path!,
+                  filename: file.name,
+                ),
+              );
+            }
           }
-        }
-        return request.send();
-      },
-    );
+          return request.send();
+        },
+      );
+    } catch (e) {
+      if (e is AuthApiException && 
+          (e.message.contains('No internet') || 
+           e.message.contains('timed out') || 
+           e.message.contains('Could not connect'))) {
+        
+        final queueId = await DatabaseHelper.instance.queueMessage(
+          hubId: hubId,
+          content: content,
+          attachments: attachments?.map((e) => e.path!).toList(),
+          replyToId: parentId,
+          sendAsSms: sendAsSms,
+        );
+
+        return {
+          'id': -queueId, // Negative ID implies local queued
+          'content': content,
+          'is_offline_queued': true,
+          'created_at': DateTime.now().toIso8601String(),
+          'sender_name': AuthSession.currentUser?['display_name'] ?? 'You',
+        };
+      }
+      rethrow;
+    }
   }
 
   static Future<List<Map<String, dynamic>>> getBroadcasts() async {
@@ -1310,5 +1359,42 @@ class AuthApiService {
         body: jsonEncode({'reference': reference}),
       ),
     );
+  }
+
+  static Future<void> syncOfflineQueue() async {
+    final queued = await DatabaseHelper.instance.getQueuedMessages();
+    for (final q in queued) {
+      try {
+        final hubId = q['hub_id'] as int;
+        final content = q['content'] as String;
+        final replyToId = q['reply_to_id'] as int?;
+        final sendAsSms = (q['send_as_sms'] as int) == 1;
+        
+        List<PlatformFile>? attachments;
+        if (q['attachments'] != null) {
+          final List<dynamic> paths = jsonDecode(q['attachments'] as String);
+          attachments = paths.map((p) => PlatformFile(path: p as String, name: p.split('/').last, size: 0)).toList();
+        }
+
+        // Use the underlying post request directly to avoid re-triggering the queue logic recursively in catch block
+        await sendHubMessage(
+          hubId: hubId,
+          content: content,
+          parentId: replyToId,
+          sendAsSms: sendAsSms,
+          attachments: attachments,
+        );
+
+        await DatabaseHelper.instance.deleteQueuedMessage(q['id'] as int);
+      } catch (e) {
+        // Stop syncing on first network failure
+        if (e is AuthApiException && 
+          (e.message.contains('No internet') || 
+           e.message.contains('timed out') || 
+           e.message.contains('Could not connect'))) {
+          break;
+        }
+      }
+    }
   }
 }
