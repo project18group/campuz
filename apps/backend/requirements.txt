@@ -26,7 +26,7 @@ django-cloudinary-storage==0.3.0
 firebase-admin==6.5.0
 django-apscheduler==0.6.2
 transformers==4.40.1
-torch==2.3.0
+torch
 dateparser==1.2.0
 daphne==4.1.2
 channels==4.1.0
