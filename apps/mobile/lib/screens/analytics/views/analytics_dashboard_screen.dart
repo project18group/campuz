@@ -37,9 +37,9 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     });
 
     try {
-      final token = await SecureTokenStorage.getAccessToken();
+      final token = await SecureTokenStorage.readAccessToken();
       // We extract the baseUrl from AuthApiService to avoid hardcoding
-      final baseUrl = AuthApiService.wsBaseUrl.replaceFirst('ws', 'http').replaceAll(RegExp(r'/api$'), '') + '/api';
+      final baseUrl = '${AuthApiService.wsBaseUrl.replaceFirst('ws', 'http').replaceAll(RegExp(r'/api$'), '')}/api';
       final response = await http.get(
         Uri.parse('$baseUrl/analytics/'),
         headers: {
@@ -72,16 +72,16 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Your Analytics',
-          style: AppTextStyles.h2.copyWith(fontSize: 20),
+          style: AppTextStyles.heading.copyWith(fontSize: 20),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.primary),
             onPressed: _fetchAnalytics,
           ),
         ],
@@ -93,7 +93,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.signal_wifi_off_rounded, size: 64, color: AppColors.textSecondary),
+                      Icon(Icons.signal_wifi_off_rounded, size: 64, color: AppColors.textSecondary),
                       const SizedBox(height: 16),
                       Text(_error!, style: AppTextStyles.body),
                       const SizedBox(height: 16),
@@ -183,7 +183,7 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: AppTextStyles.h1.copyWith(
+                  style: AppTextStyles.heading.copyWith(
                     color: AppColors.textPrimary,
                     fontSize: 32,
                   ),

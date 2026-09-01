@@ -27,7 +27,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'dart:convert';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:mobile/screens/hubs/widget/audio_message_player.dart';
 
 class HubChatScreen extends StatefulWidget {
@@ -760,6 +759,83 @@ class _HubChatScreenState extends State<HubChatScreen> {
     setState(() => _pendingAttachments.removeAt(index));
   }
 
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        _recordingPath = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: _recordingPath!,
+        );
+
+        setState(() {
+          _isRecording = true;
+          _recordingDuration = Duration.zero;
+        });
+
+        _recordingDurationTimer?.cancel();
+        _recordingDurationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _recordingDuration = Duration(seconds: timer.tick);
+          });
+        });
+      }
+    } catch (e) {
+      debugPrint('Error starting record: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      _recordingDurationTimer?.cancel();
+      final path = await _audioRecorder.stop();
+      
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          setState(() {
+            _pendingAttachments.add(PlatformFile(
+              path: path,
+              name: 'Voice message.m4a',
+              size: file.lengthSync(),
+            ));
+            _sendAsSms = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping record: $e');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      _recordingDurationTimer?.cancel();
+      await _audioRecorder.stop();
+      
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+      
+      if (_recordingPath != null) {
+        final file = File(_recordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error canceling record: $e');
+    }
+  }
+
   Future<void> _showEmojiPicker() async {
     if (!mounted) return;
     showModalBottomSheet<void>(
@@ -1435,7 +1511,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 color: AppColors.background,
                 child: Row(
                   children: [
-                    const Icon(Icons.reply, size: 20, color: AppColors.primary),
+                    Icon(Icons.reply, size: 20, color: AppColors.primary),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(

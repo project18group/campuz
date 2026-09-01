@@ -75,10 +75,9 @@ class PushNotificationService {
 
   static Future<void> _sendTokenToBackend(String token) async {
     try {
-      final authService = AuthApiService();
       // Wait, there is no registerToken endpoint in AuthApiService yet.
       // We will add it shortly.
-      await authService.registerDeviceToken(token);
+      await AuthApiService.registerDeviceToken(token: token);
       debugPrint('Token synced with backend: $token');
     } catch (e) {
       debugPrint('Failed to sync token with backend: $e');

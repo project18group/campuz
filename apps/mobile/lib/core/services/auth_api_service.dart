@@ -37,7 +37,7 @@ class AuthApiService {
   }
 
   static Future<String?> getAccessToken() async {
-    return SecureTokenStorage.getAccessToken();
+    return SecureTokenStorage.readAccessToken();
   }
 
 
@@ -453,7 +453,7 @@ class AuthApiService {
           'content': content,
           'is_offline_queued': true,
           'created_at': DateTime.now().toIso8601String(),
-          'sender_name': AuthSession.currentUser?['display_name'] ?? 'You',
+          'sender_name': AuthSession.username ?? 'You',
         };
       }
       rethrow;

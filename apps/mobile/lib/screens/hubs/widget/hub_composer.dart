@@ -232,7 +232,7 @@ class HubComposer extends StatelessWidget {
               if (isRecording)
                 IconButton(
                   onPressed: onStopRecording,
-                  icon: const Icon(Icons.send, color: AppColors.primary),
+                  icon: Icon(Icons.send, color: AppColors.primary),
                 )
               else if (isSending)
                 const Padding(
@@ -250,7 +250,7 @@ class HubComposer extends StatelessWidget {
                     if (value.text.trim().isNotEmpty) {
                       return IconButton(
                         onPressed: canSend ? onSend : null,
-                        icon: const Icon(Icons.send, color: AppColors.primary),
+                        icon: Icon(Icons.send, color: AppColors.primary),
                       );
                     }
                     return GestureDetector(
@@ -258,7 +258,7 @@ class HubComposer extends StatelessWidget {
                       onLongPressUp: onStopRecording,
                       child: IconButton(
                         onPressed: () {},
-                        icon: const Icon(Icons.mic, color: AppColors.primary),
+                        icon: Icon(Icons.mic, color: AppColors.primary),
                       ),
                     );
                   },

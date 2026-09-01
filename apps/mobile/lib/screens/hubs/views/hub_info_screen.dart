@@ -905,13 +905,6 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
   }
 
   Widget _buildHeader() {
-    final initials = _hubName
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
-
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
       decoration: BoxDecoration(
