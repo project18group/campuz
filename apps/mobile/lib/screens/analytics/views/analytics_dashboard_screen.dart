@@ -12,7 +12,8 @@ class AnalyticsDashboardScreen extends StatefulWidget {
   const AnalyticsDashboardScreen({super.key});
 
   @override
-  State<AnalyticsDashboardScreen> createState() => _AnalyticsDashboardScreenState();
+  State<AnalyticsDashboardScreen> createState() =>
+      _AnalyticsDashboardScreenState();
 }
 
 class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
@@ -39,14 +40,17 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
     try {
       final token = await SecureTokenStorage.readAccessToken();
       // We extract the baseUrl from AuthApiService to avoid hardcoding
-      final baseUrl = '${AuthApiService.wsBaseUrl.replaceFirst('ws', 'http').replaceAll(RegExp(r'/api$'), '')}/api';
-      final response = await http.get(
-        Uri.parse('$baseUrl/analytics/'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final baseUrl =
+          '${AuthApiService.wsBaseUrl.replaceFirst('ws', 'http').replaceAll(RegExp(r'/api$'), '')}/api';
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/analytics/'),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         setState(() {
@@ -72,12 +76,18 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: AppColors.textPrimary),
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => context.pop(),
         ),
         title: Text(
           'Your Analytics',
-          style: AppTextStyles.heading.copyWith(fontSize: 20),
+          style: AppTextStyles.heading.copyWith(
+            fontSize: 20,
+            color: AppColors.textPrimary,
+          ),
         ),
         actions: [
           IconButton(
@@ -89,52 +99,58 @@ class _AnalyticsDashboardScreenState extends State<AnalyticsDashboardScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.signal_wifi_off_rounded, size: 64, color: AppColors.textSecondary),
-                      const SizedBox(height: 16),
-                      Text(_error!, style: AppTextStyles.body),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _fetchAnalytics,
-                        style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
-                        child: const Text('Retry'),
-                      )
-                    ],
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.signal_wifi_off_rounded,
+                    size: 64,
+                    color: AppColors.textSecondary,
                   ),
-                )
-              : FadeInUp(
-                  child: RefreshIndicator(
-                    onRefresh: _fetchAnalytics,
-                    child: ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        _buildMetricCard(
-                          title: 'Hubs Joined',
-                          value: _data['total_hubs_joined'].toString(),
-                          icon: Icons.hub_rounded,
-                          color: Colors.blueAccent,
-                        ),
-                        const SizedBox(height: 20),
-                        _buildMetricCard(
-                          title: 'Messages Sent',
-                          value: _data['total_messages_sent'].toString(),
-                          icon: Icons.message_rounded,
-                          color: Colors.orangeAccent,
-                        ),
-                        const SizedBox(height: 20),
-                        _buildMetricCard(
-                          title: 'Peers Reached',
-                          value: _data['total_peers_reached'].toString(),
-                          icon: Icons.people_alt_rounded,
-                          color: Colors.greenAccent,
-                        ),
-                      ],
+                  const SizedBox(height: 16),
+                  Text(_error!, style: AppTextStyles.body),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _fetchAnalytics,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
                     ),
+                    child: const Text('Retry'),
                   ),
+                ],
+              ),
+            )
+          : FadeInUp(
+              child: RefreshIndicator(
+                onRefresh: _fetchAnalytics,
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: [
+                    _buildMetricCard(
+                      title: 'Hubs Joined',
+                      value: _data['total_hubs_joined'].toString(),
+                      icon: Icons.hub_rounded,
+                      color: Colors.blueAccent,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildMetricCard(
+                      title: 'Messages Sent',
+                      value: _data['total_messages_sent'].toString(),
+                      icon: Icons.message_rounded,
+                      color: Colors.orangeAccent,
+                    ),
+                    const SizedBox(height: 20),
+                    _buildMetricCard(
+                      title: 'Peers Reached',
+                      value: _data['total_peers_reached'].toString(),
+                      icon: Icons.people_alt_rounded,
+                      color: Colors.greenAccent,
+                    ),
+                  ],
                 ),
+              ),
+            ),
     );
   }
 
