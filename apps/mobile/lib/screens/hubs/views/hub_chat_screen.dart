@@ -18,6 +18,7 @@ import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
 import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
+import 'package:mobile/screens/hubs/widget/downloadable_image.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -731,6 +732,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 ));
                 _sendAsSms = false;
               });
+              // Send immediately like WhatsApp
+              _sendMessage();
             }
           },
           onPickCamera: () async {
@@ -1127,30 +1130,10 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                   ),
                                   child: AspectRatio(
                                     aspectRatio: 1.08,
-                                    child: CachedNetworkImage(
-                                      imageUrl: url,
-                                      fit: BoxFit.cover,
-                                      placeholder: (context, url) => const Center(
-                                        child: Padding(
-                                          padding: EdgeInsets.all(18),
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                          ),
-                                        ),
-                                      ),
-                                      errorWidget: (context, url, error) {
-                                        return Container(
-                                          color: color.withValues(
-                                            alpha: 0.14,
-                                          ),
-                                          alignment: Alignment.center,
-                                          child: Icon(
-                                            Icons.broken_image_rounded,
-                                            color: color,
-                                            size: 32,
-                                          ),
-                                        );
-                                      },
+                                    child: DownloadableImageAttachment(
+                                      url: url,
+                                      sizeLabel: _attachmentSubtitle(attachment),
+                                      onTap: () => _openAttachment(attachment),
                                     ),
                                   ),
                                 ),

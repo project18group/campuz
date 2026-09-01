@@ -270,23 +270,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (loadingMoreAvatars) return;
               setSheetState(() => loadingMoreAvatars = true);
 
-              Future<void>.delayed(const Duration(milliseconds: 90)).then(
-                (_) {
-                  if (!sheetContext.mounted) {
-                    return;
-                  }
-                  setSheetState(() {
-                    appendAvatarSeeds();
-                    loadingMoreAvatars = false;
-                  });
-                },
-              );
+              Future<void>.delayed(const Duration(milliseconds: 90)).then((_) {
+                if (!sheetContext.mounted) {
+                  return;
+                }
+                setSheetState(() {
+                  appendAvatarSeeds();
+                  loadingMoreAvatars = false;
+                });
+              });
             }
 
             return SafeArea(
               child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 24,
+                  horizontal: 16,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Scroll for more student icons.',
+                      'Customize your Profile Photo',
                       style: AppTextStyles.body.copyWith(
                         color: AppColors.textSecondary,
                       ),
@@ -330,9 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 decoration: BoxDecoration(
                                   color: AppColors.surfaceMuted,
                                   shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.border,
-                                  ),
+                                  border: Border.all(color: AppColors.border),
                                 ),
                                 child: Icon(
                                   Icons.more_horiz_rounded,

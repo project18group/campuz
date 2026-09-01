@@ -247,7 +247,7 @@ class HubComposer extends StatelessWidget {
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: controller,
                   builder: (context, value, child) {
-                    if (value.text.trim().isNotEmpty) {
+                    if (value.text.trim().isNotEmpty || attachments.isNotEmpty) {
                       return IconButton(
                         onPressed: canSend ? onSend : null,
                         icon: Icon(Icons.send, color: AppColors.primary),
