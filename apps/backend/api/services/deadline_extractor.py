@@ -1,7 +1,10 @@
 import re
 import datetime
 from django.utils import timezone
-import dateparser
+try:
+    import dateparser
+except ImportError:
+    dateparser = None
 import logging
 
 logger = logging.getLogger(__name__)
@@ -11,7 +14,7 @@ def extract_deadline(text: str) -> datetime.datetime | None:
     Intelligently extracts a deadline/date from the given text using 
     a fast rule-based parser.
     """
-    if not text:
+    if not text or not dateparser:
         return None
         
     text_lower = text.lower()

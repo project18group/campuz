@@ -4,12 +4,15 @@ from urllib.parse import quote_plus
 
 from django.db import transaction
 
+from django.contrib.auth import get_user_model
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
+from rest_framework_simplejwt.exceptions import AuthenticationFailed, InvalidToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 import cloudinary.uploader
 
 from .models import (
@@ -50,6 +53,29 @@ def _clear_otp(profile: UserProfile) -> None:
     profile.otp_created_at = None
     profile.is_verified = True
     profile.save(update_fields=["otp_code", "otp_created_at", "is_verified"])
+
+
+# ---------------------------------------------------------------------------
+# JWT serializers
+# ---------------------------------------------------------------------------
+
+class CustomTokenRefreshSerializer(TokenRefreshSerializer):
+    """
+    Custom TokenRefreshSerializer that catches User.DoesNotExist when ROTATE_REFRESH_TOKENS is True
+    and the user has been deleted or cannot be found in the database.
+    Prevents unhandled 500 errors and returns 401 Unauthorized.
+    """
+
+    def validate(self, attrs):
+        try:
+            return super().validate(attrs)
+        except get_user_model().DoesNotExist:
+            raise AuthenticationFailed(
+                self.error_messages.get(
+                    "no_active_account", "No active account found for the given token."
+                ),
+                "no_active_account",
+            )
 
 
 # ---------------------------------------------------------------------------

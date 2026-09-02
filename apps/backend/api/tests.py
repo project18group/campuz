@@ -525,3 +525,22 @@ class DirectMessageContractTests(APITestCase):
         list_response = client_a.get(f"/api/conversations/direct/{conversation_id}/messages/")
         self.assertEqual(list_response.status_code, HTTP_200_OK)
         self.assertEqual(list_response.data["results"][0]["attachments"][0]["file_name"], "notes.pdf")
+
+
+class TokenRefreshTests(APITestCase):
+    def test_token_refresh_returns_401_when_user_does_not_exist(self):
+        # Create a user, generate a refresh token, and then delete the user
+        user = _make_verified_user("ephemeral_user", phone_number="+233201999999")
+        refresh = RefreshToken.for_user(user)
+        refresh_str = str(refresh)
+        user.delete()
+
+        # Attempt to refresh the token for the deleted user
+        response = self.client.post(
+            "/api/token/refresh/",
+            {"refresh": refresh_str},
+            format="json",
+        )
+        # Should return 401 Unauthorized (or 401 with no_active_account / token_not_valid), NOT 500 Internal Server Error
+        self.assertEqual(response.status_code, 401)
+

@@ -1,7 +1,14 @@
 import os
 import logging
-import firebase_admin
-from firebase_admin import credentials, messaging
+
+try:
+    import firebase_admin
+    from firebase_admin import credentials, messaging
+except ImportError:
+    firebase_admin = None
+    credentials = None
+    messaging = None
+
 from django.conf import settings
 from api.models import DeviceToken, AppNotification, Hub
 

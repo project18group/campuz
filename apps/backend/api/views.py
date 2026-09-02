@@ -58,6 +58,7 @@ from .serializers import (
     MessageAttachmentSerializer,
     ResourceCreateSerializer,
     ResourceSerializer,
+    CustomTokenRefreshSerializer,
     OTP_RESEND_COOLDOWN_SECONDS,
     ProfileSetupSerializer,
     RequestOTPSerializer,
@@ -71,6 +72,17 @@ from .serializers import (
 from .services import broadcast_sms_service, hub_sms_service, sms_service
 from .services.push_service import send_push_notification
 from .services.deadline_extractor import extract_deadline
+
+
+class CustomTokenRefreshView(TokenRefreshView):
+    """
+    Custom TokenRefreshView that uses CustomTokenRefreshSerializer to avoid
+    500 Internal Server Errors when an orphaned token for a deleted user is refreshed.
+    """
+    serializer_class = CustomTokenRefreshSerializer
+
+
+TokenRefreshView = CustomTokenRefreshView
 
 
 logger = logging.getLogger(__name__)

@@ -18,7 +18,7 @@ urlpatterns = [
     path("api-auth/", include("rest_framework.urls", namespace="rest_framework")),
 
     # JWT — refresh only; obtain is handled by verify-otp
-    path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/refresh/", views.CustomTokenRefreshView.as_view(), name="token_refresh"),
 
     # Phone-OTP authentication
     path("auth/request-otp/", views.RequestOTPView.as_view(), name="request-otp"),

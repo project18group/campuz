@@ -900,7 +900,7 @@ class AuthApiService {
         'refresh': response['refresh'] as String? ?? refreshToken,
       });
       return true;
-    } on AuthApiException {
+    } catch (_) {
       return false;
     }
   }
@@ -992,9 +992,12 @@ class AuthApiService {
     try {
       var response = await send(token).timeout(const Duration(seconds: 60));
       if (response.statusCode == 401 && overrideToken == null) {
-        if (await refreshSession()) {
+        final refreshed = await refreshSession();
+        if (refreshed) {
           token = AuthSession.accessToken;
           response = await send(token).timeout(const Duration(seconds: 60));
+        } else {
+          await signOut();
         }
       }
       final decoded = _decodeResponse(response);
@@ -1038,9 +1041,12 @@ class AuthApiService {
     try {
       var streamed = await send(token).timeout(const Duration(seconds: 60));
       if (streamed.statusCode == 401 && overrideToken == null) {
-        if (await refreshSession()) {
+        final refreshed = await refreshSession();
+        if (refreshed) {
           token = AuthSession.accessToken;
           streamed = await send(token).timeout(const Duration(seconds: 60));
+        } else {
+          await signOut();
         }
       }
       final response = await http.Response.fromStream(streamed);
