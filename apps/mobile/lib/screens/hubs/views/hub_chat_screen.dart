@@ -13,6 +13,8 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/services/auth_session.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:mobile/core/services/campus_ai_engine.dart';
 import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
 import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/screens/hubs/widget/hub_composer.dart';
@@ -524,6 +526,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
           ? const [
               MenuItem(label: 'Reply', icon: Icons.reply),
               MenuItem(label: 'Copy', icon: Icons.copy),
+              MenuItem(label: 'Ask AI', icon: Icons.smart_toy_outlined),
               MenuItem(
                 label: 'Delete',
                 icon: Icons.delete_forever,
@@ -533,6 +536,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
           : const [
               MenuItem(label: 'Reply', icon: Icons.reply),
               MenuItem(label: 'Copy', icon: Icons.copy),
+              MenuItem(label: 'Ask AI', icon: Icons.smart_toy_outlined),
             ],
       showAddReactionButton: true,
       enableHapticFeedback: true,
@@ -568,6 +572,11 @@ class _HubChatScreenState extends State<HubChatScreen> {
           ScaffoldMessenger.of(
             context,
           ).showSnackBar(const SnackBar(content: Text('Message copied')));
+        }
+        break;
+      case 'ask ai':
+        if (content.isNotEmpty) {
+          context.push('/ai', extra: {'preset_prompt': content});
         }
         break;
       case 'delete':
@@ -955,6 +964,172 @@ class _HubChatScreenState extends State<HubChatScreen> {
     return '${time.day}/${time.month} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 
+  Future<void> _syncDeadlineToCalendar({
+    required String taskTitle,
+    required String courseName,
+    required DateTime deadline,
+    required String formattedDate,
+  }) async {
+    final event = Event(
+      title: '$taskTitle ($courseName)',
+      description: 'Extracted by Campuz Academic AI.\nDue: $formattedDate',
+      location: _hubName,
+      startDate: deadline,
+      endDate: deadline.add(const Duration(hours: 1)),
+    );
+
+    try {
+      await Add2Calendar.addEvent2Cal(event);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Synced "$taskTitle" to device calendar!'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open device calendar.')),
+        );
+      }
+    }
+  }
+
+  ExtractedDeadline? _resolveDeadlineInfo(Map<String, dynamic> message, String content) {
+    // 1. Check if backend sent parsed deadline in message payload
+    final rawDeadline = message['deadline'];
+    if (rawDeadline is Map<String, dynamic>) {
+      final iso = rawDeadline['deadline_iso'] as String?;
+      if (iso != null) {
+        final parsed = DateTime.tryParse(iso);
+        if (parsed != null && parsed.isAfter(DateTime.now())) {
+          return ExtractedDeadline(
+            dateTime: parsed,
+            taskTitle: rawDeadline['task_title'] as String? ?? (content.length > 35 ? '${content.substring(0, 35)}...' : content),
+            courseName: _hub?['name']?.toString() ?? 'Coursework',
+            formattedDate: rawDeadline['formatted_date'] as String? ?? parsed.toString(),
+            countdownStr: rawDeadline['countdown'] as String? ?? '',
+            source: 'Hub',
+          );
+        }
+      }
+    }
+
+    // 2. Client-side extraction via CampusAiEngine
+    if (content.isNotEmpty) {
+      return CampusAiEngine.extractDeadlineInfo(
+        content,
+        courseFallback: _hub?['name']?.toString(),
+      );
+    }
+
+    return null;
+  }
+
+  Widget _buildDeadlineChip(ExtractedDeadline deadline, bool isMine) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8, bottom: 2),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isMine
+            ? Colors.white.withValues(alpha: 0.12)
+            : AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMine
+              ? Colors.white.withValues(alpha: 0.25)
+              : AppColors.primary.withValues(alpha: 0.25),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.event_available_rounded,
+                size: 16,
+                color: isMine ? const Color(0xFFFFD54F) : AppColors.primary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Due: ${deadline.formattedDate}',
+                  style: AppTextStyles.caption.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 11.5,
+                    color: isMine ? Colors.white : AppColors.primaryForeground,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              Text(
+                '⏳ ${deadline.countdownStr}',
+                style: AppTextStyles.caption.copyWith(
+                  fontSize: 10.5,
+                  color: isMine ? Colors.white70 : AppColors.textSecondary,
+                ),
+              ),
+              const Spacer(),
+              InkWell(
+                onTap: () => _syncDeadlineToCalendar(
+                  taskTitle: deadline.taskTitle,
+                  courseName: deadline.courseName,
+                  deadline: deadline.dateTime,
+                  formattedDate: deadline.formattedDate,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                  decoration: BoxDecoration(
+                    color: isMine ? Colors.white : AppColors.primary,
+                    borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: (isMine ? Colors.black : AppColors.primary).withValues(alpha: 0.18),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.calendar_month_rounded,
+                        size: 13,
+                        color: isMine ? AppColors.primary : Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Add to Calendar',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isMine ? AppColors.primary : Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(Map<String, dynamic> message) {
     final isMine = message['is_mine'] == true;
     final content = (message['content'] as String? ?? '').trim();
@@ -1249,6 +1424,16 @@ class _HubChatScreenState extends State<HubChatScreen> {
                     );
                   }),
                 ],
+                // Smart Deadline Action Chip
+                Builder(
+                  builder: (context) {
+                    final deadlineInfo = _resolveDeadlineInfo(message, content);
+                    if (deadlineInfo != null) {
+                      return _buildDeadlineChip(deadlineInfo, isMine);
+                    }
+                    return const SizedBox.shrink();
+                  },
+                ),
                 if (content.isNotEmpty || attachments.isNotEmpty)
                   const SizedBox(height: 4),
                 Align(

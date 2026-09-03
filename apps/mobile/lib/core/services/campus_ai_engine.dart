@@ -64,7 +64,16 @@ class CampusAiEngine {
       };
     }
 
-    // 3. Deadline Extraction
+    // 3. Scan Hubs Deadlines
+    if (RegExp(r'\b(scan hubs|scan my hubs|hub deadlines|all deadlines|upcoming deadlines|check deadlines|find deadlines|my deadlines)\b', caseSensitive: false).hasMatch(lower)) {
+      return {
+        'reply': "### 🔍 Scanning Enrolled Hubs...\n\nAnalyzing announcements, broadcasts, and messages across your hubs for upcoming deadlines.",
+        'intent': 'SCAN_HUBS_DEADLINES',
+        'metadata': <String, dynamic>{'trigger_hub_scan': true},
+      };
+    }
+
+    // 4. Deadline Extraction
     if (RegExp(r'\b(deadline|due date|due on|submit by|submission date|when is .* due|extract deadline|find deadline)\b', caseSensitive: false).hasMatch(lower) ||
         _detectDateInText(raw) != null) {
       return _handleDeadlineExtraction(raw);
@@ -497,6 +506,121 @@ class CampusAiEngine {
     final minuteStr = dt.minute.toString().padLeft(2, '0');
 
     return '$dayName, $monthName ${dt.day}, ${dt.year} at $hour12:$minuteStr $period';
+  }
+
+  /// Extracts an [ExtractedDeadline] from arbitrary text if a future due date is detected.
+  /// Returns null if no date is found or if the date has already passed.
+  static ExtractedDeadline? extractDeadlineInfo(String text, {String? courseFallback}) {
+    final clean = text.trim();
+    if (clean.isEmpty) return null;
+
+    final parsedDate = _detectDateInText(clean);
+    if (parsedDate == null) return null;
+
+    final now = DateTime.now();
+    if (!parsedDate.isAfter(now)) return null;
+
+    final difference = parsedDate.difference(now);
+    final daysLeft = difference.inDays;
+    final hoursLeft = difference.inHours % 24;
+    final countdownStr = daysLeft > 0
+        ? '$daysLeft days, $hoursLeft hours left'
+        : '$hoursLeft hours left';
+
+    // Look for course code (e.g. CS101, MATH 201, COE 352, SENG 404)
+    final courseMatch = RegExp(r'\b([A-Z]{2,4}\s?[0-9]{3}[A-Z]?)\b', caseSensitive: false).firstMatch(clean);
+    final courseName = courseMatch != null ? courseMatch.group(1)!.toUpperCase() : (courseFallback ?? 'Coursework');
+
+    // Look for assignment keyword
+    final taskMatch = RegExp(
+      r'\b(assignment\s?[0-9]*|project\s?[0-9]*|lab\s?[0-9]*|quiz\s?[0-9]*|midterm|report|presentation|essay)\b',
+      caseSensitive: false,
+    ).firstMatch(clean);
+    final taskTitle = taskMatch != null
+        ? taskMatch.group(1)![0].toUpperCase() + taskMatch.group(1)!.substring(1)
+        : (clean.length > 35 ? '${clean.substring(0, 35)}...' : clean);
+
+    return ExtractedDeadline(
+      dateTime: parsedDate,
+      taskTitle: taskTitle,
+      courseName: courseName,
+      formattedDate: _formatDateTime(parsedDate),
+      countdownStr: countdownStr,
+    );
+  }
+
+  /// Formats a list of scanned [ExtractedDeadline] objects into an AI report with metadata.
+  static Map<String, dynamic> formatScannedDeadlinesReport(
+    List<ExtractedDeadline> deadlines,
+    String studentName,
+  ) {
+    if (deadlines.isEmpty) {
+      return {
+        'reply': "### 🔍 Hub Deadline Scan Complete\n\n"
+            "I scanned all announcements, broadcasts, and messages across your enrolled Hubs, **$studentName**.\n\n"
+            "🎉 **Great news:** You have no pending deadlines right now! Your academic schedule is clear.",
+        'intent': 'SCAN_HUBS_DEADLINES',
+        'metadata': <String, dynamic>{'deadlines': [], 'count': 0},
+      };
+    }
+
+    final buffer = StringBuffer();
+    buffer.writeln("### 📅 Upcoming Deadlines Across Your Hubs\n");
+    buffer.writeln("I scanned your enrolled Hubs and detected **${deadlines.length} active deadlines**:\n");
+
+    for (var i = 0; i < deadlines.length; i++) {
+      final d = deadlines[i];
+      buffer.writeln("${i + 1}. **${d.taskTitle}**");
+      buffer.writeln("   • **Course/Hub**: ${d.courseName}");
+      buffer.writeln("   • **Due Date**: **${d.formattedDate}**");
+      buffer.writeln("   • **Countdown**: ⏳ ${d.countdownStr}${d.source != null ? ' *(${d.source})*' : ''}\n");
+    }
+
+    buffer.writeln("💡 *Tap **Add to Calendar** below any deadline to sync it directly to your device calendar!*");
+
+    return {
+      'reply': buffer.toString(),
+      'intent': 'SCAN_HUBS_DEADLINES',
+      'metadata': <String, dynamic>{
+        'deadlines': deadlines.map((d) => d.toMetadata()).toList(),
+        'count': deadlines.length,
+        'deadline_found': true,
+        'deadline_iso': deadlines.first.dateTime.toIso8601String(),
+        'formatted_date': deadlines.first.formattedDate,
+        'task_title': deadlines.first.taskTitle,
+        'course_name': deadlines.first.courseName,
+      },
+    };
+  }
+}
+
+class ExtractedDeadline {
+  final DateTime dateTime;
+  final String taskTitle;
+  final String courseName;
+  final String formattedDate;
+  final String countdownStr;
+  final String? source;
+
+  ExtractedDeadline({
+    required this.dateTime,
+    required this.taskTitle,
+    required this.courseName,
+    required this.formattedDate,
+    required this.countdownStr,
+    this.source,
+  });
+
+  Map<String, dynamic> toMetadata() {
+    return {
+      'deadline_found': true,
+      'deadline_iso': dateTime.toIso8601String(),
+      'formatted_date': formattedDate,
+      'task_title': taskTitle,
+      'course_name': courseName,
+      'countdown': countdownStr,
+      if (source != null) 'source': source,
+    };
   }
 }
 

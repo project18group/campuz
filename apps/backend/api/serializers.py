@@ -623,6 +623,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
     sms_delivery_count = serializers.SerializerMethodField()
     sms_sent_count = serializers.SerializerMethodField()
     sms_failed_count = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
 
     class Meta:
         model = Broadcast
@@ -640,6 +641,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
             "sms_delivery_count",
             "sms_sent_count",
             "sms_failed_count",
+            "deadline",
         ]
         read_only_fields = [
             "hub",
@@ -651,6 +653,7 @@ class BroadcastSerializer(serializers.ModelSerializer):
             "sms_delivery_count",
             "sms_sent_count",
             "sms_failed_count",
+            "deadline",
         ]
 
     def get_sender_name(self, obj):
@@ -682,6 +685,24 @@ class BroadcastSerializer(serializers.ModelSerializer):
 
     def get_sms_failed_count(self, obj):
         return obj.sms_deliveries.filter(status="failed").count()
+
+    def get_deadline(self, obj):
+        from .services.deadline_extractor import extract_deadline
+        combined_text = f"{obj.title}\n{obj.content}"
+        dt = extract_deadline(combined_text)
+        if dt and dt > timezone.now():
+            time_left = dt - timezone.now()
+            days = time_left.days
+            hours = int(time_left.seconds // 3600)
+            countdown = f"{days}d {hours}h left" if days > 0 else f"{hours}h left"
+            return {
+                "deadline_iso": dt.isoformat(),
+                "formatted_date": dt.strftime("%A, %B %d at %I:%M %p"),
+                "countdown": countdown,
+                "task_title": obj.title,
+                "is_future": True,
+            }
+        return None
 
 
 class HubMeetingCreateSerializer(serializers.Serializer):
@@ -1067,6 +1088,7 @@ class MessageSerializer(serializers.ModelSerializer):
     attachment_count = serializers.SerializerMethodField()
     has_attachments = serializers.SerializerMethodField()
     reply_to = serializers.SerializerMethodField()
+    deadline = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -1083,6 +1105,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "attachments",
             "attachment_count",
             "has_attachments",
+            "deadline",
         ]
         read_only_fields = [
             "sender",
@@ -1092,6 +1115,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "attachments",
             "attachment_count",
             "has_attachments",
+            "deadline",
         ]
 
     def get_sender_name(self, obj):
@@ -1139,6 +1163,23 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_has_attachments(self, obj):
         return obj.attachments.exists()
+
+    def get_deadline(self, obj):
+        from .services.deadline_extractor import extract_deadline
+        dt = extract_deadline(obj.content)
+        if dt and dt > timezone.now():
+            time_left = dt - timezone.now()
+            days = time_left.days
+            hours = int(time_left.seconds // 3600)
+            countdown = f"{days}d {hours}h left" if days > 0 else f"{hours}h left"
+            return {
+                "deadline_iso": dt.isoformat(),
+                "formatted_date": dt.strftime("%A, %B %d at %I:%M %p"),
+                "countdown": countdown,
+                "task_title": obj.content[:40] + ("..." if len(obj.content) > 40 else ""),
+                "is_future": True,
+            }
+        return None
 
 
 class MessageAttachmentSerializer(serializers.ModelSerializer):

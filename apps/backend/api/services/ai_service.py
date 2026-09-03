@@ -79,6 +79,8 @@ class AcademicAIEngine:
         if intent == "GREETING":
             reply = cls._handle_greeting(student_name)
             metadata = {}
+        elif intent == "SCAN_HUBS_DEADLINES":
+            reply, metadata = cls._handle_scan_hubs_deadlines(user, student_name)
         elif intent == "EXTRACT_DEADLINE":
             reply, metadata = cls._handle_deadline_extraction(raw_text)
         elif intent == "SUMMARIZE":
@@ -121,7 +123,11 @@ class AcademicAIEngine:
         if re.search(r"\b(thank\s+you|thanks|appreciate\s+it|thx)\b", low) and len(low.split()) <= 5:
             return "THANK_YOU"
 
-        # 3. Deadline Extraction
+        # 3. Scan Hubs Deadlines
+        if re.search(r"\b(scan hubs|scan my hubs|hub deadlines|all deadlines|upcoming deadlines|check deadlines|find deadlines|my deadlines)\b", low):
+            return "SCAN_HUBS_DEADLINES"
+
+        # 4. Deadline Extraction
         if re.search(r"\b(deadline|due date|due on|submit by|submission date|when is .* due|extract deadline|find deadline)\b", low):
             return "EXTRACT_DEADLINE"
 
@@ -185,6 +191,109 @@ class AcademicAIEngine:
             f"You're very welcome, **{student_name}**! 🎓\n\n"
             "Feel free to paste another announcement, lecture text, or ask any study questions whenever you need."
         )
+
+    @classmethod
+    def _handle_scan_hubs_deadlines(cls, user, student_name: str) -> tuple[str, Dict[str, Any]]:
+        from ..models import Hub, Message, Broadcast, TaskItem
+        from django.utils import timezone
+
+        now = timezone.now()
+        deadlines_found = []
+
+        if user and getattr(user, "is_authenticated", False):
+            user_hubs = Hub.objects.filter(members=user)
+
+            # 1. Check upcoming tasks in the user's hubs
+            tasks = TaskItem.objects.filter(hub__in=user_hubs, due_date__gt=now).order_by("due_date")[:15]
+            for t in tasks:
+                time_left = t.due_date - now
+                days = time_left.days
+                hours = int(time_left.seconds // 3600)
+                countdown = f"{days}d {hours}h left" if days > 0 else f"{hours}h left"
+                hub_name = t.hub.name if t.hub else (t.course_name or "Coursework")
+                deadlines_found.append({
+                    "task_title": t.title,
+                    "course_name": hub_name,
+                    "deadline_iso": t.due_date.isoformat(),
+                    "formatted_date": t.due_date.strftime("%A, %B %d, %Y at %I:%M %p"),
+                    "countdown": countdown,
+                    "source": "Task",
+                })
+
+            # 2. Check recent broadcasts across user's hubs
+            broadcasts = Broadcast.objects.filter(hub__in=user_hubs).order_by("-timestamp")[:20]
+            for b in broadcasts:
+                dt = extract_deadline(f"{b.title}\n{b.content}")
+                if dt and dt > now:
+                    time_left = dt - now
+                    days = time_left.days
+                    hours = int(time_left.seconds // 3600)
+                    countdown = f"{days}d {hours}h left" if days > 0 else f"{hours}h left"
+                    if not any(d["task_title"] == b.title for d in deadlines_found):
+                        deadlines_found.append({
+                            "task_title": b.title,
+                            "course_name": b.hub.name,
+                            "deadline_iso": dt.isoformat(),
+                            "formatted_date": dt.strftime("%A, %B %d, %Y at %I:%M %p"),
+                            "countdown": countdown,
+                            "source": "Broadcast",
+                        })
+
+            # 3. Check recent messages across user's hubs
+            messages = Message.objects.filter(hub__in=user_hubs).order_by("-timestamp")[:50]
+            for m in messages:
+                dt = extract_deadline(m.content)
+                if dt and dt > now:
+                    time_left = dt - now
+                    days = time_left.days
+                    hours = int(time_left.seconds // 3600)
+                    countdown = f"{days}d {hours}h left" if days > 0 else f"{hours}h left"
+                    title = m.content[:40] + ("..." if len(m.content) > 40 else "")
+                    if not any(d["deadline_iso"] == dt.isoformat() for d in deadlines_found):
+                        deadlines_found.append({
+                            "task_title": title,
+                            "course_name": m.hub.name,
+                            "deadline_iso": dt.isoformat(),
+                            "formatted_date": dt.strftime("%A, %B %d, %Y at %I:%M %p"),
+                            "countdown": countdown,
+                            "source": "Chat Message",
+                        })
+
+        # Sort all discovered deadlines chronologically by due date
+        deadlines_found.sort(key=lambda x: x["deadline_iso"])
+
+        if not deadlines_found:
+            reply = (
+                f"### 🔍 Hub Deadline Scan Complete\n\n"
+                f"I scanned all announcements, broadcasts, and tasks across your enrolled Hubs, **{student_name}**.\n\n"
+                f"🎉 **Great news:** You have no pending deadlines right now! Your academic schedule is clear."
+            )
+            return reply, {"deadlines": [], "count": 0}
+
+        lines = [
+            f"### 📅 Upcoming Deadlines Across Your Hubs\n",
+            f"I scanned your enrolled Hubs and detected **{len(deadlines_found)} active deadlines**:\n",
+        ]
+        for idx, item in enumerate(deadlines_found, 1):
+            lines.append(
+                f"{idx}. **{item['task_title']}**\n"
+                f"   • **Course/Hub**: {item['course_name']}\n"
+                f"   • **Due Date**: **{item['formatted_date']}**\n"
+                f"   • **Countdown**: ⏳ {item['countdown']} *(from {item['source']})*\n"
+            )
+
+        lines.append("\n💡 *Tap **Add to Calendar** below to sync any of these directly to your device calendar!*")
+        reply = "\n".join(lines)
+
+        return reply, {
+            "deadlines": deadlines_found,
+            "count": len(deadlines_found),
+            "deadline_found": True,
+            "deadline_iso": deadlines_found[0]["deadline_iso"],
+            "formatted_date": deadlines_found[0]["formatted_date"],
+            "task_title": deadlines_found[0]["task_title"],
+            "course_name": deadlines_found[0]["course_name"],
+        }
 
     @classmethod
     def _handle_deadline_extraction(cls, text: str) -> tuple[str, Dict[str, Any]]:

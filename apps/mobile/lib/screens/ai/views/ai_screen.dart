@@ -9,6 +9,7 @@ import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/services/campus_ai_engine.dart';
+import 'package:mobile/core/services/database_helper.dart';
 
 class AiChatMessage {
   final String sender; // 'user' | 'ai'
@@ -44,7 +45,8 @@ class AiChatMessage {
 }
 
 class AiScreen extends StatefulWidget {
-  const AiScreen({super.key});
+  final String? initialPrompt;
+  const AiScreen({super.key, this.initialPrompt});
 
   @override
   State<AiScreen> createState() => _AiScreenState();
@@ -64,6 +66,10 @@ class _AiScreenState extends State<AiScreen>
   bool get wantKeepAlive => true;
 
   static const List<Map<String, String>> _quickActions = [
+    {
+      'label': '🔍 Scan My Hubs for Deadlines',
+      'prompt': 'Scan my hubs for upcoming deadlines and assignments',
+    },
     {
       'label': '📅 Extract Deadlines',
       'prompt':
@@ -100,6 +106,11 @@ class _AiScreenState extends State<AiScreen>
     super.initState();
     _loadUserName();
     _loadHistory();
+    if (widget.initialPrompt != null && widget.initialPrompt!.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _sendMessage(widget.initialPrompt!.trim());
+      });
+    }
   }
 
   @override
@@ -236,11 +247,27 @@ class _AiScreenState extends State<AiScreen>
     }
 
     // 2. In-App Academic AI Engine Fallback (guarantees 100% uptime and instant answers)
-    final finalResponse = response ??
-        CampusAiEngine.generateResponse(
-          userMessage: text,
-          studentName: _userName,
-        );
+    var finalResponse = response;
+    if (finalResponse == null) {
+      final inApp = CampusAiEngine.generateResponse(
+        userMessage: text,
+        studentName: _userName,
+      );
+      if (inApp['intent'] == 'SCAN_HUBS_DEADLINES') {
+        final localDeadlines = await _scanLocalHubs();
+        finalResponse = CampusAiEngine.formatScannedDeadlinesReport(localDeadlines, _userName);
+      } else {
+        finalResponse = inApp;
+      }
+    } else if (finalResponse['intent'] == 'SCAN_HUBS_DEADLINES') {
+      final backendDeadlines = finalResponse['metadata']?['deadlines'] as List?;
+      if (backendDeadlines == null || backendDeadlines.isEmpty) {
+        final localDeadlines = await _scanLocalHubs();
+        if (localDeadlines.isNotEmpty) {
+          finalResponse = CampusAiEngine.formatScannedDeadlinesReport(localDeadlines, _userName);
+        }
+      }
+    }
 
     final reply = finalResponse['reply'] as String? ??
         "I have processed your request. Let me know if you need further academic assistance!";
@@ -263,6 +290,38 @@ class _AiScreenState extends State<AiScreen>
       _saveHistory();
       _scrollToBottom();
     }
+  }
+
+  Future<List<ExtractedDeadline>> _scanLocalHubs() async {
+    final List<ExtractedDeadline> deadlines = [];
+    try {
+      final hubs = await DatabaseHelper.instance.getHubs();
+      for (final hub in hubs) {
+        final hubId = hub['id'] as int?;
+        final hubName = hub['name'] as String? ?? 'Hub';
+        if (hubId == null) continue;
+
+        final messages = await DatabaseHelper.instance.getMessages(hubId);
+        for (final m in messages) {
+          final content = m['content'] as String? ?? '';
+          final d = CampusAiEngine.extractDeadlineInfo(content, courseFallback: hubName);
+          if (d != null) {
+            if (!deadlines.any((existing) => existing.dateTime == d.dateTime && existing.taskTitle == d.taskTitle)) {
+              deadlines.add(ExtractedDeadline(
+                dateTime: d.dateTime,
+                taskTitle: d.taskTitle,
+                courseName: hubName,
+                formattedDate: d.formattedDate,
+                countdownStr: d.countdownStr,
+                source: 'Hub Message',
+              ));
+            }
+          }
+        }
+      }
+    } catch (_) {}
+    deadlines.sort((a, b) => a.dateTime.compareTo(b.dateTime));
+    return deadlines;
   }
 
   void _copyMessage(String text) {
@@ -510,7 +569,86 @@ class _AiScreenState extends State<AiScreen>
                   blockSpacing: 8,
                 ),
               ),
-            if (hasDeadline && !isUser) ...[
+            if (metadata != null && metadata['deadlines'] is List && (metadata['deadlines'] as List).isNotEmpty && !isUser) ...[
+              const SizedBox(height: 12),
+              ...((metadata['deadlines'] as List).whereType<Map<String, dynamic>>().map((item) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.20),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.event_available_rounded,
+                            size: 16,
+                            color: AppColors.primaryForeground,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${item['task_title']} • ${item['course_name']}',
+                              style: AppTextStyles.label.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primaryForeground,
+                                fontSize: 12,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Due: ${item['formatted_date']} (${item['countdown']})',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => _syncToCalendar(item),
+                            icon: const Icon(Icons.add_alert_rounded, size: 14),
+                            label: const Text('Add to Calendar', style: TextStyle(fontSize: 11.5)),
+                            style: FilledButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () {
+                              Clipboard.setData(ClipboardData(
+                                text: '${item['task_title']}: ${item['formatted_date']}',
+                              ));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Due date copied!')),
+                              );
+                            },
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            child: const Text('Copy Due Date', style: TextStyle(fontSize: 11.5)),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              })),
+            ] else if (hasDeadline && !isUser) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
@@ -622,6 +760,65 @@ class _AiScreenState extends State<AiScreen>
                     ),
             ),
           ),
+          if (_messages.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              color: AppColors.surface.withValues(alpha: 0.5),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    ActionChip(
+                      avatar: const Icon(Icons.search_rounded, size: 15, color: Colors.white),
+                      backgroundColor: AppColors.primary,
+                      side: BorderSide.none,
+                      label: Text(
+                        'Scan My Hubs',
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      onPressed: _isTyping
+                          ? null
+                          : () => _sendMessage('Scan my hubs for upcoming deadlines and assignments'),
+                    ),
+                    const SizedBox(width: 8),
+                    ActionChip(
+                      avatar: Icon(Icons.alarm_add_rounded, size: 15, color: AppColors.textPrimary),
+                      backgroundColor: AppColors.surfaceMuted,
+                      side: BorderSide(color: AppColors.border),
+                      label: Text(
+                        'Extract Deadline',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: _isTyping
+                          ? null
+                          : () => _sendMessage('Extract deadline from: '),
+                    ),
+                    const SizedBox(width: 8),
+                    ActionChip(
+                      avatar: Icon(Icons.schedule_rounded, size: 15, color: AppColors.textPrimary),
+                      backgroundColor: AppColors.surfaceMuted,
+                      side: BorderSide(color: AppColors.border),
+                      label: Text(
+                        'Study Plan',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      onPressed: _isTyping
+                          ? null
+                          : () => _sendMessage('Create a study plan for '),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (_isTyping)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),

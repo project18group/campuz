@@ -192,12 +192,11 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# SimpleJWT defaults give a 5-minute access token, which expires while the user
-# is still on the same screen. The mobile client refreshes on 401, so a longer
-# access window plus a rotating refresh token keeps sessions usable.
+# SimpleJWT token lifetimes: long-lived session model similar to WhatsApp/Telegram.
+# Tokens remain valid across app restarts and background state without logging out.
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=30),
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=30),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=365 * 5),
     "ROTATE_REFRESH_TOKENS": True,
 }
 

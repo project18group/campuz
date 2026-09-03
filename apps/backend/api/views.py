@@ -2156,10 +2156,18 @@ class AIChatView(APIView):
         message = serializer.validated_data["message"]
         history = serializer.validated_data.get("history", [])
 
-        response_data = AcademicAIEngine.generate_response(
-            user_message=message,
-            user=request.user,
-            conversation_history=history,
-        )
+        try:
+            response_data = AcademicAIEngine.generate_response(
+                user_message=message,
+                user=request.user,
+                conversation_history=history,
+            )
+        except Exception as e:
+            logger.exception("AI engine error generating response: %s", e)
+            response_data = {
+                "reply": "Hello! I am your Campuz AI Academic Assistant. I encountered a momentary processing error with that request. Please try rephrasing or ask for a study plan or summary!",
+                "intent": "GENERAL_ACADEMIC_QA",
+                "metadata": {"error": str(e)},
+            }
         return Response(response_data, status=status.HTTP_200_OK)
 

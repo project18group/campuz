@@ -77,7 +77,14 @@ final appRouter = GoRouter(
           path: "/sessions",
           builder: (context, state) => const SessionsScreen(),
         ),
-        GoRoute(path: "/ai", builder: (context, state) => const AiScreen()),
+        GoRoute(
+          path: "/ai",
+          builder: (context, state) {
+            final extra = state.extra as Map<String, dynamic>?;
+            final presetPrompt = extra?['preset_prompt'] as String?;
+            return AiScreen(initialPrompt: presetPrompt);
+          },
+        ),
         GoRoute(
           path: "/profile",
           builder: (context, state) => const ProfileScreen(),
