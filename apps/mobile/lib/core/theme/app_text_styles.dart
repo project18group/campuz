@@ -5,25 +5,36 @@ class AppTextStyles {
   static TextStyle display = GoogleFonts.plusJakartaSans(
     fontSize: 32,
     fontWeight: FontWeight.w700,
+    height: 1.05,
   );
 
   static TextStyle heading = GoogleFonts.plusJakartaSans(
     fontSize: 24,
     fontWeight: FontWeight.w700,
+    height: 1.1,
   );
 
   static TextStyle title = GoogleFonts.plusJakartaSans(
     fontSize: 18,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.w700,
+    height: 1.15,
   );
 
   static TextStyle body = GoogleFonts.plusJakartaSans(
     fontSize: 14,
-    fontWeight: FontWeight.w400,
+    fontWeight: FontWeight.w500,
+    height: 1.45,
   );
 
   static TextStyle label = GoogleFonts.plusJakartaSans(
     fontSize: 16,
+    fontWeight: FontWeight.w600,
+    height: 1.2,
+  );
+
+  static TextStyle caption = GoogleFonts.plusJakartaSans(
+    fontSize: 12,
     fontWeight: FontWeight.w500,
+    height: 1.25,
   );
 }

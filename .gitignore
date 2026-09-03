@@ -10,6 +10,18 @@ __pycache__/
 .packages
 build/
 
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+
 # VS Code
 .vscode/
 
@@ -18,3 +30,5 @@ build/
 
 # Environment
 .env
+apps/backend/.env
+apps/backend/firebase-adminsdk.json

@@ -1,0 +1,51 @@
+# Backend Next Phase Deliverables
+
+This document outlines the remaining features and optimizations to be implemented on the backend by the backend developer before final integration with the Flutter frontend. 
+
+The current implementation has the base REST API for authentication, hubs, and messages. The following deliverables will bring the backend to production-readiness.
+
+## 1. Real-Time Communication (WebSockets)
+- **Objective:** Enable real-time messaging without polling.
+- **Tasks:**
+  - Setup **Django Channels** and an ASGI server (like Daphne or Uvicorn).
+  - Implement a Redis channel layer for message broadcasting.
+  - Create WebSocket consumers to handle connecting, disconnecting, and receiving/broadcasting messages for specific Hubs.
+  - Broadcast "user typing" and "user online/offline" presence events.
+
+## 2. Push Notifications
+- **Objective:** Notify offline users of new messages or mentions.
+- **Tasks:**
+  - Integrate **Firebase Cloud Messaging (FCM)**.
+  - Create a mechanism to store FCM device tokens for each user.
+  - Create a Celery task (or background worker) to trigger push notifications when a message is sent to a Hub that the user is subscribed to, ensuring it doesn't block the main thread.
+
+## 3. Media & File Handling (Cloud Storage)
+- **Objective:** Efficiently and securely store attachments (images, PDFs, etc.).
+- **Tasks:**
+  - Configure `django-storages` with a cloud provider (e.g., AWS S3, Google Cloud Storage, or Firebase Storage).
+  - Implement **presigned URLs** for direct-to-cloud uploads to reduce server load.
+  - Generate thumbnails for image/video uploads to improve frontend loading times (using a library like `Pillow` or `ffmpeg`).
+
+## 4. Message Features (Read Receipts & Pagination)
+- **Objective:** Improve chat UX.
+- **Tasks:**
+  - **Pagination:** Implement cursor-based pagination for the `Message` endpoint so the mobile app can implement infinite scrolling smoothly.
+  - **Read Receipts:** Create a model/endpoint to track the `last_read_message_id` for each user in each Hub.
+
+## 5. Hub Moderation & Roles
+- **Objective:** Allow hub creators to manage their communities.
+- **Tasks:**
+  - Expand the `HubMember` model to include roles (`Admin`, `Moderator`, `Member`).
+  - Add API permissions so only Admins/Moderators can kick members, delete messages, or update the Hub settings.
+
+## 6. Performance & Caching
+- **Objective:** Ensure the API responds quickly under load.
+- **Tasks:**
+  - Cache frequently accessed data like the list of Hubs or Hub metadata using Redis.
+  - Optimize database queries (e.g., using `select_related` and `prefetch_related` in serializers).
+
+## 7. Security & Testing
+- **Objective:** Prevent vulnerabilities and ensure reliability.
+- **Tasks:**
+  - Write unit tests for all API endpoints, specifically focusing on permissions (e.g., ensuring a user cannot read messages from a private hub they aren't part of).
+  - Rate limiting on authentication and messaging endpoints to prevent spam and brute-forcing.

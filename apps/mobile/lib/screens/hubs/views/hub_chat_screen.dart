@@ -1,0 +1,1819 @@
+import 'dart:async';
+import 'dart:ui';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
+import 'package:mobile/shared/widgets/linkified_text.dart';
+import 'package:mobile/shared/widgets/app_avatar.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/core/services/auth_api_service.dart';
+import 'package:mobile/core/services/auth_session.dart';
+import 'package:mobile/core/theme/app_colors.dart';
+import 'package:mobile/core/theme/app_text_styles.dart';
+import 'package:mobile/screens/hubs/widget/attachment_picker.dart';
+import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
+import 'package:mobile/screens/hubs/widget/hub_composer.dart';
+import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
+import 'package:mobile/screens/hubs/widget/downloadable_image.dart';
+import 'package:mobile/shared/widgets/chat_background.dart';
+import 'package:mobile/shared/widgets/app_emoji_picker.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:mobile/core/utils/image_cropper_utils.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import 'dart:convert';
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:mobile/screens/hubs/widget/audio_message_player.dart';
+
+class HubChatScreen extends StatefulWidget {
+  const HubChatScreen({super.key, this.hub, this.hubId});
+
+  final Map<String, dynamic>? hub;
+  final int? hubId;
+
+  @override
+  State<HubChatScreen> createState() => _HubChatScreenState();
+}
+
+class _HubChatScreenState extends State<HubChatScreen> {
+  final _messageController = TextEditingController();
+  final _scrollController = ScrollController();
+  final _reactionsController = ReactionsController(
+    currentUserId: AuthSession.username ?? 'me',
+  );
+  final List<Map<String, dynamic>> _messages = [];
+  final List<PlatformFile> _pendingAttachments = [];
+  final Map<int, String> _onlineUsers = {};
+  final Set<String> _typingUsers = {};
+  Timer? _typingTimer;
+
+  bool _isLoading = true;
+  bool _isSending = false;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  bool _sendAsSms = false;
+  String? _error;
+  int _nextPage = 1;
+  WebSocketChannel? _channel;
+  Map<String, dynamic>? _replyToMessage;
+
+  bool _isRecording = false;
+  Duration _recordingDuration = Duration.zero;
+  Timer? _recordingDurationTimer;
+  final _audioRecorder = AudioRecorder();
+  String? _recordingPath;
+
+  Map<String, dynamic>? _hub;
+
+  int get _hubId {
+    final value = (_hub ?? widget.hub)?['id'] ?? widget.hubId;
+    return value is int ? value : int.tryParse('$value') ?? 0;
+  }
+
+  String get _hubName =>
+      ((_hub ?? widget.hub)?['name'] as String? ?? 'Hub').trim().isEmpty
+          ? 'Hub'
+          : ((_hub ?? widget.hub)?['name'] as String? ?? 'Hub').trim();
+
+  String get _coverImageUrl =>
+      ((_hub ?? widget.hub)?['cover_image_url'] as String? ?? '').trim();
+
+  int get _memberCount {
+    final value = (_hub ?? widget.hub)?['members_count'];
+    return value is int ? value : 0;
+  }
+
+  bool get _canSendAsSms => (_hub ?? widget.hub)?['can_manage_members'] == true;
+  bool get _isAdmin => (_hub ?? widget.hub)?['can_manage_members'] == true;
+
+  @override
+  void initState() {
+    super.initState();
+    _hub = widget.hub;
+    _loadDraft();
+    _messageController.addListener(_saveDraft);
+    _messageController.addListener(_onTextChanged);
+    _scrollController.addListener(_onScroll);
+    _loadMessages(reset: true);
+    _loadHubDetails();
+    _initWebSocket();
+  }
+
+  Future<void> _loadHubDetails() async {
+    if (_hubId == 0) return;
+    try {
+      final res = await AuthApiService.getHubMembers(hubId: _hubId);
+      final hub = res['hub'];
+      if (hub is Map<String, dynamic> && mounted) {
+        setState(() {
+          _hub = Map<String, dynamic>.from(hub);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openHubInfo() async {
+    final updated = await context.push('/hub-info', extra: _hub ?? widget.hub);
+    if (updated is Map<String, dynamic> && mounted) {
+      setState(() {
+        _hub = Map<String, dynamic>.from(updated);
+      });
+    } else {
+      _loadHubDetails();
+    }
+  }
+
+  Future<void> _initWebSocket() async {
+    if (_hubId == 0) return;
+    
+    try {
+      final token = await AuthApiService.getAccessToken();
+      if (token == null) return;
+      
+      final wsUrl = Uri.parse('${AuthApiService.wsBaseUrl}/ws/hub/$_hubId/?token=$token');
+      _channel = WebSocketChannel.connect(wsUrl);
+      
+      _channel!.stream.listen(
+        (data) {
+          if (!mounted) return;
+          try {
+            final payload = jsonDecode(data);
+            if (payload['type'] == 'chat_message') {
+              final message = payload['message'];
+              final existingIds = _messages.map(_messageIdKey).toSet();
+              if (!existingIds.contains(_messageIdKey(message))) {
+                setState(() {
+                  _messages.insert(0, message);
+                });
+                _scrollToBottom();
+              }
+            } else if (payload['type'] == 'presence_update') {
+              final userId = payload['user_id'] as int?;
+              final userName = payload['user_name'] as String?;
+              if (userId != null && userName != null && userName.isNotEmpty) {
+                setState(() {
+                  if (payload['status'] == 'online') {
+                    _onlineUsers[userId] = userName;
+                  } else {
+                    _onlineUsers.remove(userId);
+                  }
+                });
+              }
+            } else if (payload['type'] == 'typing_update') {
+              final userName = payload['user_name'] as String?;
+              if (userName != null && userName.isNotEmpty && userName != AuthSession.username) {
+                setState(() {
+                  if (payload['is_typing'] == true) {
+                    _typingUsers.add(userName);
+                  } else {
+                    _typingUsers.remove(userName);
+                  }
+                });
+              }
+            }
+          } catch (e) {
+            // ignore
+          }
+        },
+      );
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  void _onTextChanged() {
+    if (_channel == null) return;
+    
+    final text = _messageController.text;
+    if (text.isNotEmpty) {
+      _channel!.sink.add(jsonEncode({'type': 'typing', 'is_typing': true}));
+      _typingTimer?.cancel();
+      _typingTimer = Timer(const Duration(seconds: 3), () {
+        if (mounted) {
+          _channel?.sink.add(jsonEncode({'type': 'typing', 'is_typing': false}));
+        }
+      });
+    } else {
+      _typingTimer?.cancel();
+      _channel!.sink.add(jsonEncode({'type': 'typing', 'is_typing': false}));
+    }
+  }
+
+  Future<void> _loadDraft() async {
+    if (_hubId == 0) return;
+    final prefs = await SharedPreferences.getInstance();
+    final draft = prefs.getString('hub_draft_$_hubId');
+    if (draft != null && draft.isNotEmpty) {
+      _messageController.text = draft;
+    }
+  }
+
+  void _saveDraft() {
+    if (_hubId == 0) return;
+    final text = _messageController.text;
+    SharedPreferences.getInstance().then((prefs) {
+      if (text.isEmpty) {
+        prefs.remove('hub_draft_$_hubId');
+      } else {
+        prefs.setString('hub_draft_$_hubId', text);
+      }
+    });
+  }
+
+  void _clearDraft() {
+    if (_hubId == 0) return;
+    SharedPreferences.getInstance().then((prefs) {
+      prefs.remove('hub_draft_$_hubId');
+    });
+  }
+
+  @override
+  void dispose() {
+    _typingTimer?.cancel();
+    _recordingDurationTimer?.cancel();
+    _audioRecorder.dispose();
+    _channel?.sink.close();
+    _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    _reactionsController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients || _isLoadingMore || !_hasMore) return;
+    if (_scrollController.position.pixels <= 140) {
+      _loadOlderMessages();
+    }
+  }
+
+  Future<void> _loadMessages({required bool reset, bool silent = false}) async {
+    if (_hubId == 0) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _error = 'No hub selected.';
+      });
+      return;
+    }
+
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _messages.clear();
+        _hasMore = true;
+        _nextPage = 1;
+      });
+    }
+
+    try {
+      final response = await AuthApiService.getHubMessages(
+        hubId: _hubId,
+        page: 1,
+      );
+
+      if (!mounted) return;
+
+      final previousIds = _messages.map(_messageIdKey).toSet();
+      final results = _extractResults(response).reversed.toList();
+      final fresh = results
+          .where((message) => !previousIds.contains(_messageIdKey(message)))
+          .toList();
+
+      setState(() {
+        if (reset) {
+          _messages
+            ..clear()
+            ..addAll(results);
+        } else if (fresh.isNotEmpty) {
+          _messages.addAll(fresh);
+        }
+        _hasMore = response['next'] != null;
+        _nextPage = 2;
+        _isLoading = false;
+        _error = null;
+      });
+
+      if (reset || fresh.isNotEmpty) {
+        _scrollToBottom();
+      }
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _isLoading = false;
+          _error = error.message;
+        });
+      }
+    } catch (_) {
+      if (!mounted) return;
+      if (!silent) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Unable to load hub messages right now.';
+        });
+      }
+    }
+  }
+
+  Future<void> _loadOlderMessages() async {
+    if (_isLoading || _isLoadingMore || !_hasMore || _hubId == 0) return;
+
+    setState(() => _isLoadingMore = true);
+    try {
+      final response = await AuthApiService.getHubMessages(
+        hubId: _hubId,
+        page: _nextPage,
+      );
+      final results = _extractResults(response).reversed.toList();
+      final existingIds = _messages.map(_messageIdKey).toSet();
+      final older = results
+          .where((message) => !existingIds.contains(_messageIdKey(message)))
+          .toList();
+
+      if (!mounted) return;
+
+      setState(() {
+        _messages.insertAll(0, older);
+        _hasMore = response['next'] != null;
+        _nextPage += 1;
+        _isLoadingMore = false;
+      });
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoadingMore = false);
+    }
+  }
+
+  Future<void> _sendMessage() async {
+    final content = _messageController.text.trim();
+    if (content.isEmpty && _pendingAttachments.isEmpty) return;
+    if (_isSending || _hubId == 0) return;
+
+    setState(() => _isSending = true);
+    try {
+      final replyMessage = _replyToMessage;
+      final attachmentsToSend = List<PlatformFile>.from(_pendingAttachments);
+      final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
+      
+      final replyTo = replyMessage != null
+          ? {
+              'id': replyMessage['id'],
+              'sender_name': _displayName(replyMessage),
+              'snippet': _replySnippet(replyMessage)
+            }
+          : null;
+
+      final tempMessage = {
+        'id': tempId,
+        'content': content,
+        'is_mine': true,
+        'sender': {'username': AuthSession.username ?? 'Me'},
+        'timestamp': DateTime.now().toIso8601String(),
+        'is_pending': true,
+        'attachments': [],
+        'send_as_sms': _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
+        'reply_to': replyTo,
+      };
+
+      setState(() {
+        _messages.add(tempMessage);
+        _messageController.clear();
+        _clearDraft();
+        _pendingAttachments.clear();
+        _replyToMessage = null;
+      });
+      _scrollToBottom();
+
+      final message = await AuthApiService.sendHubMessage(
+        hubId: _hubId,
+        content: content,
+        parentId: replyMessage?['id'],
+        sendAsSms: tempMessage['send_as_sms'] == true,
+        attachments: attachmentsToSend,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        final sentMessage = Map<String, dynamic>.from(message);
+        final messageKey = _messageIdKey(sentMessage);
+        final index = _messages.indexWhere((m) => m['id'] == tempId);
+        if (index != -1) {
+          _messages[index] = sentMessage;
+        } else if (!_hasMessageWithId(messageKey)) {
+          _messages.add(sentMessage);
+        }
+        _isSending = false;
+        if (_sendAsSms && !_canSendAsSms) {
+          _sendAsSms = false;
+        }
+      });
+      _scrollToBottom();
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        final index = _messages.indexWhere((m) => m['is_pending'] == true);
+        if (index != -1) {
+          _messages[index]['is_failed'] = true;
+          _messages[index]['is_pending'] = false;
+        }
+        _isSending = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to send message right now')),
+      );
+    }
+  }
+
+  List<Map<String, dynamic>> _extractResults(Map<String, dynamic> response) {
+    final raw = response['results'];
+    if (raw is! List) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  String _displayName(Map<String, dynamic> message) {
+    final sender = message['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderName = (message['sender_name'] as String? ?? '').trim();
+    if (senderName.isNotEmpty) return senderName;
+    final displayName = (profile['display_name'] as String? ?? '').trim();
+    if (displayName.isNotEmpty) return displayName;
+    final fullName = (profile['full_name'] as String? ?? '').trim();
+    return fullName.isNotEmpty ? fullName : 'Campuz user';
+  }
+
+  String _messageIdKey(Map<String, dynamic> message) {
+    final id = (message['id']?.toString() ?? '').trim();
+    if (id.isNotEmpty) return 'id:$id';
+    final sender = message['sender'] as Map<String, dynamic>? ?? const {};
+    final profile = sender['profile'] as Map<String, dynamic>? ?? const {};
+    final senderKey =
+        [
+              sender['id'],
+              message['sender_name'],
+              profile['display_name'],
+              profile['full_name'],
+            ]
+            .map((value) => value?.toString().trim() ?? '')
+            .firstWhere((value) => value.isNotEmpty, orElse: () => 'unknown');
+    final timestamp = _parseTimestamp(message)?.toUtc().toIso8601String() ?? '';
+    final content = (message['content'] as String? ?? '').trim();
+    final attachmentCount = (message['attachments'] as List?)?.length ?? 0;
+    return '$senderKey|$timestamp|$content|$attachmentCount';
+  }
+
+  bool _hasMessageWithId(String idKey) {
+    return _messages.any((message) => _messageIdKey(message) == idKey);
+  }
+
+  void _startReplyToMessage(Map<String, dynamic> message) {
+    setState(() => _replyToMessage = message);
+  }
+
+  String _replySnippet(Map<String, dynamic> message) {
+    final content = (message['content'] as String? ?? '').trim();
+    if (content.isEmpty) return 'Attachment';
+    if (content.length <= 90) return content;
+    return '${content.substring(0, 90)}...';
+  }
+
+  ChatReactionsConfig _reactionConfigForMessage(bool isMine, bool isAdmin) {
+    return ChatReactionsConfig(
+      availableReactions: const ['👍', '❤️', '😂', '😮', '😢', '😠', '➕'],
+      menuItems: isMine || isAdmin
+          ? const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+              MenuItem(
+                label: 'Delete',
+                icon: Icons.delete_forever,
+                isDestructive: true,
+              ),
+            ]
+          : const [
+              MenuItem(label: 'Reply', icon: Icons.reply),
+              MenuItem(label: 'Copy', icon: Icons.copy),
+            ],
+      showAddReactionButton: true,
+      enableHapticFeedback: true,
+      enableLongPress: true,
+      enableDoubleTap: true,
+      showContextMenu: true,
+      dialogBackgroundColor: AppColors.surface,
+      dialogBorderRadius: BorderRadius.circular(20),
+      dismissOnTapOutside: true,
+    );
+  }
+
+  Future<void> _handleMessageAction(
+    Map<String, dynamic> message,
+    MenuItem item,
+  ) async {
+    final label = item.label.toLowerCase();
+    final content = (message['content'] as String? ?? '').trim();
+    switch (label) {
+      case 'reply':
+        final quote =
+            '> ${_displayName(message)}: ${_replySnippet(message)}\n\n';
+        _messageController.text = '$quote${_messageController.text}';
+        _messageController.selection = TextSelection.collapsed(
+          offset: _messageController.text.length,
+        );
+        _startReplyToMessage(message);
+        break;
+      case 'copy':
+        if (content.isNotEmpty) {
+          await Clipboard.setData(ClipboardData(text: content));
+          if (!mounted) return;
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Message copied')));
+        }
+        break;
+      case 'delete':
+        final confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text('Delete Message', style: AppTextStyles.heading),
+            content: Text('Are you sure you want to delete this message?', style: AppTextStyles.body),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text('Delete', style: TextStyle(color: AppColors.error)),
+              ),
+            ],
+          ),
+        );
+        if (confirm == true && mounted) {
+          final messageId = message['id'];
+          if (messageId != null) {
+            try {
+              await AuthApiService.deleteMessage(messageId as int);
+              if (mounted) {
+                setState(() {
+                  _messages.removeWhere(
+                    (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
+                  );
+                });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Message deleted')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Failed to delete message: $e')),
+                );
+              }
+            }
+          } else {
+            // Local-only message
+            setState(() {
+              _messages.removeWhere(
+                (candidate) => _messageIdKey(candidate) == _messageIdKey(message),
+              );
+            });
+          }
+        }
+        break;
+    }
+  }
+
+  bool _isImageAttachment(Map<String, dynamic> attachment) {
+    final ext = (attachment['extension'] as String? ?? '').toLowerCase();
+    final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
+    return mime.startsWith('image/') ||
+        {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext);
+  }
+
+  bool _isAudioAttachment(Map<String, dynamic> attachment) {
+    final ext = (attachment['extension'] as String? ?? '').toLowerCase();
+    final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
+    return mime.startsWith('audio/') ||
+        {'mp3', 'm4a', 'wav', 'aac', 'ogg'}.contains(ext);
+  }
+
+  IconData _attachmentIconFor(Map<String, dynamic> attachment) {
+    final ext = (attachment['extension'] as String? ?? '').toLowerCase();
+    final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
+    if (mime.startsWith('image/') ||
+        {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext)) {
+      return Icons.image_rounded;
+    }
+    if (ext == 'pdf') return Icons.picture_as_pdf_rounded;
+    if (ext == 'doc' || ext == 'docx') return Icons.description_rounded;
+    if (ext == 'ppt' || ext == 'pptx') return Icons.slideshow_rounded;
+    if (ext == 'zip' || ext == 'rar' || ext == '7z') {
+      return Icons.folder_zip_rounded;
+    }
+    return Icons.insert_drive_file_rounded;
+  }
+
+  Color _attachmentColorFor(Map<String, dynamic> attachment) {
+    final ext = (attachment['extension'] as String? ?? '').toLowerCase();
+    final mime = (attachment['mime_type'] as String? ?? '').toLowerCase();
+    if (mime.startsWith('image/') ||
+        {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext)) {
+      return const Color(0xFF14A44D);
+    }
+    if (ext == 'pdf') return const Color(0xFFE53935);
+    if (ext == 'doc' || ext == 'docx') return const Color(0xFF1E88E5);
+    if (ext == 'ppt' || ext == 'pptx') return const Color(0xFFFB8C00);
+    return const Color(0xFF757575);
+  }
+
+  String _attachmentSubtitle(Map<String, dynamic> attachment) {
+    final sizeBytes = attachment['size_bytes'];
+    if (sizeBytes is int && sizeBytes > 0) {
+      final kb = sizeBytes / 1024;
+      if (kb < 1024) return '${kb.toStringAsFixed(0)} KB';
+      final mb = kb / 1024;
+      return '${mb.toStringAsFixed(1)} MB';
+    }
+    return (attachment['mime_type'] as String? ?? 'File').toUpperCase();
+  }
+
+  Future<void> _openAttachment(Map<String, dynamic> attachment) async {
+    final url = (attachment['url'] as String? ?? '').trim();
+    if (url.isEmpty) return;
+
+    if (_isImageAttachment(attachment)) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, _, __) => ImageViewerPage(
+            imageUrl: url,
+            heroTag: url,
+            caption: _attachmentSubtitle(attachment),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) return;
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  Future<void> _pickAttachments() async {
+    if (_isSending) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return AttachmentPicker(
+          onPickDocument: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: true,
+              withData: false,
+              type: FileType.any,
+            );
+            if (result == null || !mounted) return;
+            setState(() {
+              _pendingAttachments.addAll(
+                result.files.where(
+                  (file) => file.path != null && file.path!.isNotEmpty,
+                ),
+              );
+              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
+            });
+          },
+          onPickGallery: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: false,
+              withData: false,
+              type: FileType.image,
+            );
+            if (result == null || result.files.isEmpty || !mounted) return;
+
+            final file = result.files.first;
+            if (file.path == null) return;
+
+            // Initial crop
+            final croppedFiles = await ImageCropperUtils.cropImages([file]);
+            if (croppedFiles.isEmpty || !mounted) return;
+            
+            final croppedFile = croppedFiles.first;
+            if (croppedFile.path == null) return;
+
+            final previewResult = await Navigator.of(context).push<MediaPreviewResult>(
+              MaterialPageRoute(
+                builder: (_) => MediaPreviewScreen(
+                  initialFile: File(croppedFile.path!),
+                ),
+              ),
+            );
+
+            if (previewResult != null && mounted) {
+              if (previewResult.caption != null) {
+                _messageController.text = previewResult.caption!;
+              }
+              setState(() {
+                _pendingAttachments.add(PlatformFile(
+                  path: previewResult.file.path,
+                  name: file.name,
+                  size: previewResult.file.lengthSync(),
+                ));
+                _sendAsSms = false;
+              });
+              // Send immediately like WhatsApp
+              _sendMessage();
+            }
+          },
+          onPickCamera: () async {
+            final result = await FilePicker.pickFiles(
+              allowMultiple: true,
+              withData: false,
+              type: FileType.media,
+            );
+            if (result == null || !mounted) return;
+            setState(() {
+              _pendingAttachments.addAll(
+                result.files.where(
+                  (file) => file.path != null && file.path!.isNotEmpty,
+                ),
+              );
+              if (_pendingAttachments.isNotEmpty) _sendAsSms = false;
+            });
+          },
+        );
+      },
+    );
+  }
+
+  void _removePendingAttachment(int index) {
+    if (index < 0 || index >= _pendingAttachments.length) return;
+    setState(() => _pendingAttachments.removeAt(index));
+  }
+
+  Future<void> _startRecording() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        final dir = await getTemporaryDirectory();
+        _recordingPath = '${dir.path}/audio_${DateTime.now().millisecondsSinceEpoch}.m4a';
+        
+        await _audioRecorder.start(
+          const RecordConfig(encoder: AudioEncoder.aacLc),
+          path: _recordingPath!,
+        );
+
+        setState(() {
+          _isRecording = true;
+          _recordingDuration = Duration.zero;
+        });
+
+        _recordingDurationTimer?.cancel();
+        _recordingDurationTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          setState(() {
+            _recordingDuration = Duration(seconds: timer.tick);
+          });
+        });
+      }
+    } catch (e) {
+      debugPrint('Error starting record: $e');
+    }
+  }
+
+  Future<void> _stopRecording() async {
+    try {
+      _recordingDurationTimer?.cancel();
+      final path = await _audioRecorder.stop();
+      
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+
+      if (path != null) {
+        final file = File(path);
+        if (await file.exists()) {
+          setState(() {
+            _pendingAttachments.add(PlatformFile(
+              path: path,
+              name: 'Voice message.m4a',
+              size: file.lengthSync(),
+            ));
+            _sendAsSms = false;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error stopping record: $e');
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    try {
+      _recordingDurationTimer?.cancel();
+      await _audioRecorder.stop();
+      
+      setState(() {
+        _isRecording = false;
+        _recordingDuration = Duration.zero;
+      });
+      
+      if (_recordingPath != null) {
+        final file = File(_recordingPath!);
+        if (await file.exists()) {
+          await file.delete();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error canceling record: $e');
+    }
+  }
+
+  Future<void> _showEmojiPicker() async {
+    if (!mounted) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
+              ),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: SizedBox(
+              height: MediaQuery.of(context).size.height * 0.42,
+              child: AppEmojiPicker(
+                textEditingController: _messageController,
+                onClose: () => Navigator.pop(context),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _confirmSendAsSms(bool value) async {
+    if (!value) {
+      setState(() => _sendAsSms = false);
+      return;
+    }
+
+    final shouldContinue = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Send as SMS?'),
+        content: const Text(
+          'SMS delivery can use credits and reaches members on their phone numbers. '
+          'Only continue for urgent or very important updates.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Continue'),
+          ),
+        ],
+      ),
+    );
+
+    if (!mounted) return;
+    setState(() => _sendAsSms = shouldContinue == true);
+  }
+
+  DateTime? _parseTimestamp(Map<String, dynamic> message) {
+    final raw = message['timestamp'];
+    if (raw is String) return DateTime.tryParse(raw);
+    return null;
+  }
+
+  String _formatTimestamp(DateTime? time) {
+    if (time == null) return '';
+    final now = DateTime.now();
+    final difference = now.difference(time);
+
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    }
+    return '${time.day}/${time.month} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildMessageBubble(Map<String, dynamic> message) {
+    final isMine = message['is_mine'] == true;
+    final content = (message['content'] as String? ?? '').trim();
+    final senderName = isMine ? 'You' : _displayName(message);
+    final timestamp = _formatTimestamp(_parseTimestamp(message));
+    final attachments = (message['attachments'] as List?) ?? const [];
+    final replyTo = message['reply_to'] as Map<String, dynamic>?;
+    final senderId = message['sender']?['id'] as int?;
+    final isOnline = !isMine && senderId != null && _onlineUsers.containsKey(senderId);
+    final smsSent =
+        message['send_as_sms'] == true ||
+        message['sms_delivery_queued'] == true ||
+        message['sms_sent'] == true;
+
+    return Dismissible(
+      key: ValueKey('swipe_reply_${_messageIdKey(message)}'),
+      direction: isMine
+          ? DismissDirection.endToStart
+          : DismissDirection.startToEnd,
+      confirmDismiss: (direction) async {
+        _handleMessageAction(
+          message,
+          const MenuItem(label: 'Reply', icon: Icons.reply),
+        );
+        return false;
+      },
+      background: Container(
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        padding: EdgeInsets.only(
+          right: isMine ? 24.0 : 0,
+          left: isMine ? 0 : 24.0,
+        ),
+        child: Icon(
+          Icons.reply_rounded,
+          color: AppColors.primary.withValues(alpha: 0.7),
+        ),
+      ),
+      child: ChatMessageWrapper(
+        messageId: _messageIdKey(message),
+        controller: _reactionsController,
+        config: _reactionConfigForMessage(isMine, _isAdmin),
+        alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+        onMenuItemTapped: (item) => _handleMessageAction(message, item),
+        child: Align(
+          alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Container(
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.78,
+                ),
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: isMine ? AppColors.primaryDeep : AppColors.surface,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: Radius.circular(isMine ? 18 : 4),
+                    bottomRight: Radius.circular(isMine ? 4 : 18),
+                  ),
+                  border: isMine ? null : Border.all(color: AppColors.border),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x0D000000),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isMine) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                senderName,
+                                style: AppTextStyles.label.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isOnline) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                if (replyTo != null) ...[
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isMine ? Colors.white.withValues(alpha: 0.15) : AppColors.primaryDeep.withValues(alpha: 0.05),
+                      border: Border(
+                        left: BorderSide(
+                          color: isMine ? Colors.white54 : AppColors.primaryDeep,
+                          width: 3,
+                        ),
+                      ),
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(4),
+                        bottomRight: Radius.circular(4),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          replyTo['sender_name']?.toString() ?? 'User',
+                          style: AppTextStyles.label.copyWith(
+                            color: isMine ? Colors.white : AppColors.primaryDeep,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          replyTo['snippet']?.toString() ?? '',
+                          style: AppTextStyles.body.copyWith(
+                            color: isMine ? Colors.white70 : AppColors.textSecondary,
+                            fontSize: 12,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                if (content.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  LinkifiedText(
+                    text: content,
+                    style: AppTextStyles.body.copyWith(
+                      color: isMine ? Colors.white : AppColors.textPrimary,
+                      height: 1.35,
+                    ),
+                    linkStyle: AppTextStyles.body.copyWith(
+                      color: isMine ? Colors.white : AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      height: 1.35,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+                if (attachments.isNotEmpty) ...[
+                  if (content.isNotEmpty) const SizedBox(height: 10),
+                  ...attachments.whereType<Map>().map((raw) {
+                    final attachment = Map<String, dynamic>.from(raw);
+                    final url = (attachment['url'] as String? ?? '').trim();
+                    final fileName =
+                        (attachment['file_name'] as String? ?? 'Attachment')
+                            .trim();
+                    final isImage = _isImageAttachment(attachment);
+                    final isAudio = _isAudioAttachment(attachment);
+                    final color = _attachmentColorFor(attachment);
+                    final icon = _attachmentIconFor(attachment);
+                    
+                    if (isAudio && url.isNotEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: AudioMessagePlayer(url: url, isMine: isMine),
+                      );
+                    }
+                    
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: GestureDetector(
+                        onTap: url.isNotEmpty
+                            ? () => _openAttachment(attachment)
+                            : null,
+                        child: Container(
+                          width: double.infinity,
+                          decoration: BoxDecoration(
+                            color: isMine
+                                ? Colors.white.withValues(alpha: 0.08)
+                                : AppColors.surfaceMuted,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isMine
+                                  ? Colors.white.withValues(alpha: 0.10)
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (isImage && url.isNotEmpty)
+                                ClipRRect(
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(14),
+                                  ),
+                                  child: AspectRatio(
+                                    aspectRatio: 1.08,
+                                    child: DownloadableImageAttachment(
+                                      url: url,
+                                      sizeLabel: _attachmentSubtitle(attachment),
+                                      onTap: () => _openAttachment(attachment),
+                                    ),
+                                  ),
+                                ),
+                              Padding(
+                                padding: EdgeInsets.fromLTRB(
+                                  11,
+                                  isImage && url.isNotEmpty ? 9 : 11,
+                                  11,
+                                  10,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Container(
+                                      width: 34,
+                                      height: 34,
+                                      decoration: BoxDecoration(
+                                        color: color.withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                      child: Icon(icon, color: color, size: 20),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            fileName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppTextStyles.body.copyWith(
+                                              color: isMine
+                                                  ? Colors.white
+                                                  : AppColors.textPrimary,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 1),
+                                          Text(
+                                            _attachmentSubtitle(attachment),
+                                            style: AppTextStyles.caption
+                                                .copyWith(
+                                                  color: isMine
+                                                      ? Colors.white70
+                                                      : AppColors.textSecondary,
+                                                  fontSize: 10.5,
+                                                ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    if (url.isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: 6,
+                                          top: 1,
+                                        ),
+                                        child: Icon(
+                                          Icons.open_in_new_rounded,
+                                          size: 16,
+                                          color: isMine
+                                              ? Colors.white70
+                                              : AppColors.textSecondary,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+                if (content.isNotEmpty || attachments.isNotEmpty)
+                  const SizedBox(height: 4),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        timestamp,
+                        style: AppTextStyles.caption.copyWith(
+                          color: isMine ? Colors.white60 : AppColors.textSecondary,
+                        ),
+                      ),
+                      if (isMine) ...[
+                        const SizedBox(width: 4),
+                        Icon(
+                          (message['is_failed'] == true) 
+                              ? Icons.error_outline_rounded 
+                              : (message['is_pending'] == true)
+                                  ? Icons.access_time_rounded
+                                  : Icons.done_all_rounded,
+                          size: 13,
+                          color: (message['is_failed'] == true)
+                              ? Colors.red 
+                              : (message['is_pending'] == true)
+                                  ? Colors.white60
+                                  : const Color(0xFF53BDEB),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (smsSent) ...[
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.sms_rounded,
+                          size: 13,
+                          color: Colors.white60,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Sent as SMS',
+                          style: AppTextStyles.caption.copyWith(
+                            color: isMine
+                                ? Colors.white60
+                                : AppColors.textSecondary,
+                            fontSize: 10.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+              Positioned(
+                bottom: -4,
+                right: isMine ? 20 : null,
+                left: isMine ? null : 20,
+                child: StackedReactions(
+                  messageId: _messageIdKey(message),
+                  controller: _reactionsController,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMessages() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.cloud_off_outlined,
+                size: 52,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(height: 12),
+              Text('Unable to load hub messages', style: AppTextStyles.heading),
+              const SizedBox(height: 8),
+              Text(
+                _error!,
+                textAlign: TextAlign.center,
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton(
+                onPressed: () => _loadMessages(reset: true),
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_messages.isEmpty) {
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        children: [
+          if (!_hasMore) _buildChatHeader(),
+          const SizedBox(height: 32),
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.forum_outlined,
+                  size: 64,
+                  color: AppColors.textSecondary.withValues(alpha: 0.45),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'No messages yet',
+                  style: AppTextStyles.heading.copyWith(fontSize: 18),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Start the discussion for $_hubName.',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
+    final bool showHeader = !_hasMore;
+    final int headerCount = showHeader ? 1 : 0;
+    final int loadMoreCount = _hasMore ? 1 : 0;
+    final itemCount = _messages.length + loadMoreCount + headerCount;
+
+    return RefreshIndicator(
+      onRefresh: () => _loadMessages(reset: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+        itemCount: itemCount,
+        itemBuilder: (context, index) {
+          if (showHeader && index == 0) {
+            return _buildChatHeader();
+          }
+          final adjustedIndex = index - headerCount;
+
+          if (_hasMore && adjustedIndex == 0) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Center(
+                child: _isLoadingMore
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2.2),
+                      )
+                    : TextButton(
+                        onPressed: _loadOlderMessages,
+                        child: Text(
+                          'Load older messages',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+              ),
+            );
+          }
+
+          final messageIndex = adjustedIndex - loadMoreCount;
+          return _buildMessageBubble(_messages[messageIndex]);
+        },
+      ),
+    );
+  }
+
+  Widget _buildChatHeader() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24, top: 24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          AppAvatar(
+            avatarUrl: _coverImageUrl,
+            fallbackName: _hubName,
+            size: 80,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _hubName,
+            style: AppTextStyles.heading.copyWith(fontSize: 22),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$_memberCount members',
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: _openHubInfo,
+            icon: const Icon(Icons.person_add_rounded, size: 20),
+            label: const Text('Invite Members'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+              foregroundColor: AppColors.primary,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildComposer() {
+    if (!_isAdmin) {
+      return SafeArea(
+        top: false,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            border: Border(top: BorderSide(color: AppColors.border)),
+          ),
+          child: Text(
+            'Students cannot post in hubs. Get admin access.',
+            textAlign: TextAlign.center,
+            style: AppTextStyles.body.copyWith(
+              color: AppColors.textSecondary,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          border: Border(top: BorderSide(color: AppColors.border)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (_replyToMessage != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: AppColors.background,
+                child: Row(
+                  children: [
+                    Icon(Icons.reply, size: 20, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _displayName(_replyToMessage!),
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            (_replyToMessage!['content'] as String?) ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption,
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () {
+                        setState(() {
+                          _replyToMessage = null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            HubComposer(
+              showSendAsSms: _canSendAsSms,
+              sendAsSms: _sendAsSms,
+              isSending: _isSending,
+              canSend: !_isSending,
+              controller: _messageController,
+              attachments: _pendingAttachments,
+              onSmsChanged: _confirmSendAsSms,
+              onAttach: _pickAttachments,
+              onEmoji: _showEmojiPicker,
+              onRemoveAttachment: _removePendingAttachment,
+              onSend: _sendMessage,
+              isRecording: _isRecording,
+              recordingDuration: _recordingDuration,
+              onStartRecording: _startRecording,
+              onStopRecording: _stopRecording,
+              onCancelRecording: _cancelRecording,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmLeaveHub() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Leave hub'),
+        content: const Text(
+          'Are you sure you want to leave this hub? You can join again later if you are invited back.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext);
+              try {
+                await AuthApiService.updateHubMembership(
+                  hubId: _hubId,
+                  action: 'leave',
+                );
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('You left the hub.')),
+                );
+                context.go('/home');
+              } on AuthApiException catch (error) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text(error.message)));
+              } catch (_) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Unable to leave hub right now'),
+                  ),
+                );
+              }
+            },
+            child: Text('Leave', style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        leadingWidth: 40,
+        leading: IconButton(
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop(_hub);
+            } else {
+              context.go('/home');
+            }
+          },
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+        ),
+        titleSpacing: 0,
+        title: GestureDetector(
+          onTap: _openHubInfo,
+          child: Row(
+            children: [
+              AppAvatar(avatarUrl: _coverImageUrl, fallbackName: _hubName, size: 40),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _hubName,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.label.copyWith(fontSize: 16),
+                    ),
+                    Text(
+                      '$_memberCount members',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => context.push('/shared-media/$_hubId'),
+            icon: const Icon(Icons.folder_shared_rounded),
+            tooltip: 'Class Resources',
+          ),
+          IconButton(
+            onPressed: _isLoading ? null : () => _loadMessages(reset: true),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert),
+            onSelected: (value) {
+              if (value == 'info') {
+                _openHubInfo();
+              } else if (value == 'leave') {
+                _confirmLeaveHub();
+              }
+            },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'info',
+                child: Text('Hub info'),
+              ),
+              PopupMenuItem<String>(
+                value: 'leave',
+                child: Text(
+                  'Leave hub',
+                  style: TextStyle(color: AppColors.error),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                ChatBackground(child: _buildMessages()),
+                Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: GestureDetector(
+                      onTap: () => context.push('/shared-media/${widget.hub?['id']}'),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(24),
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface.withValues(alpha: 0.7),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: AppColors.primary.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.folder_shared_rounded,
+                                  color: AppColors.primary,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Class Resources',
+                                  style: AppTextStyles.label.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    '3 New',
+                                    style: AppTextStyles.caption.copyWith(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_typingUsers.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              color: AppColors.background,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '${_typingUsers.join(', ')} ${_typingUsers.length > 1 ? 'are' : 'is'} typing...',
+                style: AppTextStyles.body.copyWith(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ),
+          _buildComposer(),
+        ],
+      ),
+    );
+  }
+}

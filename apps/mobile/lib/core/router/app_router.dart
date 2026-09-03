@@ -1,54 +1,220 @@
 import 'package:go_router/go_router.dart';
-import 'package:mobile/screens/auth/views/account_setup_screen.dart';
+import 'package:mobile/screens/auth/views/phone_screen.dart';
 import 'package:mobile/screens/auth/views/profile_setup_screen.dart';
 import 'package:mobile/screens/auth/views/otp_screen.dart';
-import 'package:mobile/screens/auth/views/register_onboard.dart';
-import 'package:mobile/screens/auth/views/register_screen.dart';
+import 'package:mobile/screens/auth/views/startup_screen.dart';
+import 'package:mobile/screens/contacts/views/direct_chat_screen.dart';
+import 'package:mobile/screens/contacts/views/select_contact_screen.dart';
 import 'package:mobile/screens/home/views/home_screen.dart';
+import 'package:mobile/screens/hub/views/hub_detail_screen.dart';
+import 'package:mobile/screens/hub/views/top_up_screen.dart';
+import 'package:mobile/screens/hubs/views/create_hub_screen.dart';
+import 'package:mobile/screens/hubs/views/hub_chat_screen.dart';
+import 'package:mobile/screens/hubs/views/hub_created_screen.dart';
+import 'package:mobile/screens/hubs/views/hub_permissions_screen.dart';
+import 'package:mobile/screens/hubs/views/join_hub_screen.dart';
+import 'package:mobile/screens/hubs/views/scan_qr_screen.dart';
+import 'package:mobile/screens/hubs/views/shared_media_screen.dart';
 import 'package:mobile/screens/onboarding/views/onboarding_screen.dart';
+import 'package:mobile/screens/hubs/views/hub_info_screen.dart';
+import 'package:mobile/screens/ai/views/ai_screen.dart';
+import 'package:mobile/screens/profile/views/profile_screen.dart';
+import 'package:mobile/screens/profile/views/settings_screen.dart';
+import 'package:mobile/screens/broadcasts/views/broadcast_feed_screen.dart';
+import 'package:mobile/screens/resources/views/resource_list_screen.dart';
+import 'package:mobile/screens/tasks/views/task_list_screen.dart';
+import 'package:mobile/screens/calendar/views/calendar_screen.dart';
+import 'package:mobile/screens/sessions/views/sessions_screen.dart';
+import 'package:mobile/screens/analytics/views/analytics_dashboard_screen.dart';
+import 'package:mobile/shared/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
-  initialLocation: "/",
+  initialLocation: "/startup",
+  errorBuilder: (context, state) => const StartupScreen(),
   routes: [
+    // -----------------------------------------------------------------------
+    // Startup splash — checks for a stored session, then routes to /phone or
+    // /home accordingly.
+    // -----------------------------------------------------------------------
     GoRoute(
-      path: "/",
-      builder: (context, state) {
-        return const OnboardingScreen();
-      },
-    ),
-    GoRoute(
-      path: "/register-onboard",
-      builder: (context, state) {
-        return const RegisterOnboard();
-      },
+      path: "/startup",
+      builder: (context, state) => const StartupScreen(),
     ),
 
-    GoRoute(
-      path: "/register",
-      builder: (context, state) {
-        return const RegisterScreen();
-      },
-    ),
+    // -----------------------------------------------------------------------
+    // Onboarding (welcome / marketing screen)
+    // -----------------------------------------------------------------------
+    GoRoute(path: "/", builder: (context, state) => const OnboardingScreen()),
+
+    // -----------------------------------------------------------------------
+    // Phone-OTP authentication flow
+    // -----------------------------------------------------------------------
+    GoRoute(path: "/phone", builder: (context, state) => const PhoneScreen()),
     GoRoute(
       path: "/otp",
       builder: (context, state) {
-        return const OtpScreen();
+        final phone = state.uri.queryParameters['phone'];
+        return OtpScreen(phone: phone);
       },
     ),
     GoRoute(
       path: "/complete-profile",
+      builder: (context, state) => const ProfileSetupScreen(),
+    ),
+    GoRoute(
+      path: "/profile-setup",
+      builder: (context, state) => const ProfileSetupScreen(),
+    ),
+
+    // -----------------------------------------------------------------------
+    // Main app shell with bottom navigation tabs
+    // -----------------------------------------------------------------------
+    ShellRoute(
+      builder: (context, state, child) => AppShell(child: child),
+      routes: [
+        GoRoute(path: "/home", builder: (context, state) => const HomeScreen()),
+        GoRoute(
+          path: "/sessions",
+          builder: (context, state) => const SessionsScreen(),
+        ),
+        GoRoute(path: "/ai", builder: (context, state) => const AiScreen()),
+        GoRoute(
+          path: "/profile",
+          builder: (context, state) => const ProfileScreen(),
+        ),
+      ],
+    ),
+
+    // -----------------------------------------------------------------------
+    // Hub routes
+    // -----------------------------------------------------------------------
+    GoRoute(
+      path: "/hub/:hubId",
       builder: (context, state) {
-        return const ProfileSetupScreen();
+        final hubId = int.parse(state.pathParameters['hubId']!);
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubDetailScreen(hub: hub ?? {'id': hubId});
       },
     ),
     GoRoute(
-      path: "/account-setup",
+      path: "/hub/:hubId/top-up",
       builder: (context, state) {
-        return const AccountSetupScreen();
+        final hubId = int.parse(state.pathParameters['hubId']!);
+        return TopUpScreen(hubId: hubId);
       },
     ),
-    GoRoute(path: "/home", builder: (context, state) {
-      return const HomeScreen();
-    },)
+    GoRoute(
+      path: "/join-hub",
+      builder: (context, state) => const JoinHubScreen(),
+    ),
+    GoRoute(
+      path: "/scan-qr",
+      builder: (context, state) => const ScanQrScreen(),
+    ),
+    GoRoute(
+      path: "/shared-media/:hubId",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        return SharedMediaScreen(hubId: hubId);
+      },
+    ),
+    GoRoute(
+      path: "/select-contact",
+      builder: (context, state) => const SelectContactScreen(),
+    ),
+    GoRoute(
+      path: "/direct-chat/:conversationId",
+      builder: (context, state) {
+        final id = int.parse(state.pathParameters['conversationId']!);
+        final conversation = state.extra as Map<String, dynamic>?;
+        return DirectChatScreen(conversationId: id, conversation: conversation);
+      },
+    ),
+    GoRoute(
+      path: "/create-hub",
+      builder: (context, state) => const CreateHubScreen(),
+    ),
+    GoRoute(
+      path: "/hub-permissions",
+      builder: (context, state) {
+        final hubDraft = state.extra as Map<String, String>?;
+        return HubPermissionsScreen(hubDraft: hubDraft);
+      },
+    ),
+    GoRoute(
+      path: "/hub-created",
+      builder: (context, state) {
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubCreatedScreen(hub: hub);
+      },
+    ),
+    GoRoute(
+      path: "/hub-chat",
+      builder: (context, state) {
+        final extra = state.extra;
+        if (extra is Map<String, dynamic>) {
+          return HubChatScreen(hub: extra);
+        }
+        if (extra is int) {
+          return HubChatScreen(hubId: extra);
+        }
+        if (extra is String) {
+          final hubId = int.tryParse(extra);
+          return HubChatScreen(hubId: hubId);
+        }
+        return const HubChatScreen();
+      },
+    ),
+    GoRoute(
+      path: "/hub-info",
+      builder: (context, state) {
+        final hub = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: hub);
+      },
+    ),
+    GoRoute(
+      path: "/hubs/:hubId/settings",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        final extra = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: extra ?? {'id': hubId});
+      },
+    ),
+    GoRoute(
+      path: "/hubs/:hubId/info",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        final extra = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: extra ?? {'id': hubId});
+      },
+    ),
+
+    // -----------------------------------------------------------------------
+    // Other feature routes (unchanged)
+    // -----------------------------------------------------------------------
+    GoRoute(
+      path: "/broadcasts",
+      builder: (context, state) => const BroadcastFeedScreen(),
+    ),
+    GoRoute(
+      path: "/resources",
+      builder: (context, state) => const ResourceListScreen(),
+    ),
+    GoRoute(
+      path: "/tasks",
+      builder: (context, state) => const TaskListScreen(),
+    ),
+    GoRoute(
+      path: "/calendar",
+      builder: (context, state) => const CalendarScreen(),
+    ),
+    GoRoute(
+      path: "/settings",
+      builder: (context, state) => const SettingsScreen(),
+    ),
+    GoRoute(
+      path: "/analytics",
+      builder: (context, state) => const AnalyticsDashboardScreen(),
+    ),
   ],
 );

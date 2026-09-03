@@ -1,0 +1,2943 @@
+openapi: 3.0.3
+info:
+  title: Campuz API
+  version: 1.0.0
+  description: API endpoints for the Campuz backend
+paths:
+  /api/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/auth/profile-setup/:
+    put:
+      operationId: auth_profile_setup_update
+      description: |-
+        PATCH /api/auth/profile-setup/
+
+        Requires Bearer token. Sets display_name and optional avatar_url.
+        Optionally redeems an AdminInvitationCode to grant can_create_hubs.
+        Marks profile_setup_completed on success.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProfileSetup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ProfileSetup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ProfileSetup'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileSetup'
+          description: ''
+    patch:
+      operationId: auth_profile_setup_partial_update
+      description: |-
+        PATCH /api/auth/profile-setup/
+
+        Requires Bearer token. Sets display_name and optional avatar_url.
+        Optionally redeems an AdminInvitationCode to grant can_create_hubs.
+        Marks profile_setup_completed on success.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileSetup'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileSetup'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedProfileSetup'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileSetup'
+          description: ''
+  /api/auth/request-otp/:
+    post:
+      operationId: auth_request_otp_create
+      description: |-
+        POST /api/auth/request-otp/
+
+        Body: {"phone_number": "+233...", "full_name": "Jane Doe"}
+
+        Triggers Arkesel OTP generation and SMS delivery. A 60-second resend
+        cooldown is enforced.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/auth/verify-otp/:
+    post:
+      operationId: auth_verify_otp_create
+      description: |-
+        POST /api/auth/verify-otp/
+
+        Body: {"phone_number": "+233...", "otp_code": "123456"}
+
+        Verifies OTP against Arkesel's stored value. On success: clears OTP,
+        issues JWT pair, returns is_new_user flag.
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/broadcasts/:
+    get:
+      operationId: broadcasts_list
+      tags:
+      - broadcasts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Broadcast'
+          description: ''
+  /api/broadcasts/{id}/:
+    get:
+      operationId: broadcasts_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this broadcast.
+        required: true
+      tags:
+      - broadcasts
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Broadcast'
+          description: ''
+  /api/conversations/direct/:
+    get:
+      operationId: conversations_direct_retrieve
+      description: |-
+        POST /api/conversations/direct/
+        Body: {"user_id": <int>}
+
+        Returns an existing DirectConversation between the requester and
+        user_id, or creates one.  Always returns 200 + conversation data.
+        The `created` flag indicates whether a new conversation was made.
+
+        GET /api/conversations/direct/
+        Lists all direct conversations for the current user.
+      tags:
+      - conversations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: conversations_direct_create
+      description: |-
+        POST /api/conversations/direct/
+        Body: {"user_id": <int>}
+
+        Returns an existing DirectConversation between the requester and
+        user_id, or creates one.  Always returns 200 + conversation data.
+        The `created` flag indicates whether a new conversation was made.
+
+        GET /api/conversations/direct/
+        Lists all direct conversations for the current user.
+      tags:
+      - conversations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/conversations/direct/{conversation_id}/messages/:
+    get:
+      operationId: conversations_direct_messages_retrieve
+      parameters:
+      - in: path
+        name: conversation_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - conversations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: conversations_direct_messages_create
+      parameters:
+      - in: path
+        name: conversation_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - conversations
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/devices/register/:
+    post:
+      operationId: devices_register_create
+      tags:
+      - devices
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/hub-invites/join/:
+    post:
+      operationId: hub_invites_join_create
+      description: |-
+        POST /api/hub-invites/join/
+
+        Body: {"code": "ABC123..."}
+      tags:
+      - hub-invites
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/hubs/:
+    get:
+      operationId: hubs_list
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Hub'
+          description: ''
+    post:
+      operationId: hubs_create
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hub'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Hub'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Hub'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hub'
+          description: ''
+  /api/hubs/{hub_id}/broadcasts/:
+    get:
+      operationId: hubs_broadcasts_retrieve
+      description: |-
+        Hub-scoped announcements / broadcasts.
+
+        GET /api/hubs/<hub_id>/broadcasts/
+        POST /api/hubs/<hub_id>/broadcasts/
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: hubs_broadcasts_create
+      description: |-
+        Hub-scoped announcements / broadcasts.
+
+        GET /api/hubs/<hub_id>/broadcasts/
+        POST /api/hubs/<hub_id>/broadcasts/
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/hubs/{hub_id}/invites/:
+    get:
+      operationId: hubs_invites_retrieve
+      description: |-
+        GET /api/hubs/<hub_id>/invites/
+        POST /api/hubs/<hub_id>/invites/
+
+        Hub admins can create or fetch a shareable invite link/QR payload.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: hubs_invites_create
+      description: |-
+        GET /api/hubs/<hub_id>/invites/
+        POST /api/hubs/<hub_id>/invites/
+
+        Hub admins can create or fetch a shareable invite link/QR payload.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: hubs_invites_destroy
+      description: |-
+        GET /api/hubs/<hub_id>/invites/
+        POST /api/hubs/<hub_id>/invites/
+
+        Hub admins can create or fetch a shareable invite link/QR payload.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/hubs/{hub_id}/meetings/:
+    get:
+      operationId: hubs_meetings_list
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHubMeetingList'
+          description: ''
+    post:
+      operationId: hubs_meetings_create
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubMeeting'
+          description: ''
+  /api/hubs/{hub_id}/members/:
+    get:
+      operationId: hubs_members_retrieve
+      description: |-
+        Manage hub membership and admin roles.
+
+        GET /api/hubs/<hub_id>/members/
+        POST /api/hubs/<hub_id>/members/  body: {"action": "...", "user_id": 1}
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: hubs_members_create
+      description: |-
+        Manage hub membership and admin roles.
+
+        GET /api/hubs/<hub_id>/members/
+        POST /api/hubs/<hub_id>/members/  body: {"action": "...", "user_id": 1}
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/hubs/{hub_id}/messages/:
+    get:
+      operationId: hubs_messages_retrieve
+      description: |-
+        Hub-scoped discussion messages.
+
+        GET /api/hubs/<hub_id>/messages/?page=1
+        POST /api/hubs/<hub_id>/messages/
+
+        Only hub members may read. Only hub admins may post.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: hubs_messages_create
+      description: |-
+        Hub-scoped discussion messages.
+
+        GET /api/hubs/<hub_id>/messages/?page=1
+        POST /api/hubs/<hub_id>/messages/
+
+        Only hub members may read. Only hub admins may post.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/hubs/{hub_id}/resources/:
+    get:
+      operationId: hubs_resources_list
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+          description: ''
+    post:
+      operationId: hubs_resources_create
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Resource'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+          description: ''
+  /api/hubs/{hub_id}/sections/:
+    get:
+      operationId: hubs_sections_list
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HubSection'
+          description: ''
+    post:
+      operationId: hubs_sections_create
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubSection'
+          description: ''
+  /api/hubs/{hub_id}/tasks/:
+    get:
+      operationId: hubs_tasks_list
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
+          description: ''
+    post:
+      operationId: hubs_tasks_create
+      parameters:
+      - in: path
+        name: hub_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/hubs/{id}/:
+    get:
+      operationId: hubs_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub.
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hub'
+          description: ''
+    put:
+      operationId: hubs_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub.
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Hub'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Hub'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Hub'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hub'
+          description: ''
+    patch:
+      operationId: hubs_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub.
+        required: true
+      tags:
+      - hubs
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedHub'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedHub'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedHub'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Hub'
+          description: ''
+    delete:
+      operationId: hubs_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub.
+        required: true
+      tags:
+      - hubs
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/meetings/:
+    get:
+      operationId: meetings_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - meetings
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedHubMeetingList'
+          description: ''
+    post:
+      operationId: meetings_create
+      tags:
+      - meetings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubMeeting'
+          description: ''
+  /api/meetings/{id}/:
+    get:
+      operationId: meetings_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub meeting.
+        required: true
+      tags:
+      - meetings
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubMeeting'
+          description: ''
+    put:
+      operationId: meetings_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub meeting.
+        required: true
+      tags:
+      - meetings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubMeeting'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubMeeting'
+          description: ''
+    patch:
+      operationId: meetings_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub meeting.
+        required: true
+      tags:
+      - meetings
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedHubMeeting'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedHubMeeting'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedHubMeeting'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubMeeting'
+          description: ''
+    delete:
+      operationId: meetings_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this hub meeting.
+        required: true
+      tags:
+      - meetings
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/messages/:
+    get:
+      operationId: messages_list
+      tags:
+      - messages
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Message'
+          description: ''
+    post:
+      operationId: messages_create
+      tags:
+      - messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Message'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Message'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/messages/{id}/:
+    get:
+      operationId: messages_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    put:
+      operationId: messages_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Message'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Message'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Message'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    patch:
+      operationId: messages_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - messages
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMessage'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMessage'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMessage'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+    delete:
+      operationId: messages_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this message.
+        required: true
+      tags:
+      - messages
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/notifications/:
+    get:
+      operationId: notifications_list
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AppNotification'
+          description: ''
+  /api/notifications/read-status/:
+    patch:
+      operationId: notifications_read_status_partial_update
+      tags:
+      - notifications
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/resources/:
+    get:
+      operationId: resources_list
+      tags:
+      - resources
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Resource'
+          description: ''
+    post:
+      operationId: resources_create
+      tags:
+      - resources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Resource'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+          description: ''
+  /api/resources/{id}/:
+    get:
+      operationId: resources_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource.
+        required: true
+      tags:
+      - resources
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+          description: ''
+    put:
+      operationId: resources_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource.
+        required: true
+      tags:
+      - resources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Resource'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Resource'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+          description: ''
+    patch:
+      operationId: resources_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource.
+        required: true
+      tags:
+      - resources
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedResource'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedResource'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedResource'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+          description: ''
+    delete:
+      operationId: resources_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this resource.
+        required: true
+      tags:
+      - resources
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/sections/:
+    get:
+      operationId: sections_list
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      tags:
+      - sections
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HubSection'
+          description: ''
+    post:
+      operationId: sections_create
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      tags:
+      - sections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubSection'
+          description: ''
+  /api/sections/{id}/:
+    get:
+      operationId: sections_retrieve
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sections
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubSection'
+          description: ''
+    put:
+      operationId: sections_update
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/HubSection'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubSection'
+          description: ''
+    patch:
+      operationId: sections_partial_update
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sections
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedHubSection'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedHubSection'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedHubSection'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HubSection'
+          description: ''
+    delete:
+      operationId: sections_destroy
+      description: |-
+        Manage sections within a Hub.
+
+        List/Create: /api/hubs/<hub_id>/sections/
+        Retrieve/Update/Delete: /api/sections/<id>/
+
+        Only Hub admins can create/update/delete sections.
+        All Hub members can view sections.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+        required: true
+      tags:
+      - sections
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTaskList'
+          description: ''
+    post:
+      operationId: tasks_create
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/:
+    get:
+      operationId: tasks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    put:
+      operationId: tasks_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: tasks_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTask'
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: tasks_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/tasks/{id}/grade/:
+    post:
+      operationId: tasks_grade_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{id}/submit/:
+    post:
+      operationId: tasks_submit_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this task item.
+        required: true
+      tags:
+      - tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Task'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Task'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Task'
+        required: true
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/token/refresh/:
+    post:
+      operationId: token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefresh'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/users/:
+    get:
+      operationId: users_list
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/{id}/:
+    get:
+      operationId: users_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: integer
+        description: A unique integer value identifying this user.
+        required: true
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: ''
+  /api/users/search/:
+    get:
+      operationId: users_search_list
+      description: |-
+        GET /api/users/search/?q=<query>
+
+        Returns registered Campuz users (excluding the requester) whose
+        full_name, display_name, or phone_number match the query.
+        When no query is provided, returns all verified users (paginated).
+
+        Only authenticated users may access this endpoint.
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CampuzUser'
+          description: ''
+  /api/users/sync-contacts/:
+    post:
+      operationId: users_sync_contacts_create
+      description: |-
+        POST /api/users/sync-contacts/
+        Body: {"phone_numbers": ["+1234567890", ...]}
+
+        Returns registered Campuz users (excluding the requester) whose
+        phone numbers match the provided list.
+      tags:
+      - users
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          description: No response body
+  /api/webhooks/sms/delivery/:
+    get:
+      operationId: webhooks_sms_delivery_retrieve
+      description: |-
+        Public Arkesel delivery callback endpoint.
+
+        Arkesel sends sms_id and status in the query string. The endpoint must stay
+        open so the provider can reach it.
+      tags:
+      - webhooks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: webhooks_sms_delivery_create
+      description: |-
+        Public Arkesel delivery callback endpoint.
+
+        Arkesel sends sms_id and status in the query string. The endpoint must stay
+        open so the provider can reach it.
+      tags:
+      - webhooks
+      security:
+      - jwtAuth: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    AppNotification:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        body:
+          type: string
+        is_read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - body
+      - created_at
+      - id
+      - title
+    Broadcast:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+        sender:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        sender_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        content:
+          type: string
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        sms_delivery_count:
+          type: string
+          readOnly: true
+        sms_sent_count:
+          type: string
+          readOnly: true
+        sms_failed_count:
+          type: string
+          readOnly: true
+      required:
+      - content
+      - hub
+      - id
+      - is_mine
+      - sender
+      - sender_name
+      - sms_delivery_count
+      - sms_failed_count
+      - sms_sent_count
+      - timestamp
+      - title
+    CampuzUser:
+      type: object
+      description: |-
+        Minimal read-only representation of a registered Campuz user for
+        the contact-discovery and direct-conversation features.
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        full_name:
+          type: string
+          readOnly: true
+        display_name:
+          type: string
+          readOnly: true
+        phone_number:
+          type: string
+          readOnly: true
+        avatar_url:
+          type: string
+          format: uri
+          readOnly: true
+        is_verified:
+          type: boolean
+          readOnly: true
+        can_create_hubs:
+          type: boolean
+          readOnly: true
+      required:
+      - avatar_url
+      - can_create_hubs
+      - display_name
+      - full_name
+      - id
+      - is_verified
+      - phone_number
+    Hub:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        cover_image_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        cover_image_file:
+          type: string
+          format: uri
+          nullable: true
+          writeOnly: true
+        creator:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubMember'
+          readOnly: true
+        members_count:
+          type: string
+          readOnly: true
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubSection'
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        can_manage_members:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - can_manage_members
+      - created_at
+      - creator
+      - current_user_role
+      - id
+      - members
+      - members_count
+      - name
+      - sections
+    HubMeeting:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        meeting_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        scheduled_for:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_upcoming:
+          type: string
+          readOnly: true
+      required:
+      - can_manage
+      - created_at
+      - created_by
+      - created_by_name
+      - hub
+      - id
+      - is_mine
+      - is_upcoming
+      - meeting_url
+      - scheduled_for
+      - title
+      - updated_at
+    HubMember:
+      type: object
+      properties:
+        user:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+        joined_at:
+          type: string
+          format: date-time
+          readOnly: true
+        muted:
+          type: boolean
+        is_admin:
+          type: string
+          readOnly: true
+        is_self:
+          type: string
+          readOnly: true
+      required:
+      - is_admin
+      - is_self
+      - joined_at
+      - user
+    HubSection:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        section_type:
+          allOf:
+          - $ref: '#/components/schemas/SectionTypeEnum'
+          description: |-
+            Type of content this section contains
+
+            * `general` - General
+            * `announcements` - Announcements
+            * `resources` - Resources
+            * `meetings` - Meetings
+            * `tasks` - Tasks
+        title:
+          type: string
+          description: Display name for this section (e.g., 'Class Updates', 'Assignments')
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          description: Optional description explaining what this section is for
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Display order (lower numbers appear first)
+        is_enabled:
+          type: boolean
+          description: Whether this section is visible to Hub members
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - section_type
+      - title
+      - updated_at
+    Message:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+        sender:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        sender_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        attachments:
+          type: string
+          readOnly: true
+        attachment_count:
+          type: string
+          readOnly: true
+        has_attachments:
+          type: string
+          readOnly: true
+      required:
+      - attachment_count
+      - attachments
+      - content
+      - has_attachments
+      - hub
+      - id
+      - is_mine
+      - sender
+      - sender_name
+      - timestamp
+    PaginatedHubMeetingList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubMeeting'
+    PaginatedTaskList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Task'
+    PatchedHub:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+        cover_image_url:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        cover_image_file:
+          type: string
+          format: uri
+          nullable: true
+          writeOnly: true
+        creator:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubMember'
+          readOnly: true
+        members_count:
+          type: string
+          readOnly: true
+        sections:
+          type: array
+          items:
+            $ref: '#/components/schemas/HubSection'
+          readOnly: true
+        current_user_role:
+          type: string
+          readOnly: true
+        can_manage_members:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedHubMeeting:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+        created_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        created_by_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        meeting_url:
+          type: string
+          format: uri
+          maxLength: 1000
+        scheduled_for:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        is_upcoming:
+          type: string
+          readOnly: true
+    PatchedHubSection:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        section_type:
+          allOf:
+          - $ref: '#/components/schemas/SectionTypeEnum'
+          description: |-
+            Type of content this section contains
+
+            * `general` - General
+            * `announcements` - Announcements
+            * `resources` - Resources
+            * `meetings` - Meetings
+            * `tasks` - Tasks
+        title:
+          type: string
+          description: Display name for this section (e.g., 'Class Updates', 'Assignments')
+          maxLength: 100
+        description:
+          type: string
+          nullable: true
+          description: Optional description explaining what this section is for
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Display order (lower numbers appear first)
+        is_enabled:
+          type: boolean
+          description: Whether this section is visible to Hub members
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedMessage:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+        sender:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        sender_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        content:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+          readOnly: true
+        attachments:
+          type: string
+          readOnly: true
+        attachment_count:
+          type: string
+          readOnly: true
+        has_attachments:
+          type: string
+          readOnly: true
+    PatchedProfileSetup:
+      type: object
+      description: |-
+        Stores display_name and optional avatar_url on UserProfile.
+        Optionally redeems an AdminInvitationCode to grant can_create_hubs.
+      properties:
+        display_name:
+          type: string
+          nullable: true
+          description: Public handle chosen during profile setup
+          maxLength: 50
+        avatar_url:
+          nullable: true
+          description: URL to the user's web avatar
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        avatar_file:
+          type: string
+          format: uri
+          nullable: true
+          writeOnly: true
+        remove_avatar:
+          type: boolean
+          writeOnly: true
+          default: false
+        admin_code:
+          type: string
+          writeOnly: true
+          description: Optional admin invitation code (e.g., KNUST-CS-2026)
+          maxLength: 50
+    PatchedResource:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        resource_type:
+          $ref: '#/components/schemas/ResourceTypeEnum'
+        url:
+          type: string
+          format: uri
+          maxLength: 1000
+        uploaded_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        upload_date:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedTask:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        course_name:
+          type: string
+          maxLength: 100
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        assigned_to:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        assigned_to_name:
+          type: string
+          readOnly: true
+        submission_text:
+          type: string
+          nullable: true
+        submission_link:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 1000
+          - type: string
+            maxLength: 0
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        graded_by_name:
+          type: string
+          readOnly: true
+        graded_at:
+          type: string
+          format: date-time
+          nullable: true
+        grade:
+          type: string
+          nullable: true
+          maxLength: 50
+        feedback:
+          type: string
+          nullable: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        can_submit:
+          type: string
+          readOnly: true
+        can_grade:
+          type: string
+          readOnly: true
+        is_overdue:
+          type: string
+          readOnly: true
+        is_submitted:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PriorityEnum:
+      enum:
+      - low
+      - normal
+      - high
+      type: string
+      description: |-
+        * `low` - Low
+        * `normal` - Normal
+        * `high` - High
+    ProfileSetup:
+      type: object
+      description: |-
+        Stores display_name and optional avatar_url on UserProfile.
+        Optionally redeems an AdminInvitationCode to grant can_create_hubs.
+      properties:
+        display_name:
+          type: string
+          nullable: true
+          description: Public handle chosen during profile setup
+          maxLength: 50
+        avatar_url:
+          nullable: true
+          description: URL to the user's web avatar
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        avatar_file:
+          type: string
+          format: uri
+          nullable: true
+          writeOnly: true
+        remove_avatar:
+          type: boolean
+          writeOnly: true
+          default: false
+        admin_code:
+          type: string
+          writeOnly: true
+          description: Optional admin invitation code (e.g., KNUST-CS-2026)
+          maxLength: 50
+    Resource:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        resource_type:
+          $ref: '#/components/schemas/ResourceTypeEnum'
+        url:
+          type: string
+          format: uri
+          maxLength: 1000
+        uploaded_by:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        uploaded_by_name:
+          type: string
+          readOnly: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        upload_date:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - can_manage
+      - hub
+      - id
+      - is_mine
+      - title
+      - upload_date
+      - uploaded_by
+      - uploaded_by_name
+      - url
+    ResourceTypeEnum:
+      enum:
+      - pdf
+      - document
+      - video
+      - link
+      - other
+      type: string
+      description: |-
+        * `pdf` - PDF
+        * `document` - Document
+        * `video` - Video
+        * `link` - Link
+        * `other` - Other
+    RoleEnum:
+      enum:
+      - admin
+      - member
+      type: string
+      description: |-
+        * `admin` - Admin
+        * `member` - Member
+    SectionTypeEnum:
+      enum:
+      - general
+      - announcements
+      - resources
+      - meetings
+      - tasks
+      type: string
+      description: |-
+        * `general` - General
+        * `announcements` - Announcements
+        * `resources` - Resources
+        * `meetings` - Meetings
+        * `tasks` - Tasks
+    StatusEnum:
+      enum:
+      - pending
+      - submitted
+      - graded
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `submitted` - Submitted
+        * `graded` - Graded
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        hub:
+          type: integer
+          readOnly: true
+          nullable: true
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        course_name:
+          type: string
+          maxLength: 100
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        assigned_to:
+          allOf:
+          - $ref: '#/components/schemas/User'
+          readOnly: true
+        assigned_to_name:
+          type: string
+          readOnly: true
+        submission_text:
+          type: string
+          nullable: true
+        submission_link:
+          nullable: true
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 1000
+          - type: string
+            maxLength: 0
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        graded_by_name:
+          type: string
+          readOnly: true
+        graded_at:
+          type: string
+          format: date-time
+          nullable: true
+        grade:
+          type: string
+          nullable: true
+          maxLength: 50
+        feedback:
+          type: string
+          nullable: true
+        is_mine:
+          type: string
+          readOnly: true
+        can_manage:
+          type: string
+          readOnly: true
+        can_submit:
+          type: string
+          readOnly: true
+        can_grade:
+          type: string
+          readOnly: true
+        is_overdue:
+          type: string
+          readOnly: true
+        is_submitted:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - assigned_to
+      - assigned_to_name
+      - can_grade
+      - can_manage
+      - can_submit
+      - course_name
+      - created_at
+      - due_date
+      - graded_by_name
+      - hub
+      - id
+      - is_mine
+      - is_overdue
+      - is_submitted
+      - title
+      - updated_at
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        username:
+          type: string
+          description: Required. 150 characters or fewer. Letters, digits and @/./+/-/_
+            only.
+          pattern: ^[\w.@+-]+$
+          maxLength: 150
+        email:
+          title: Email address
+          oneOf:
+          - type: string
+            format: email
+            maxLength: 254
+          - type: string
+            maxLength: 0
+        first_name:
+          type: string
+          maxLength: 150
+        last_name:
+          type: string
+          maxLength: 150
+        profile:
+          allOf:
+          - $ref: '#/components/schemas/UserProfile'
+          readOnly: true
+      required:
+      - id
+      - profile
+      - username
+    UserProfile:
+      type: object
+      properties:
+        full_name:
+          type: string
+          nullable: true
+          description: Full name provided during registration
+          maxLength: 150
+        avatar_url:
+          nullable: true
+          description: URL to the user's web avatar
+          oneOf:
+          - type: string
+            format: uri
+            maxLength: 500
+          - type: string
+            maxLength: 0
+        display_name:
+          type: string
+          nullable: true
+          description: Public handle chosen during profile setup
+          maxLength: 50
+        phone_number:
+          type: string
+          nullable: true
+          description: E.164 number used for OTP delivery
+          maxLength: 20
+        is_verified:
+          type: boolean
+        can_create_hubs:
+          type: boolean
+          description: True when the user has redeemed a valid admin invitation code
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

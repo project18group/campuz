@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "532370034520",
+    "project_id": "campuz-tekchat",
+    "storage_bucket": "campuz-tekchat.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:532370034520:android:d9f50cef2fb6b858655f2d",
+        "android_client_info": {
+          "package_name": "com.example.mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAlJg0HBZOVAB7hasl_Is1CWb-efCYhn44"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
