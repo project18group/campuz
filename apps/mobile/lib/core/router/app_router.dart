@@ -167,6 +167,22 @@ final appRouter = GoRouter(
         return HubInfoScreen(hub: hub);
       },
     ),
+    GoRoute(
+      path: "/hubs/:hubId/settings",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        final extra = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: extra ?? {'id': hubId});
+      },
+    ),
+    GoRoute(
+      path: "/hubs/:hubId/info",
+      builder: (context, state) {
+        final hubId = int.tryParse(state.pathParameters['hubId'] ?? '') ?? 0;
+        final extra = state.extra as Map<String, dynamic>?;
+        return HubInfoScreen(hub: extra ?? {'id': hubId});
+      },
+    ),
 
     // -----------------------------------------------------------------------
     // Other feature routes (unchanged)

@@ -9,12 +9,12 @@ import 'package:mobile/shared/widgets/app_avatar.dart';
 
 class EditHubSheet extends StatefulWidget {
   final Map<String, dynamic> hub;
-  final VoidCallback onHubUpdated;
+  final ValueChanged<Map<String, dynamic>>? onHubUpdated;
 
   const EditHubSheet({
     super.key,
     required this.hub,
-    required this.onHubUpdated,
+    this.onHubUpdated,
   });
 
   @override
@@ -74,7 +74,7 @@ class _EditHubSheetState extends State<EditHubSheet> {
     setState(() => _isSaving = true);
 
     try {
-      await AuthApiService.updateHub(
+      final updated = await AuthApiService.updateHub(
         hubId: _hubId,
         name: name,
         description: _descController.text.trim(),
@@ -82,8 +82,8 @@ class _EditHubSheetState extends State<EditHubSheet> {
       );
 
       if (!mounted) return;
-      widget.onHubUpdated();
-      Navigator.pop(context);
+      widget.onHubUpdated?.call(updated);
+      Navigator.pop(context, updated);
     } on AuthApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

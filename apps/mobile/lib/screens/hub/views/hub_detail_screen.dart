@@ -29,12 +29,41 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
       ..sort((a, b) => (a['order'] as int).compareTo(b['order'] as int));
   }
 
-  String get _hubName => (widget.hub['name'] as String? ?? 'Hub').trim();
+  Map<String, dynamic>? _hub;
+
+  Map<String, dynamic> get currentHub => _hub ?? widget.hub;
+
+  String get _hubName => (currentHub['name'] as String? ?? 'Hub').trim();
 
   String get _hubDescription =>
-      (widget.hub['description'] as String? ?? '').trim();
+      (currentHub['description'] as String? ?? '').trim();
 
-  int get _memberCount => widget.hub['members_count'] as int? ?? 0;
+  int get _memberCount => currentHub['members_count'] as int? ?? 0;
+
+  String get _coverImageUrl =>
+      (currentHub['cover_image_url'] as String? ?? '').trim();
+
+  @override
+  void initState() {
+    super.initState();
+    _hub = widget.hub;
+    _loadHub();
+  }
+
+  Future<void> _loadHub() async {
+    final id = widget.hub['id'];
+    final hubId = id is int ? id : int.tryParse('$id') ?? 0;
+    if (hubId == 0) return;
+    try {
+      final res = await AuthApiService.getHubMembers(hubId: hubId);
+      final hub = res['hub'];
+      if (hub is Map<String, dynamic> && mounted) {
+        setState(() {
+          _hub = Map<String, dynamic>.from(hub);
+        });
+      }
+    } catch (_) {}
+  }
 
   IconData _sectionIcon(String sectionType) {
     switch (sectionType) {
@@ -54,7 +83,7 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
   }
 
   bool get _isAdmin {
-    final members = widget.hub['members'] as List<dynamic>? ?? [];
+    final members = currentHub['members'] as List<dynamic>? ?? [];
     for (final m in members) {
       if (m is Map && m['is_self'] == true && m['role'] == 'admin') {
         return true;
@@ -69,27 +98,40 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _CreateSectionSheet(
-        hubId: widget.hub['id'] as int,
+        hubId: currentHub['id'] as int,
         onCreated: (newSection) {
           setState(() {
-            final sections = List<Map<String, dynamic>>.from(widget.hub['sections'] ?? []);
+            final sections = List<Map<String, dynamic>>.from(currentHub['sections'] ?? []);
             sections.add(newSection);
-            widget.hub['sections'] = sections;
+            currentHub['sections'] = sections;
           });
         },
       ),
     );
   }
 
+  Future<void> _openChat() async {
+    final updated = await context.push('/hub-chat', extra: currentHub);
+    if (updated is Map<String, dynamic> && mounted) {
+      setState(() => _hub = Map<String, dynamic>.from(updated));
+    } else {
+      _loadHub();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(currentHub),
+        ),
         title: Text(_hubName),
         actions: [
           IconButton(
             icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => context.push('/hub-chat', extra: widget.hub),
+            onPressed: _openChat,
           ),
         ],
       ),
@@ -149,7 +191,7 @@ class _HubDetailScreenState extends State<HubDetailScreen> {
         children: [
           Row(
             children: [
-              AppAvatar(avatarUrl: '', fallbackName: _hubName, size: 64),
+              AppAvatar(avatarUrl: _coverImageUrl, fallbackName: _hubName, size: 64),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(

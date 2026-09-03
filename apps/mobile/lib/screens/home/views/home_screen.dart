@@ -960,23 +960,15 @@ class HomeScreenState extends State<HomeScreen> {
     final name = (hub['name'] as String? ?? 'Academic Hub').trim();
     final description = (hub['description'] as String? ?? '').trim();
     final memberCount = hub['members_count'] as int? ?? 0;
+    final coverImageUrl = (hub['cover_image_url'] as String? ?? '').trim();
     final id = hub['id'];
-    final initials = name
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
 
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-      leading: CircleAvatar(
-        radius: 26,
-        backgroundColor: AppColors.primary.withValues(alpha: 0.10),
-        child: Text(
-          initials.isEmpty ? 'H' : initials,
-          style: AppTextStyles.title.copyWith(color: AppColors.primaryForeground),
-        ),
+      leading: AppAvatar(
+        avatarUrl: coverImageUrl,
+        fallbackName: name,
+        size: 52,
       ),
       title: Text(
         name,
@@ -989,7 +981,12 @@ class HomeScreenState extends State<HomeScreen> {
         overflow: TextOverflow.ellipsis,
         style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
       ),
-      onTap: id != null ? () => context.push('/hub/$id', extra: hub) : null,
+      onTap: id != null
+          ? () async {
+              await context.push('/hub/$id', extra: hub);
+              if (mounted) _loadHome();
+            }
+          : null,
     );
   }
 

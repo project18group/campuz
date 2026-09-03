@@ -943,18 +943,31 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
               if (_canManageMembers)
                 IconButton(
                   icon: const Icon(Icons.edit_outlined),
-                  onPressed: () {
-                    showModalBottomSheet<void>(
+                  onPressed: () async {
+                    final updated =
+                        await showModalBottomSheet<Map<String, dynamic>>(
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
                       builder: (sheetContext) {
                         return EditHubSheet(
-                          hub: _hub ?? {},
-                          onHubUpdated: _loadMembers,
+                          hub: _hub ?? widget.hub ?? {},
+                          onHubUpdated: (newHub) {
+                            if (mounted) {
+                              setState(() {
+                                _hub = Map<String, dynamic>.from(newHub);
+                              });
+                            }
+                          },
                         );
                       },
                     );
+                    if (updated != null && mounted) {
+                      setState(() {
+                        _hub = Map<String, dynamic>.from(updated);
+                      });
+                      _loadMembers();
+                    }
                   },
                 ),
             ],
@@ -1019,6 +1032,10 @@ class _HubInfoScreenState extends State<HubInfoScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.of(context).pop(_hub),
+        ),
         title: const Text('Hub Info'),
         actions: [
           IconButton(

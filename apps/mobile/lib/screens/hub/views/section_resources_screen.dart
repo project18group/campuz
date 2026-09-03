@@ -266,44 +266,6 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
-
-    setState(() => _isSaving = true);
-    try {
-      await AuthApiService.deleteResource(resourceId: id);
-      if (!mounted) return;
-      setState(() {
-        _resources.removeWhere((item) => item['id'] == id);
-        _isSaving = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Resource deleted.')),
-      );
-    } on AuthApiException catch (error) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message)),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to delete resource right now.')),
-      );
-    }
-  }
-
-  Future<void> _showUploadSheet() async {
-    if (!_canManageResources) return;
-
-    final titleController = TextEditingController();
-    final urlController = TextEditingController();
-    String resourceType = 'pdf';
-    bool sending = false;
-    File? selectedFile;
-
-    await showModalBottomSheet<void>(
-      context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
@@ -333,7 +295,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                   Navigator.of(sheetContext).pop();
                 }
                 if (mounted) {
-                  ScaffoldMessenger.of(this.context).showSnackBar(
+                  ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Resource uploaded successfully.')),
                   );
                 }

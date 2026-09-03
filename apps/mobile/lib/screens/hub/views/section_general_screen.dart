@@ -414,7 +414,9 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
     return Align(
       alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 360),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.78,
+        ),
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
         decoration: BoxDecoration(
@@ -434,17 +436,21 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
             ),
           ],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              senderName,
-              style: AppTextStyles.label.copyWith(
-                color: isMine ? Colors.white70 : AppColors.primaryForeground,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
+        child: IntrinsicWidth(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isMine) ...[
+                Text(
+                  senderName,
+                  style: AppTextStyles.label.copyWith(
+                    color: isMine ? Colors.white70 : AppColors.primaryForeground,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
             if (content.isNotEmpty) ...[
               const SizedBox(height: 6),
               Text(
@@ -617,8 +623,9 @@ class _SectionGeneralScreenState extends State<SectionGeneralScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildMessages() {
     if (_isLoading) {

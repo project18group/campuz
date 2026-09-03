@@ -5,7 +5,6 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
 import 'package:mobile/shared/widgets/linkified_text.dart';
 import 'package:mobile/shared/widgets/app_avatar.dart';
@@ -68,32 +67,64 @@ class _HubChatScreenState extends State<HubChatScreen> {
   final _audioRecorder = AudioRecorder();
   String? _recordingPath;
 
+  Map<String, dynamic>? _hub;
+
   int get _hubId {
-    final value = widget.hub?['id'] ?? widget.hubId;
+    final value = (_hub ?? widget.hub)?['id'] ?? widget.hubId;
     return value is int ? value : int.tryParse('$value') ?? 0;
   }
 
   String get _hubName =>
-      (widget.hub?['name'] as String? ?? 'Hub').trim().isEmpty
-      ? 'Hub'
-      : (widget.hub?['name'] as String? ?? 'Hub').trim();
+      ((_hub ?? widget.hub)?['name'] as String? ?? 'Hub').trim().isEmpty
+          ? 'Hub'
+          : ((_hub ?? widget.hub)?['name'] as String? ?? 'Hub').trim();
+
+  String get _coverImageUrl =>
+      ((_hub ?? widget.hub)?['cover_image_url'] as String? ?? '').trim();
 
   int get _memberCount {
-    final value = widget.hub?['members_count'];
+    final value = (_hub ?? widget.hub)?['members_count'];
     return value is int ? value : 0;
   }
 
-  bool get _canSendAsSms => widget.hub?['can_manage_members'] == true;
+  bool get _canSendAsSms => (_hub ?? widget.hub)?['can_manage_members'] == true;
+  bool get _isAdmin => (_hub ?? widget.hub)?['can_manage_members'] == true;
 
   @override
   void initState() {
     super.initState();
+    _hub = widget.hub;
     _loadDraft();
     _messageController.addListener(_saveDraft);
     _messageController.addListener(_onTextChanged);
     _scrollController.addListener(_onScroll);
     _loadMessages(reset: true);
+    _loadHubDetails();
     _initWebSocket();
+  }
+
+  Future<void> _loadHubDetails() async {
+    if (_hubId == 0) return;
+    try {
+      final res = await AuthApiService.getHubMembers(hubId: _hubId);
+      final hub = res['hub'];
+      if (hub is Map<String, dynamic> && mounted) {
+        setState(() {
+          _hub = Map<String, dynamic>.from(hub);
+        });
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _openHubInfo() async {
+    final updated = await context.push('/hub-info', extra: _hub ?? widget.hub);
+    if (updated is Map<String, dynamic> && mounted) {
+      setState(() {
+        _hub = Map<String, dynamic>.from(updated);
+      });
+    } else {
+      _loadHubDetails();
+    }
   }
 
   Future<void> _initWebSocket() async {
@@ -973,7 +1004,9 @@ class _HubChatScreenState extends State<HubChatScreen> {
             clipBehavior: Clip.none,
             children: [
               Container(
-                constraints: const BoxConstraints(maxWidth: 360),
+                constraints: BoxConstraints(
+                  maxWidth: MediaQuery.of(context).size.width * 0.78,
+                ),
                 margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
                 decoration: BoxDecoration(
@@ -993,36 +1026,40 @@ class _HubChatScreenState extends State<HubChatScreen> {
                     ),
                   ],
                 ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        senderName,
-                        style: AppTextStyles.label.copyWith(
-                          color: isMine ? Colors.white70 : AppColors.textSecondary,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                child: IntrinsicWidth(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (!isMine) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                senderName,
+                                style: AppTextStyles.label.copyWith(
+                                  color: AppColors.textSecondary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isOnline) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: Colors.green,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isOnline) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 6,
-                        height: 6,
-                        decoration: const BoxDecoration(
-                          color: Colors.green,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
+                      ],
                 if (replyTo != null) ...[
                   const SizedBox(height: 6),
                   Container(
@@ -1272,7 +1309,8 @@ class _HubChatScreenState extends State<HubChatScreen> {
                 ],
               ],
             ),
-            ),
+          ),
+        ),
               Positioned(
                 bottom: -4,
                 right: isMine ? 20 : null,
@@ -1421,7 +1459,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
       child: Column(
         children: [
           AppAvatar(
-            avatarUrl: widget.hub?['cover_image_url'] as String? ?? '',
+            avatarUrl: _coverImageUrl,
             fallbackName: _hubName,
             size: 80,
           ),
@@ -1438,7 +1476,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
           ),
           const SizedBox(height: 20),
           FilledButton.icon(
-            onPressed: () => context.push('/hubs/$_hubId/settings'),
+            onPressed: _openHubInfo,
             icon: const Icon(Icons.person_add_rounded, size: 20),
             label: const Text('Invite Members'),
             style: FilledButton.styleFrom(
@@ -1452,8 +1490,6 @@ class _HubChatScreenState extends State<HubChatScreen> {
       ),
     );
   }
-
-  bool get _isAdmin => widget.hub?['can_manage_members'] == true;
 
   Widget _buildComposer() {
     if (!_isAdmin) {
@@ -1531,8 +1567,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
               showSendAsSms: _canSendAsSms,
               sendAsSms: _sendAsSms,
               isSending: _isSending,
-              canSend: _messageController.text.trim().isNotEmpty ||
-                  _pendingAttachments.isNotEmpty,
+              canSend: !_isSending,
               controller: _messageController,
               attachments: _pendingAttachments,
               onSmsChanged: _confirmSendAsSms,
@@ -1606,38 +1641,47 @@ class _HubChatScreenState extends State<HubChatScreen> {
       appBar: AppBar(
         leadingWidth: 40,
         leading: IconButton(
-          onPressed: () => context.go('/home'),
+          onPressed: () {
+            if (Navigator.of(context).canPop()) {
+              Navigator.of(context).pop(_hub);
+            } else {
+              context.go('/home');
+            }
+          },
           icon: const Icon(Icons.arrow_back_ios_new, size: 20),
         ),
         titleSpacing: 0,
-        title: Row(
-          children: [
-            AppAvatar(avatarUrl: '', fallbackName: _hubName, size: 40),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _hubName,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.label.copyWith(fontSize: 16),
-                  ),
-                  Text(
-                    '$_memberCount members',
-                    style: AppTextStyles.caption.copyWith(
-                      color: AppColors.textSecondary,
+        title: GestureDetector(
+          onTap: _openHubInfo,
+          child: Row(
+            children: [
+              AppAvatar(avatarUrl: _coverImageUrl, fallbackName: _hubName, size: 40),
+              const SizedBox(width: 10),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _hubName,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.label.copyWith(fontSize: 16),
                     ),
-                  ),
-                ],
+                    Text(
+                      '$_memberCount members',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           IconButton(
-            onPressed: () => context.push('/shared-media/${widget.hub?['id']}'),
+            onPressed: () => context.push('/shared-media/$_hubId'),
             icon: const Icon(Icons.folder_shared_rounded),
             tooltip: 'Class Resources',
           ),
@@ -1649,16 +1693,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
             icon: const Icon(Icons.more_vert),
             onSelected: (value) {
               if (value == 'info') {
-                context.push(
-                  '/hub-info',
-                  extra:
-                      widget.hub ??
-                      {
-                        'id': _hubId,
-                        'name': _hubName,
-                        'members_count': _memberCount,
-                      },
-                );
+                _openHubInfo();
               } else if (value == 'leave') {
                 _confirmLeaveHub();
               }
