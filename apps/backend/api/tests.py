@@ -544,3 +544,34 @@ class TokenRefreshTests(APITestCase):
         # Should return 401 Unauthorized (or 401 with no_active_account / token_not_valid), NOT 500 Internal Server Error
         self.assertEqual(response.status_code, 401)
 
+
+class AIChatTests(APITestCase):
+    def setUp(self):
+        self.user = _make_verified_user("student_tester", display_name="Kwame Mensah", phone_number="+233201888888")
+        self.client = _auth_client(self.client, self.user)
+
+    def test_greeting_intent(self):
+        response = self.client.post("/api/ai/chat/", {"message": "Hello there!"}, format="json")
+        self.assertEqual(response.status_code, HTTP_200_OK)
+        self.assertEqual(response.data["intent"], "GREETING")
+        self.assertIn("Kwame Mensah", response.data["reply"])
+
+    def test_summarization_intent(self):
+        long_announcement = (
+            "Dear students, please take note that the midterm examination for CS301 has been rescheduled. "
+            "The exam will now cover chapters 1 through 5. All students must bring their student IDs and scientific calculators. "
+            "Failure to attend with proper identification will result in disqualification from the exam hall."
+        )
+        response = self.client.post("/api/ai/chat/", {"message": f"Summarize this: {long_announcement}"}, format="json")
+        self.assertEqual(response.status_code, HTTP_200_OK)
+        self.assertEqual(response.data["intent"], "SUMMARIZE")
+        self.assertTrue(response.data["metadata"].get("summary_generated"))
+        self.assertIn("Summary", response.data["reply"])
+
+    def test_study_plan_intent(self):
+        response = self.client.post("/api/ai/chat/", {"message": "Create a study plan for Data Structures"}, format="json")
+        self.assertEqual(response.status_code, HTTP_200_OK)
+        self.assertEqual(response.data["intent"], "STUDY_PLAN")
+        self.assertIn("Pomodoro", response.data["reply"])
+
+

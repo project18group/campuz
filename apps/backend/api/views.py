@@ -66,12 +66,14 @@ from .serializers import (
     VerifyOTPSerializer,
     DeviceTokenSerializer,
     AppNotificationSerializer,
+    AIChatSerializer,
     _clear_otp,
     _mark_otp_requested,
 )
 from .services import broadcast_sms_service, hub_sms_service, sms_service
 from .services.push_service import send_push_notification
 from .services.deadline_extractor import extract_deadline
+from .services.ai_service import AcademicAIEngine
 
 
 class CustomTokenRefreshView(TokenRefreshView):
@@ -2125,3 +2127,39 @@ class AnalyticsView(APIView):
             "total_peers_reached": total_peers,
             "active_now": 1, # Minimal placeholder
         })
+
+
+class AIChatView(APIView):
+    """
+    POST /api/ai/chat/
+
+    Body:
+    {
+        "message": "Summarize this announcement...",
+        "history": [{"sender": "user", "text": "..."}, {"sender": "ai", "text": "..."}]
+    }
+
+    Returns:
+    {
+        "reply": "...",
+        "intent": "SUMMARIZE",
+        "metadata": {...}
+    }
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = AIChatSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        message = serializer.validated_data["message"]
+        history = serializer.validated_data.get("history", [])
+
+        response_data = AcademicAIEngine.generate_response(
+            user_message=message,
+            user=request.user,
+            conversation_history=history,
+        )
+        return Response(response_data, status=status.HTTP_200_OK)
+

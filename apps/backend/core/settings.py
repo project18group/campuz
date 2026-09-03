@@ -159,8 +159,23 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Use WhiteNoise to serve static files in production
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
-# Use Cloudinary to serve media files
-DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
+# Use AutoCloudinaryStorage to serve all media files (images, videos, PDFs, and raw docs)
+DEFAULT_FILE_STORAGE = "api.services.media_upload_service.AutoCloudinaryStorage"
+
+STORAGES = {
+    "default": {
+        "BACKEND": "api.services.media_upload_service.AutoCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": os.getenv("CLOUDINARY_CLOUD_NAME", ""),
+    "API_KEY": os.getenv("CLOUDINARY_API_KEY", ""),
+    "API_SECRET": os.getenv("CLOUDINARY_API_SECRET", ""),
+}
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (

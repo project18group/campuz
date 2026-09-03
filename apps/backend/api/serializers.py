@@ -340,8 +340,6 @@ class DirectMessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
-        if not self.get_is_image(obj) and "/image/upload/" in url:
-            url = url.replace("/image/upload/", "/raw/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):
@@ -862,6 +860,8 @@ class ResourceSerializer(serializers.ModelSerializer):
         return bool(membership and membership.role == "admin")
 
     def get_file(self, obj):
+        if obj.url:
+            return obj.url
         if not obj.file:
             return None
         request = self.context.get("request")
@@ -1165,8 +1165,6 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
-        if not self.get_is_image(obj) and "/image/upload/" in url:
-            url = url.replace("/image/upload/", "/raw/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):
@@ -1192,3 +1190,13 @@ class AppNotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = AppNotification
         fields = ["id", "title", "body", "is_read", "created_at"]
+
+
+class AIChatSerializer(serializers.Serializer):
+    message = serializers.CharField(max_length=4000, required=True)
+    history = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+        default=list,
+    )
+

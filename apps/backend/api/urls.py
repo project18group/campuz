@@ -129,5 +129,12 @@ urlpatterns = [
         name="analytics-dashboard",
     ),
 
+    # In-House Academic AI Assistant
+    path(
+        "ai/chat/",
+        views.AIChatView.as_view(),
+        name="ai-chat",
+    ),
+
     path("", include(router.urls)),
 ]

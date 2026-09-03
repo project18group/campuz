@@ -1367,6 +1367,22 @@ class AuthApiService {
     );
   }
 
+  static Future<Map<String, dynamic>> sendAiChatMessage({
+    required String message,
+    List<Map<String, String>> history = const [],
+  }) async {
+    return _authorized(
+      (token) => _client.post(
+        Uri.parse('$_baseUrl/ai/chat/'),
+        headers: _headers(token),
+        body: jsonEncode({
+          'message': message,
+          'history': history,
+        }),
+      ),
+    );
+  }
+
   static Future<void> syncOfflineQueue() async {
     final queued = await DatabaseHelper.instance.getQueuedMessages();
     for (final q in queued) {

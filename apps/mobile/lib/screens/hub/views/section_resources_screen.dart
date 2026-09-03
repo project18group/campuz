@@ -266,6 +266,44 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
 
     await showModalBottomSheet<void>(
       context: context,
+
+    setState(() => _isSaving = true);
+    try {
+      await AuthApiService.deleteResource(resourceId: id);
+      if (!mounted) return;
+      setState(() {
+        _resources.removeWhere((item) => item['id'] == id);
+        _isSaving = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Resource deleted.')),
+      );
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.message)),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to delete resource right now.')),
+      );
+    }
+  }
+
+  Future<void> _showUploadSheet() async {
+    if (!_canManageResources) return;
+
+    final titleController = TextEditingController();
+    final urlController = TextEditingController();
+    String resourceType = 'pdf';
+    bool sending = false;
+    File? selectedFile;
+
+    await showModalBottomSheet<void>(
+      context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
@@ -273,7 +311,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
       ),
       builder: (sheetContext) {
         return StatefulBuilder(
-          builder: (context, setSheetState) {
+          builder: (modalContext, setSheetState) {
             Future<void> submit() async {
               final title = titleController.text.trim();
               final url = urlController.text.trim();
@@ -291,25 +329,28 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                 setState(() {
                   _resources.insert(0, Map<String, dynamic>.from(created));
                 });
-                if (!mounted || !sheetContext.mounted) return;
-                if (Navigator.of(sheetContext).canPop()) {
+                if (sheetContext.mounted && Navigator.of(sheetContext).canPop()) {
                   Navigator.of(sheetContext).pop();
                 }
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Resource uploaded successfully.')),
-                );
+                if (mounted) {
+                  ScaffoldMessenger.of(this.context).showSnackBar(
+                    const SnackBar(content: Text('Resource uploaded successfully.')),
+                  );
+                }
               } on AuthApiException catch (error) {
-                if (!context.mounted) return;
-                setSheetState(() => sending = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text(error.message)),
-                );
+                if (modalContext.mounted) {
+                  setSheetState(() => sending = false);
+                  ScaffoldMessenger.of(modalContext).showSnackBar(
+                    SnackBar(content: Text(error.message)),
+                  );
+                }
               } catch (_) {
-                if (!context.mounted) return;
-                setSheetState(() => sending = false);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Unable to upload resource right now.')),
-                );
+                if (modalContext.mounted) {
+                  setSheetState(() => sending = false);
+                  ScaffoldMessenger.of(modalContext).showSnackBar(
+                    const SnackBar(content: Text('Unable to upload resource right now.')),
+                  );
+                }
               }
             }
 
@@ -319,7 +360,7 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
                   left: 20,
                   right: 20,
                   top: 12,
-                  bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+                  bottom: MediaQuery.of(modalContext).viewInsets.bottom + 20,
                 ),
                 child: SingleChildScrollView(
                   child: Column(
