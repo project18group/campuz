@@ -187,6 +187,7 @@ class _SelectContactScreenState extends State<SelectContactScreen> {
   }
 
   void _inviteContact(Contact contact) {
+    // ignore: deprecated_member_use
     Share.share(
       'Join me on Campuz! Let\'s connect and stay updated. Download the app today to get started!',
       subject: 'Invitation to Campuz',

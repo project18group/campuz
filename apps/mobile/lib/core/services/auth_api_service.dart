@@ -71,6 +71,11 @@ class AuthApiService {
       body: {'phone_number': phoneNumber, 'otp_code': otpCode},
     );
     await _persistTokens(response);
+    final isNewUser = response['is_new_user'] as bool? ?? false;
+    if (!isNewUser) {
+      await setProfileSetupCompleted(true);
+      currentUser().catchError((_) => <String, dynamic>{});
+    }
     return response;
   }
 
@@ -99,41 +104,45 @@ class AuthApiService {
     if (adminCode != null && adminCode.isNotEmpty) {
       body['admin_code'] = adminCode.trim().toUpperCase();
     }
+    final Map<String, dynamic> result;
     if (!needsMultipart) {
-      return _authorized(
+      result = await _authorized(
         (token) => _client.patch(
           Uri.parse('$_baseUrl/auth/profile-setup/'),
           headers: _headers(token),
           body: jsonEncode(body),
         ),
       );
-    }
-
-    return _authorizedMultipart(
-      (token) async {
-        final request = http.MultipartRequest(
-          'PATCH',
-          Uri.parse('$_baseUrl/auth/profile-setup/'),
-        );
-        request.headers.addAll(_headers(token, includeContentType: false));
-        request.fields.addAll(
-          body.map((key, value) => MapEntry(key, value.toString())),
-        );
-        if (removeAvatar) {
-          request.fields['remove_avatar'] = 'true';
-        }
-        if (avatarFile != null) {
-          request.files.add(
-            await http.MultipartFile.fromPath(
-              'avatar_file',
-              avatarFile.path,
-              filename: p.basename(avatarFile.path),
-            ),
+    } else {
+      result = await _authorizedMultipart(
+        (token) async {
+          final request = http.MultipartRequest(
+            'PATCH',
+            Uri.parse('$_baseUrl/auth/profile-setup/'),
           );
-        }
-        return request.send();
-      },
-    );
+          request.headers.addAll(_headers(token, includeContentType: false));
+          request.fields.addAll(
+            body.map((key, value) => MapEntry(key, value.toString())),
+          );
+          if (removeAvatar) {
+            request.fields['remove_avatar'] = 'true';
+          }
+          if (avatarFile != null) {
+            request.files.add(
+              await http.MultipartFile.fromPath(
+                'avatar_file',
+                avatarFile.path,
+                filename: p.basename(avatarFile.path),
+              ),
+            );
+          }
+          return request.send();
+        },
+      );
+    }
+    await setProfileSetupCompleted(true);
+    currentUser().catchError((_) => <String, dynamic>{});
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -909,17 +918,46 @@ class AuthApiService {
   static Future<bool> hasValidSession() async {
     final access =
         AuthSession.accessToken ?? await SecureTokenStorage.readAccessToken();
-    if (access == null || access.isEmpty) return false;
+    final refresh =
+        AuthSession.refreshToken ?? await SecureTokenStorage.readRefreshToken();
+    if ((access == null || access.isEmpty) && (refresh == null || refresh.isEmpty)) {
+      return false;
+    }
     AuthSession.accessToken ??= access;
-    AuthSession.refreshToken ??= await SecureTokenStorage.readRefreshToken();
+    AuthSession.refreshToken ??= refresh;
     AuthSession.username ??= await SecureTokenStorage.readUsername();
     return true;
+  }
+
+  static const _profileSetupCompletedKey = 'campuz_profile_setup_completed';
+
+  static Future<bool> isProfileSetupCompleted() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(_profileSetupCompletedKey) == true) return true;
+    final cached = await readCachedCurrentUser();
+    if (cached != null) {
+      final profile = cached['profile'] as Map<String, dynamic>?;
+      final displayName = (profile?['display_name'] as String?) ??
+          (cached['display_name'] as String?) ??
+          '';
+      if (displayName.trim().isNotEmpty) {
+        await setProfileSetupCompleted(true);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  static Future<void> setProfileSetupCompleted(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_profileSetupCompletedKey, value);
   }
 
   static Future<void> signOut() async {
     await SecureTokenStorage.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_cachedCurrentUserKey);
+    await prefs.remove(_profileSetupCompletedKey);
     AuthSession.clear();
   }
 
@@ -996,8 +1034,6 @@ class AuthApiService {
         if (refreshed) {
           token = AuthSession.accessToken;
           response = await send(token).timeout(const Duration(seconds: 60));
-        } else {
-          await signOut();
         }
       }
       final decoded = _decodeResponse(response);
@@ -1045,8 +1081,6 @@ class AuthApiService {
         if (refreshed) {
           token = AuthSession.accessToken;
           streamed = await send(token).timeout(const Duration(seconds: 60));
-        } else {
-          await signOut();
         }
       }
       final response = await http.Response.fromStream(streamed);

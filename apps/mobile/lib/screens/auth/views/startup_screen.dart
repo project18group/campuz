@@ -68,19 +68,21 @@ class _StartupScreenState extends State<StartupScreen>
     if (!mounted) return;
 
     if (isValid) {
-      final cachedUser = await AuthApiService.readCachedCurrentUser();
+      final isProfileDone = await AuthApiService.isProfileSetupCompleted();
       if (!mounted) return;
-      final hasDisplayName = cachedUser != null && (cachedUser['display_name'] as String? ?? '').trim().isNotEmpty;
-      if (hasDisplayName) {
+
+      if (isProfileDone) {
+        // WhatsApp behavior: Always route to /home instantly!
+        // Background sync user info without blocking
+        AuthApiService.currentUser().catchError((_) => <String, dynamic>{});
         context.go('/home');
       } else {
-        context.go('/profile-setup');
+        context.go('/complete-profile');
       }
       return;
     }
 
     // No valid session — route to authentication (phone screen).
-    await AuthApiService.signOut();
     if (mounted) {
       context.go('/phone');
     }

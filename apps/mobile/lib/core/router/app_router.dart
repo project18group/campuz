@@ -30,6 +30,7 @@ import 'package:mobile/shared/widgets/app_shell.dart';
 
 final appRouter = GoRouter(
   initialLocation: "/startup",
+  errorBuilder: (context, state) => const StartupScreen(),
   routes: [
     // -----------------------------------------------------------------------
     // Startup splash — checks for a stored session, then routes to /phone or
@@ -58,6 +59,10 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: "/complete-profile",
+      builder: (context, state) => const ProfileSetupScreen(),
+    ),
+    GoRoute(
+      path: "/profile-setup",
       builder: (context, state) => const ProfileSetupScreen(),
     ),
 
