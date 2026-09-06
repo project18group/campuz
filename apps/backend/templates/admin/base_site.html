@@ -1,0 +1,41 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:"Campuz Admin" }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;600&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" type="text/css" href="{% static 'admin/css/custom_admin.css' %}">
+{% endblock %}
+
+{% block branding %}
+<div class="campuz-brand-container">
+    <a href="{% url 'admin:index' %}" class="campuz-brand-link">
+        <div class="campuz-brand-mark">
+            <svg class="campuz-logo-svg" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L1 7L12 12L21 7.91V16H23V7M5 11.5V15.5C5 18 8.13 20 12 20C15.87 20 19 18 19 15.5V11.5L12 15L5 11.5Z" fill="currentColor"/>
+            </svg>
+        </div>
+        <div class="campuz-brand-text">
+            <div class="campuz-brand-title">
+                <span class="brand-name">CAMPUZ</span>
+                <span class="brand-badge">ADMIN</span>
+            </div>
+            <div class="campuz-brand-subtitle">
+                <span class="status-indicator"></span>
+                <span>System Operations & Platform Insights</span>
+            </div>
+        </div>
+    </a>
+</div>
+{% endblock %}
+
+{% block nav-global %}{% endblock %}

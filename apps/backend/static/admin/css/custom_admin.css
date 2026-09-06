@@ -1,0 +1,1197 @@
+/* ==========================================================================
+   CAMPUZ ADMIN DESIGN SYSTEM (SaaS Crimson Palette)
+   Typography: Plus Jakarta Sans
+   Colors: AIM-inspired crimson (#B10E15, #6E070B, #4F0508, #F7F1EF, #3A1C1D)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. Design Tokens & CSS Variables
+   -------------------------------------------------------------------------- */
+:root {
+    /* Brand Crimson Palette */
+    --campuz-primary: #B10E15;
+    --campuz-primary-hover: #960C12;
+    --campuz-primary-dark: #6E070B;
+    --campuz-primary-deep: #4F0508;
+    --campuz-accent: #E84A4A;
+    --campuz-accent-soft: rgba(232, 74, 74, 0.12);
+    --campuz-primary-tint: #FDF4F4;
+
+    /* Neutrals & Surfaces */
+    --campuz-bg: #F7F1EF;
+    --campuz-surface: #FFFFFF;
+    --campuz-surface-muted: #FCF8F7;
+    --campuz-surface-subtle: #F3E7E5;
+    --campuz-border: #E5CFCB;
+    --campuz-border-light: #F0DFDC;
+
+    /* Text */
+    --campuz-text-primary: #3A1C1D;
+    --campuz-text-secondary: #7B5B5D;
+    --campuz-text-muted: #9E7D80;
+    --campuz-text-inverse: #FFFFFF;
+
+    /* Semantic Status */
+    --campuz-success: #16A34A;
+    --campuz-success-bg: #F0FDF4;
+    --campuz-warning: #D97706;
+    --campuz-warning-bg: #FFFBEB;
+    --campuz-danger: #DC2626;
+    --campuz-danger-bg: #FEF2F2;
+    --campuz-info: #0284C7;
+    --campuz-info-bg: #F0F9FF;
+
+    /* Shadows & Radii */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 18px;
+    --shadow-sm: 0 1px 2px rgba(79, 5, 8, 0.04);
+    --shadow-md: 0 4px 12px rgba(79, 5, 8, 0.06), 0 1px 3px rgba(79, 5, 8, 0.04);
+    --shadow-lg: 0 10px 25px -5px rgba(79, 5, 8, 0.08), 0 8px 10px -6px rgba(79, 5, 8, 0.03);
+
+    /* Override Django Native Admin Variables */
+    --primary: var(--campuz-primary);
+    --secondary: var(--campuz-primary-dark);
+    --accent: var(--campuz-accent);
+    --primary-fg: #FFFFFF;
+    --body-fg: var(--campuz-text-primary);
+    --body-bg: var(--campuz-bg);
+    --body-quiet-color: var(--campuz-text-secondary);
+    --body-loud-color: var(--campuz-text-primary);
+    --header-color: #FFFFFF;
+    --header-branding-color: #FFFFFF;
+    --header-bg: var(--campuz-primary-deep);
+    --header-link-color: rgba(255, 255, 255, 0.9);
+    --breadcrumbs-fg: var(--campuz-text-secondary);
+    --breadcrumbs-link-fg: var(--campuz-primary);
+    --breadcrumbs-bg: var(--campuz-surface);
+    --link-fg: var(--campuz-primary);
+    --link-hover-color: var(--campuz-primary-dark);
+    --link-selected-fg: var(--campuz-primary);
+    --hairline-color: var(--campuz-border-light);
+    --border-color: var(--campuz-border);
+    --default-button-bg: var(--campuz-primary);
+    --default-button-hover-bg: var(--campuz-primary-hover);
+    --button-bg: var(--campuz-surface-muted);
+    --button-hover-bg: var(--campuz-surface-subtle);
+    --button-fg: var(--campuz-text-primary);
+    --close-button-bg: #7B5B5D;
+    --close-button-hover-bg: #4F0508;
+    --delete-button-bg: #DC2626;
+    --delete-button-hover-bg: #B91C1C;
+    --object-tools-bg: var(--campuz-primary);
+    --object-tools-hover-bg: var(--campuz-primary-hover);
+    --object-tools-fg: #FFFFFF;
+}
+
+/* --------------------------------------------------------------------------
+   Dark Mode Palette Override (Matches Mobile Dark Theme)
+   -------------------------------------------------------------------------- */
+[data-theme="dark"], :root:has(body.theme-dark) {
+    --campuz-primary: #E84A4A;
+    --campuz-primary-hover: #F87171;
+    --campuz-primary-dark: #B10E15;
+    --campuz-primary-deep: #1A0709;
+    --campuz-accent: #F87171;
+    --campuz-accent-soft: rgba(232, 74, 74, 0.2);
+    --campuz-primary-tint: #251012;
+
+    --campuz-bg: #140D0C;
+    --campuz-surface: #1C1412;
+    --campuz-surface-muted: #251B19;
+    --campuz-surface-subtle: #2F2220;
+    --campuz-border: #3F2724;
+    --campuz-border-light: #4A302C;
+
+    --campuz-text-primary: #F7F1EF;
+    --campuz-text-secondary: #C4AEAC;
+    --campuz-text-muted: #8E7876;
+    --campuz-text-inverse: #140D0C;
+
+    --campuz-success: #34D399;
+    --campuz-success-bg: #064E3B;
+    --campuz-warning: #FBBF24;
+    --campuz-warning-bg: #78350F;
+    --campuz-danger: #F87171;
+    --campuz-danger-bg: #7F1D1D;
+    --campuz-info: #38BDF8;
+    --campuz-info-bg: #0C4A6E;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.6);
+
+    --primary: var(--campuz-primary);
+    --secondary: var(--campuz-primary-dark);
+    --body-fg: var(--campuz-text-primary);
+    --body-bg: var(--campuz-bg);
+    --body-quiet-color: var(--campuz-text-secondary);
+    --body-loud-color: #FFFFFF;
+    --header-bg: #1A0709;
+    --breadcrumbs-bg: var(--campuz-surface);
+    --link-fg: var(--campuz-primary);
+    --link-hover-color: #FFA5A5;
+    --border-color: var(--campuz-border);
+    --hairline-color: var(--campuz-border-light);
+    --button-bg: var(--campuz-surface-muted);
+    --button-hover-bg: var(--campuz-surface-subtle);
+    --button-fg: var(--campuz-text-primary);
+}
+
+/* --------------------------------------------------------------------------
+   2. Base Typography & Global Layout
+   -------------------------------------------------------------------------- */
+body, input, textarea, select, button, .button, input[type=submit] {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    background-color: var(--campuz-bg) !important;
+    color: var(--campuz-text-primary) !important;
+    font-size: 0.925rem;
+    line-height: 1.5;
+}
+
+a:link, a:visited {
+    color: var(--campuz-primary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s ease;
+}
+
+a:hover, a:focus {
+    color: var(--campuz-primary-hover);
+    text-decoration: none;
+}
+
+/* Container spacing */
+#container {
+    background-color: var(--campuz-bg);
+    min-height: 100vh;
+}
+
+/* --------------------------------------------------------------------------
+   3. Header & Brand Navigation
+   -------------------------------------------------------------------------- */
+#header {
+    background: linear-gradient(135deg, #4F0508 0%, #6E070B 45%, #B10E15 100%) !important;
+    color: #FFFFFF !important;
+    padding: 14px 28px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 20px rgba(79, 5, 8, 0.25);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.campuz-brand-container {
+    display: flex;
+    align-items: center;
+}
+
+.campuz-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none !important;
+}
+
+.campuz-brand-mark {
+    width: 42px;
+    height: 42px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #FFFFFF;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: all 0.2s ease;
+}
+
+.campuz-brand-link:hover .campuz-brand-mark {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.campuz-logo-svg {
+    width: 24px;
+    height: 24px;
+}
+
+.campuz-brand-text {
+    display: flex;
+    flex-direction: column;
+}
+
+.campuz-brand-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.brand-name {
+    font-size: 1.35rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #FFFFFF !important;
+}
+
+.brand-badge {
+    background: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.campuz-brand-subtitle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.78);
+    font-weight: 500;
+}
+
+.status-indicator {
+    width: 7px;
+    height: 7px;
+    background-color: #22C55E;
+    border-radius: 50%;
+    display: inline-block;
+    box-shadow: 0 0 8px #22C55E;
+}
+
+/* User tools on right of header */
+#user-tools {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.9) !important;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 6px 14px;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(6px);
+}
+
+#user-tools a {
+    color: #FFFFFF !important;
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+#user-tools a:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #FFFFFF !important;
+}
+
+#user-tools strong {
+    color: #FFFFFF;
+    font-weight: 700;
+}
+
+/* --------------------------------------------------------------------------
+   4. Breadcrumbs
+   -------------------------------------------------------------------------- */
+div.breadcrumbs {
+    background: var(--campuz-surface) !important;
+    color: var(--campuz-text-secondary) !important;
+    border-bottom: 1px solid var(--campuz-border) !important;
+    padding: 12px 28px !important;
+    font-size: 0.86rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: var(--shadow-sm);
+}
+
+div.breadcrumbs a {
+    color: var(--campuz-text-secondary) !important;
+    font-weight: 600;
+}
+
+div.breadcrumbs a:hover {
+    color: var(--campuz-primary) !important;
+}
+
+/* --------------------------------------------------------------------------
+   5. Dashboard Index & Hero Section
+   -------------------------------------------------------------------------- */
+.campuz-dashboard-hero {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--campuz-surface) 0%, var(--campuz-surface-muted) 100%);
+    border: 1px solid var(--campuz-border);
+    border-radius: var(--radius-lg);
+    padding: 24px 28px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow-sm);
+}
+
+.hero-title {
+    font-size: 1.55rem;
+    font-weight: 800;
+    color: var(--campuz-text-primary);
+    margin: 0 0 6px 0 !important;
+    letter-spacing: -0.02em;
+}
+
+.hero-subtitle {
+    font-size: 0.9rem;
+    color: var(--campuz-text-secondary);
+    margin: 0 !important;
+    max-width: 650px;
+}
+
+.system-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--campuz-surface);
+    border: 1px solid var(--campuz-border);
+    padding: 6px 14px;
+    border-radius: 30px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--campuz-text-secondary);
+    box-shadow: var(--shadow-sm);
+}
+
+.pulse-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #22C55E;
+    border-radius: 50%;
+    animation: pulseGlow 2s infinite;
+}
+
+@keyframes pulseGlow {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+/* --------------------------------------------------------------------------
+   6. Dashboard KPI Stat Cards Grid
+   -------------------------------------------------------------------------- */
+.campuz-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 28px;
+}
+
+@media (max-width: 1200px) {
+    .campuz-kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .campuz-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+    .campuz-dashboard-hero {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 14px;
+    }
+}
+
+.kpi-card {
+    background: var(--campuz-surface);
+    border: 1px solid var(--campuz-border);
+    border-radius: var(--radius-lg);
+    padding: 18px 20px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--campuz-border);
+    transition: background 0.2s ease;
+}
+
+.kpi-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+    border-color: var(--campuz-primary);
+}
+
+.kpi-card.kpi-users:hover::before { background: var(--campuz-primary); }
+.kpi-card.kpi-verified:hover::before { background: var(--campuz-success); }
+.kpi-card.kpi-hubs:hover::before { background: var(--campuz-accent); }
+.kpi-card.kpi-resources:hover::before { background: var(--campuz-warning); }
+.kpi-card.kpi-messages:hover::before { background: var(--campuz-info); }
+
+.kpi-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.kpi-title {
+    font-size: 0.825rem;
+    font-weight: 600;
+    color: var(--campuz-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.kpi-icon-wrap {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.kpi-icon-wrap svg {
+    width: 18px;
+    height: 18px;
+}
+
+.icon-primary { background: var(--campuz-primary-tint); color: var(--campuz-primary); }
+.icon-success { background: var(--campuz-success-bg); color: var(--campuz-success); }
+.icon-accent { background: var(--campuz-accent-soft); color: var(--campuz-accent); }
+.icon-warning { background: var(--campuz-warning-bg); color: var(--campuz-warning); }
+.icon-info { background: var(--campuz-info-bg); color: var(--campuz-info); }
+
+.kpi-value {
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--campuz-text-primary);
+    line-height: 1.1;
+    margin-bottom: 12px;
+    letter-spacing: -0.03em;
+}
+
+.kpi-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+}
+
+.kpi-badge {
+    padding: 2px 7px;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 0.72rem;
+}
+
+.badge-primary { background: var(--campuz-primary-tint); color: var(--campuz-primary); }
+.badge-success { background: var(--campuz-success-bg); color: var(--campuz-success); }
+.badge-accent { background: var(--campuz-accent-soft); color: var(--campuz-accent); }
+.badge-warning { background: var(--campuz-warning-bg); color: var(--campuz-warning); }
+.badge-info { background: var(--campuz-info-bg); color: var(--campuz-info); }
+
+.kpi-hint {
+    color: var(--campuz-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   7. Models & App Cards Section
+   -------------------------------------------------------------------------- */
+.campuz-models-section {
+    margin-top: 10px;
+}
+
+.section-heading {
+    margin-bottom: 18px;
+}
+
+.section-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--campuz-text-primary);
+    margin: 0 0 4px 0 !important;
+    letter-spacing: -0.01em;
+}
+
+.section-desc {
+    font-size: 0.85rem;
+    color: var(--campuz-text-secondary);
+}
+
+.campuz-apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 20px;
+}
+
+.app-card.module {
+    background: var(--campuz-surface) !important;
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 0 !important;
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.app-card.module:hover {
+    box-shadow: var(--shadow-md);
+    border-color: var(--campuz-border-light);
+}
+
+.app-card-header {
+    background: var(--campuz-surface-muted);
+    border-bottom: 1px solid var(--campuz-border);
+    padding: 14px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.app-title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.app-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--campuz-text-primary);
+    margin: 0 !important;
+}
+
+.app-model-count {
+    background: var(--campuz-surface-subtle);
+    color: var(--campuz-text-secondary);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+}
+
+.app-section-link {
+    color: var(--campuz-text-secondary) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+
+.app-section-link:hover {
+    background: var(--campuz-surface-subtle);
+    color: var(--campuz-primary) !important;
+}
+
+.app-card-body {
+    padding: 6px 0;
+}
+
+.campuz-model-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.campuz-model-table tr {
+    border-bottom: 1px solid var(--campuz-border-light);
+    transition: background 0.15s ease;
+}
+
+.campuz-model-table tr:last-child {
+    border-bottom: none;
+}
+
+.campuz-model-table tr:hover {
+    background: var(--campuz-primary-tint);
+}
+
+.campuz-model-table td {
+    padding: 12px 20px;
+    vertical-align: middle;
+}
+
+.model-name-link {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--campuz-text-primary) !important;
+}
+
+.model-name-link:hover {
+    color: var(--campuz-primary) !important;
+}
+
+.model-actions-col {
+    text-align: right;
+}
+
+.model-action-buttons {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    transition: all 0.15s ease;
+}
+
+.action-add {
+    background: var(--campuz-primary-tint);
+    color: var(--campuz-primary) !important;
+    border: 1px solid rgba(177, 14, 21, 0.2);
+}
+
+.action-add:hover {
+    background: var(--campuz-primary);
+    color: #FFFFFF !important;
+}
+
+.action-change, .action-view {
+    background: var(--campuz-surface-muted);
+    color: var(--campuz-text-secondary) !important;
+    border: 1px solid var(--campuz-border);
+}
+
+.action-change:hover, .action-view:hover {
+    background: var(--campuz-surface-subtle);
+    color: var(--campuz-text-primary) !important;
+    border-color: var(--campuz-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   8. Activity Log Sidebar
+   -------------------------------------------------------------------------- */
+.campuz-activity-module {
+    background: var(--campuz-surface) !important;
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    padding: 0 !important;
+}
+
+.activity-module-header {
+    background: var(--campuz-surface-muted);
+    border-bottom: 1px solid var(--campuz-border);
+    padding: 16px 20px;
+}
+
+.activity-title {
+    font-size: 0.95rem !important;
+    font-weight: 700 !important;
+    color: var(--campuz-text-primary) !important;
+    margin: 0 0 4px 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.activity-title svg {
+    color: var(--campuz-primary);
+}
+
+.activity-subtitle {
+    font-size: 0.78rem;
+    color: var(--campuz-text-secondary);
+}
+
+.campuz-action-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--campuz-border-light);
+    transition: background 0.15s ease;
+}
+
+.action-item:last-child {
+    border-bottom: none;
+}
+
+.action-item:hover {
+    background: var(--campuz-surface-muted);
+}
+
+.action-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+
+.badge-add { background: var(--campuz-success-bg); color: var(--campuz-success); border: 1px solid rgba(22, 163, 74, 0.3); }
+.badge-edit { background: var(--campuz-warning-bg); color: var(--campuz-warning); border: 1px solid rgba(217, 119, 6, 0.3); }
+.badge-delete { background: var(--campuz-danger-bg); color: var(--campuz-danger); border: 1px solid rgba(220, 38, 38, 0.3); }
+
+.action-details-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.action-title-row {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.action-object-link {
+    color: var(--campuz-text-primary) !important;
+}
+
+.action-object-link:hover {
+    color: var(--campuz-primary) !important;
+}
+
+.action-object-deleted {
+    color: var(--campuz-danger);
+    text-decoration: line-through;
+}
+
+.action-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--campuz-text-muted);
+    margin-top: 2px;
+}
+
+.action-content-type {
+    font-weight: 500;
+    color: var(--campuz-text-secondary);
+}
+
+/* --------------------------------------------------------------------------
+   9. Changelists, Tables, Filters & Search
+   -------------------------------------------------------------------------- */
+#changelist {
+    display: flex;
+    flex-direction: row;
+    gap: 24px;
+    align-items: flex-start;
+}
+
+#changelist-form {
+    flex: 1;
+    background: var(--campuz-surface);
+    border: 1px solid var(--campuz-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+}
+
+/* Toolbar & Search Bar */
+#toolbar {
+    background: var(--campuz-surface-muted) !important;
+    border-bottom: 1px solid var(--campuz-border) !important;
+    padding: 14px 20px !important;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+#changelist-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#searchbar {
+    background: var(--campuz-surface) !important;
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 14px !important;
+    font-size: 0.88rem !important;
+    color: var(--campuz-text-primary) !important;
+    width: 320px !important;
+    transition: all 0.2s ease !important;
+}
+
+#searchbar:focus {
+    border-color: var(--campuz-primary) !important;
+    box-shadow: 0 0 0 3px rgba(177, 14, 21, 0.15) !important;
+    outline: none !important;
+}
+
+#changelist-search input[type="submit"] {
+    background: var(--campuz-primary) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: var(--radius-md) !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+    cursor: pointer;
+    transition: background 0.15s ease !important;
+}
+
+#changelist-search input[type="submit"]:hover {
+    background: var(--campuz-primary-hover) !important;
+}
+
+/* Actions Bar */
+.actions {
+    background: var(--campuz-surface) !important;
+    padding: 12px 20px !important;
+    border-bottom: 1px solid var(--campuz-border) !important;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.actions select {
+    background: var(--campuz-surface-muted);
+    border: 1px solid var(--campuz-border);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--campuz-text-primary);
+}
+
+.actions button.button {
+    background: var(--campuz-primary) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 6px 14px !important;
+    font-weight: 600;
+}
+
+/* Results Table */
+#changelist table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 0 !important;
+}
+
+#changelist thead th {
+    background: var(--campuz-surface-muted) !important;
+    color: var(--campuz-text-secondary) !important;
+    font-size: 0.78rem !important;
+    font-weight: 700 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 12px 16px !important;
+    border-bottom: 1px solid var(--campuz-border) !important;
+}
+
+#changelist thead th a {
+    color: var(--campuz-text-secondary) !important;
+}
+
+#changelist thead th a:hover {
+    color: var(--campuz-primary) !important;
+}
+
+#changelist tbody tr {
+    border-bottom: 1px solid var(--campuz-border-light) !important;
+    transition: background 0.15s ease;
+}
+
+#changelist tbody tr:hover {
+    background: var(--campuz-primary-tint) !important;
+}
+
+#changelist tbody tr.selected {
+    background: #FCE8E8 !important;
+}
+
+#changelist tbody td, #changelist tbody th {
+    padding: 12px 16px !important;
+    font-size: 0.88rem;
+    vertical-align: middle;
+}
+
+/* Paginator */
+.paginator {
+    background: var(--campuz-surface-muted) !important;
+    border-top: 1px solid var(--campuz-border) !important;
+    padding: 12px 20px !important;
+    font-size: 0.85rem;
+    color: var(--campuz-text-secondary) !important;
+}
+
+.paginator a:link, .paginator a:visited {
+    background: var(--campuz-surface);
+    border: 1px solid var(--campuz-border);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    color: var(--campuz-text-primary) !important;
+    margin: 0 2px;
+}
+
+.paginator a:hover {
+    border-color: var(--campuz-primary);
+    color: var(--campuz-primary) !important;
+}
+
+.paginator .this-page {
+    background: var(--campuz-primary);
+    color: #FFFFFF !important;
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font-weight: 700;
+}
+
+/* Sidebar Filters */
+#changelist-filter {
+    width: 260px;
+    background: var(--campuz-surface) !important;
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-sm);
+    padding: 16px !important;
+    position: sticky;
+    top: 85px;
+}
+
+#changelist-filter h2 {
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    color: var(--campuz-text-primary) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0 0 14px 0 !important;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--campuz-border);
+}
+
+#changelist-filter h3 {
+    font-size: 0.825rem !important;
+    font-weight: 700 !important;
+    color: var(--campuz-text-secondary) !important;
+    margin: 14px 0 6px 0 !important;
+}
+
+#changelist-filter ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+#changelist-filter li {
+    font-size: 0.84rem;
+    padding: 4px 0;
+}
+
+#changelist-filter li.selected a {
+    color: var(--campuz-primary) !important;
+    font-weight: 700;
+    border-left: 3px solid var(--campuz-primary);
+    padding-left: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   10. Forms, Fields & Details
+   -------------------------------------------------------------------------- */
+.module.aligned {
+    background: var(--campuz-surface);
+    border: 1px solid var(--campuz-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.module h2 {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--campuz-text-primary);
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--campuz-border);
+    margin-bottom: 16px;
+}
+
+.form-row {
+    padding: 12px 0 !important;
+    border-bottom: 1px solid var(--campuz-border-light) !important;
+}
+
+.form-row:last-child {
+    border-bottom: none !important;
+}
+
+.form-row label {
+    font-weight: 600 !important;
+    color: var(--campuz-text-primary) !important;
+    font-size: 0.88rem !important;
+}
+
+input[type="text"], input[type="password"], input[type="email"], input[type="url"],
+input[type="number"], input[type="tel"], textarea, select {
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 8px 12px !important;
+    background: var(--campuz-surface) !important;
+    color: var(--campuz-text-primary) !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s ease !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--campuz-primary) !important;
+    box-shadow: 0 0 0 3px rgba(177, 14, 21, 0.15) !important;
+    outline: none !important;
+}
+
+/* Buttons */
+.button, input[type=submit], input[type=button], .submit-row input {
+    background: var(--campuz-primary) !important;
+    color: #FFFFFF !important;
+    border: none !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 9px 20px !important;
+    font-weight: 700 !important;
+    font-size: 0.88rem !important;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s ease !important;
+}
+
+.button:hover, input[type=submit]:hover, input[type=button]:hover, .submit-row input:hover {
+    background: var(--campuz-primary-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+.submit-row {
+    background: var(--campuz-surface) !important;
+    border: 1px solid var(--campuz-border) !important;
+    border-radius: var(--radius-lg) !important;
+    padding: 16px 24px !important;
+    margin-top: 24px !important;
+    box-shadow: var(--shadow-sm);
+}
+
+.submit-row a.deletelink {
+    background: var(--campuz-danger-bg) !important;
+    color: var(--campuz-danger) !important;
+    border: 1px solid rgba(220, 38, 38, 0.3) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 8px 16px !important;
+    font-weight: 600 !important;
+}
+
+.submit-row a.deletelink:hover {
+    background: var(--campuz-danger) !important;
+    color: #FFFFFF !important;
+}
+
+/* Object Tools (Add Model Button in top right) */
+ul.object-tools {
+    display: flex;
+    gap: 8px;
+    margin-top: 0 !important;
+}
+
+ul.object-tools li {
+    height: auto !important;
+}
+
+ul.object-tools a {
+    background: var(--campuz-primary) !important;
+    color: #FFFFFF !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 8px 16px !important;
+    font-weight: 700 !important;
+    font-size: 0.84rem !important;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.15s ease;
+}
+
+ul.object-tools a:hover {
+    background: var(--campuz-primary-hover) !important;
+    transform: translateY(-1px);
+}
+
+/* --------------------------------------------------------------------------
+   11. Help text & Error Messages
+   -------------------------------------------------------------------------- */
+.help {
+    font-size: 0.78rem !important;
+    color: var(--campuz-text-secondary) !important;
+    margin-top: 4px;
+}
+
+ul.errorlist {
+    background: var(--campuz-danger-bg) !important;
+    color: var(--campuz-danger) !important;
+    border: 1px solid rgba(220, 38, 38, 0.3) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 8px 14px !important;
+    font-size: 0.85rem !important;
+    font-weight: 600;
+}
+
+ul.messagelist li.info {
+    background: var(--campuz-info-bg) !important;
+    color: var(--campuz-info) !important;
+    border-left: 4px solid var(--campuz-info) !important;
+    border-radius: var(--radius-sm);
+}
+
+ul.messagelist li.success {
+    background: var(--campuz-success-bg) !important;
+    color: var(--campuz-success) !important;
+    border-left: 4px solid var(--campuz-success) !important;
+    border-radius: var(--radius-sm);
+}
+
+ul.messagelist li.warning {
+    background: var(--campuz-warning-bg) !important;
+    color: var(--campuz-warning) !important;
+    border-left: 4px solid var(--campuz-warning) !important;
+    border-radius: var(--radius-sm);
+}
+
+ul.messagelist li.error {
+    background: var(--campuz-danger-bg) !important;
+    color: var(--campuz-danger) !important;
+    border-left: 4px solid var(--campuz-danger) !important;
+    border-radius: var(--radius-sm);
+}
