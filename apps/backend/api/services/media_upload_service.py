@@ -30,9 +30,9 @@ def get_cloudinary_resource_type(filename_or_path: str) -> str:
     based on the file extension.
     """
     if not filename_or_path:
-        return "raw"
+        return "image"
     ext = os.path.splitext(filename_or_path)[1].lower()
-    if ext in IMAGE_EXTENSIONS:
+    if ext in IMAGE_EXTENSIONS or not ext:
         return "image"
     if ext in VIDEO_AUDIO_EXTENSIONS:
         return "video"
@@ -88,7 +88,10 @@ class AutoCloudinaryStorage(MediaCloudinaryStorage):
             default_resource_type=res_type,
             type="upload",
         )
-        return cloudinary_resource.build_url(secure=True)
+        url = cloudinary_resource.build_url(secure=True)
+        if res_type == "image" and "/raw/upload/" in url:
+            url = url.replace("/raw/upload/", "/image/upload/")
+        return url
 
     def url(self, name):
         return self._get_url(name)

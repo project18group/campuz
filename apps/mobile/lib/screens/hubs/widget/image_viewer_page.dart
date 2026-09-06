@@ -112,15 +112,20 @@ class _ImageViewerPageState extends State<ImageViewerPage>
     
     try {
       Uint8List? imageBytes;
-      if (widget.imageUrl != null) {
-        final response = await http.get(Uri.parse(widget.imageUrl!));
-        if (response.statusCode == 200) {
-          imageBytes = response.bodyBytes;
-        }
-      } else if (widget.imagePath != null) {
+      if (widget.imagePath != null && widget.imagePath!.trim().isNotEmpty) {
         final file = File(widget.imagePath!);
         if (await file.exists()) {
           imageBytes = await file.readAsBytes();
+        }
+      }
+      if (imageBytes == null && widget.imageUrl != null) {
+        String effectiveUrl = widget.imageUrl!.trim();
+        if (effectiveUrl.contains('/raw/upload/')) {
+          effectiveUrl = effectiveUrl.replaceAll('/raw/upload/', '/image/upload/');
+        }
+        final response = await http.get(Uri.parse(effectiveUrl));
+        if (response.statusCode == 200) {
+          imageBytes = response.bodyBytes;
         }
       }
 
@@ -296,15 +301,73 @@ class _ImageViewerPageState extends State<ImageViewerPage>
                     maxScale: 5.0,
                     child: Hero(
                       tag: widget.heroTag,
-                      child: widget.imageUrl != null
-                          ? Image.network(
-                              widget.imageUrl!,
-                              fit: BoxFit.contain,
-                            )
-                          : Image.file(
-                              File(widget.imagePath!),
-                              fit: BoxFit.contain,
-                            ),
+                      child: () {
+                        final hasLocal = widget.imagePath != null &&
+                            widget.imagePath!.trim().isNotEmpty &&
+                            File(widget.imagePath!).existsSync();
+
+                        if (hasLocal) {
+                          return Image.file(
+                            File(widget.imagePath!),
+                            fit: BoxFit.contain,
+                          );
+                        }
+
+                        String effectiveUrl = (widget.imageUrl ?? '').trim();
+                        if (effectiveUrl.contains('/raw/upload/')) {
+                          effectiveUrl = effectiveUrl.replaceAll('/raw/upload/', '/image/upload/');
+                        }
+
+                        if (effectiveUrl.isNotEmpty) {
+                          return Image.network(
+                            effectiveUrl,
+                            fit: BoxFit.contain,
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                  value: progress.expectedTotalBytes != null
+                                      ? progress.cumulativeBytesLoaded /
+                                          progress.expectedTotalBytes!
+                                      : null,
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              );
+                            },
+                            errorBuilder: (context, error, stackTrace) {
+                              return Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.broken_image_rounded,
+                                      color: Colors.white54,
+                                      size: 54,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Unable to load full image',
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(alpha: 0.8),
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          );
+                        }
+
+                        return const Center(
+                          child: Icon(
+                            Icons.broken_image_rounded,
+                            color: Colors.white54,
+                            size: 54,
+                          ),
+                        );
+                      }(),
                     ),
                   ),
                 ),

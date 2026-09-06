@@ -37,13 +37,18 @@ class DownloadableImageAttachment extends StatelessWidget {
     }
 
     // 2. Direct network image rendering with CachedNetworkImage
+    String effectiveUrl = url.trim();
+    if (effectiveUrl.contains('/raw/upload/')) {
+      effectiveUrl = effectiveUrl.replaceAll('/raw/upload/', '/image/upload/');
+    }
+
     return GestureDetector(
       onTap: onTap,
       child: AspectRatio(
         aspectRatio: 1.08,
-        child: url.isNotEmpty
+        child: effectiveUrl.isNotEmpty
             ? CachedNetworkImage(
-                imageUrl: url,
+                imageUrl: effectiveUrl,
                 fit: BoxFit.cover,
                 placeholder: (context, url) => Container(
                   color: AppColors.primary.withValues(alpha: 0.08),

@@ -285,6 +285,8 @@ class DirectMessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
+        if url and "/raw/upload/" in url and self.get_is_image(obj):
+            url = url.replace("/raw/upload/", "/image/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):
@@ -887,6 +889,10 @@ class ResourceSerializer(serializers.ModelSerializer):
             return None
         request = self.context.get("request")
         url = obj.file.url
+        file_name = (self.get_file_name(obj) or "").lower()
+        if url and "/raw/upload/" in url:
+            if obj.resource_type == "image" or file_name.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".heic")):
+                url = url.replace("/raw/upload/", "/image/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_file_name(self, obj):
@@ -1206,6 +1212,8 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
         if not obj.file:
             return None
         url = obj.file.url
+        if url and "/raw/upload/" in url and self.get_is_image(obj):
+            url = url.replace("/raw/upload/", "/image/upload/")
         return request.build_absolute_uri(url) if request else url
 
     def get_extension(self, obj):

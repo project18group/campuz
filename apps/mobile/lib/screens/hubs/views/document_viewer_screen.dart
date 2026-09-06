@@ -183,6 +183,10 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
             _downloadProgress = 1.0;
           });
         }
+      } else if (response.statusCode == 401) {
+        throw Exception('Access denied (401). Please ensure PDF/document delivery is allowed in Cloudinary Console > Settings > Security.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Document not found on server (404).');
       } else {
         throw Exception('Server responded with status code ${response.statusCode}');
       }
@@ -190,7 +194,7 @@ class _DocumentViewerScreenState extends State<DocumentViewerScreen> {
       if (mounted) {
         setState(() {
           _isDownloading = false;
-          _errorMessage = 'Failed to download document: $e';
+          _errorMessage = '$e'.replaceAll('Exception: ', '');
         });
       }
     }
