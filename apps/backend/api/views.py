@@ -1078,10 +1078,12 @@ class TaskViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        attachment = request.FILES.get("attachment") or serializer.validated_data.get("attachment")
         task = TaskItem.objects.create(
             hub=hub,
             title=serializer.validated_data["title"],
             description=serializer.validated_data.get("description", ""),
+            attachment=attachment,
             course_name=serializer.validated_data["course_name"],
             due_date=serializer.validated_data["due_date"],
             status="pending",
@@ -1135,17 +1137,20 @@ class TaskViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         task.submission_text = serializer.validated_data.get("submission_text", "")
         task.submission_link = serializer.validated_data.get("submission_link", "")
+        submission_file = request.FILES.get("submission_file") or serializer.validated_data.get("submission_file")
+        update_fields = [
+            "submission_text",
+            "submission_link",
+            "status",
+            "submitted_at",
+            "updated_at",
+        ]
+        if submission_file is not None:
+            task.submission_file = submission_file
+            update_fields.append("submission_file")
         task.status = "submitted"
         task.submitted_at = timezone.now()
-        task.save(
-            update_fields=[
-                "submission_text",
-                "submission_link",
-                "status",
-                "submitted_at",
-                "updated_at",
-            ]
-        )
+        task.save(update_fields=update_fields)
         return Response(
             TaskSerializer(task, context={"request": request}).data,
             status=status.HTTP_200_OK,

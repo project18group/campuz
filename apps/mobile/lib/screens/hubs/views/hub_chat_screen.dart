@@ -22,7 +22,8 @@ import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
 import 'package:mobile/screens/hubs/widget/downloadable_image.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/shared/widgets/app_emoji_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart' as p;
+import 'package:mobile/screens/hubs/views/document_viewer_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/core/utils/image_cropper_utils.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
@@ -377,6 +378,20 @@ class _HubChatScreenState extends State<HubChatScreen> {
             }
           : null;
 
+      final tempAttachments = attachmentsToSend.map((att) {
+        final ext = p.extension(att.name).toLowerCase().replaceAll('.', '');
+        final isImg = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext);
+        return {
+          'id': 'local_${DateTime.now().millisecondsSinceEpoch}_${att.name}',
+          'file_name': att.name,
+          'extension': ext,
+          'size_bytes': att.size,
+          'local_path': att.path,
+          'url': '',
+          'is_image': isImg,
+        };
+      }).toList();
+
       final tempMessage = {
         'id': tempId,
         'content': content,
@@ -384,7 +399,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
         'sender': {'username': AuthSession.username ?? 'Me'},
         'timestamp': DateTime.now().toIso8601String(),
         'is_pending': true,
-        'attachments': [],
+        'attachments': tempAttachments,
         'send_as_sms': _sendAsSms && _canSendAsSms && _pendingAttachments.isEmpty,
         'reply_to': replyTo,
       };
@@ -410,6 +425,19 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
       setState(() {
         final sentMessage = Map<String, dynamic>.from(message);
+        // Preserve local_path so sender keeps instant preview
+        if (tempAttachments.isNotEmpty && sentMessage['attachments'] is List) {
+          final serverAtts = List<Map<String, dynamic>>.from(
+            (sentMessage['attachments'] as List).map((a) => Map<String, dynamic>.from(a as Map)),
+          );
+          for (int i = 0; i < serverAtts.length; i++) {
+            if (i < tempAttachments.length) {
+              serverAtts[i]['local_path'] = tempAttachments[i]['local_path'];
+            }
+          }
+          sentMessage['attachments'] = serverAtts;
+        }
+
         final messageKey = _messageIdKey(sentMessage);
         final index = _messages.indexWhere((m) => m['id'] == tempId);
         if (index != -1) {
@@ -688,15 +716,17 @@ class _HubChatScreenState extends State<HubChatScreen> {
 
   Future<void> _openAttachment(Map<String, dynamic> attachment) async {
     final url = (attachment['url'] as String? ?? '').trim();
-    if (url.isEmpty) return;
+    final localPath = (attachment['local_path'] as String? ?? '').trim();
+    if (url.isEmpty && localPath.isEmpty) return;
 
     if (_isImageAttachment(attachment)) {
       Navigator.of(context).push(
         PageRouteBuilder(
           opaque: false,
           pageBuilder: (context, _, __) => ImageViewerPage(
-            imageUrl: url,
-            heroTag: url,
+            imagePath: localPath.isNotEmpty ? localPath : null,
+            imageUrl: url.isNotEmpty ? url : null,
+            heroTag: url.isNotEmpty ? url : localPath,
             caption: _attachmentSubtitle(attachment),
           ),
         ),
@@ -704,9 +734,17 @@ class _HubChatScreenState extends State<HubChatScreen> {
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null) return;
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    // In-app document viewer for a native open/save experience
+    final fileName = (attachment['file_name'] as String? ?? 'Document').trim();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentViewerScreen(
+          url: url,
+          fileName: fileName,
+          title: widget.hub?['name'] as String? ?? 'Hub Document',
+        ),
+      ),
+    );
   }
 
   Future<void> _pickAttachments() async {
@@ -1335,7 +1373,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              if (isImage && url.isNotEmpty)
+                              if (isImage && (url.isNotEmpty || (attachment['local_path'] as String? ?? '').isNotEmpty))
                                 ClipRRect(
                                   borderRadius: const BorderRadius.vertical(
                                     top: Radius.circular(14),
@@ -1344,6 +1382,7 @@ class _HubChatScreenState extends State<HubChatScreen> {
                                     aspectRatio: 1.08,
                                     child: DownloadableImageAttachment(
                                       url: url,
+                                      localPath: attachment['local_path'] as String?,
                                       sizeLabel: _attachmentSubtitle(attachment),
                                       onTap: () => _openAttachment(attachment),
                                     ),

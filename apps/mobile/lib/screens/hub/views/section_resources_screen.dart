@@ -7,6 +7,8 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mobile/screens/hubs/views/document_viewer_screen.dart';
+import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 
 class SectionResourcesScreen extends StatefulWidget {
   final int hubId;
@@ -175,28 +177,68 @@ class _SectionResourcesScreenState extends State<SectionResourcesScreen> {
     if (url == null || url.trim().isEmpty) {
       url = resource['url'] as String?;
     }
-    url = (url ?? '').trim();
-    if (url.isEmpty) {
+    final resolvedUrl = (url ?? '').trim();
+    if (resolvedUrl.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No URL or file is available for this resource.')),
       );
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid resource URL.')),
+    final type = (resource['resource_type'] as String? ?? '').toLowerCase();
+    final title = (resource['title'] as String? ?? 'Resource').trim();
+    final fileName = (resource['file_name'] as String? ?? title).trim();
+
+    // If it's a web link (e.g., external article or site), open via external browser
+    if (type == 'link') {
+      final uri = Uri.tryParse(resolvedUrl);
+      if (uri == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid resource URL.')),
+        );
+        return;
+      }
+      final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!opened && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open external link.')),
+        );
+      }
+      return;
+    }
+
+    // If it's an image
+    final lowerName = fileName.toLowerCase();
+    final isImage = lowerName.endsWith('.jpg') ||
+        lowerName.endsWith('.jpeg') ||
+        lowerName.endsWith('.png') ||
+        lowerName.endsWith('.gif') ||
+        lowerName.endsWith('.webp');
+
+    if (isImage) {
+      Navigator.of(context).push(
+        PageRouteBuilder(
+          opaque: false,
+          pageBuilder: (context, _, __) => ImageViewerPage(
+            imageUrl: resolvedUrl,
+            heroTag: resolvedUrl,
+            caption: title,
+          ),
+        ),
       );
       return;
     }
 
-    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!opened && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open resource.')),
-      );
-    }
+    // In-app document viewer
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DocumentViewerScreen(
+          url: resolvedUrl,
+          fileName: fileName.contains('.') ? fileName : '$fileName.pdf',
+          title: title,
+        ),
+      ),
+    );
   }
 
   Future<void> _deleteResource(Map<String, dynamic> resource) async {

@@ -6,6 +6,9 @@ import 'package:mobile/core/services/auth_api_service.dart';
 import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
+import 'package:mobile/screens/hubs/views/document_viewer_screen.dart';
 
 class SectionTasksScreen extends StatefulWidget {
   final int hubId;
@@ -477,6 +480,34 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      if (!isEditing) ...[
+                        const SizedBox(height: 12),
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            final result = await FilePicker.pickFiles();
+                            if (result != null && result.files.single.path != null) {
+                              setSheetState(() {
+                                selectedAttachment = File(result.files.single.path!);
+                              });
+                            }
+                          },
+                          icon: const Icon(Icons.attach_file_rounded),
+                          label: Text(
+                            selectedAttachment != null
+                                ? 'Attachment: ${p.basename(selectedAttachment!.path)}'
+                                : 'Attach file (Assignment sheet, PDF, etc.)',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (selectedAttachment != null)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton(
+                              onPressed: () => setSheetState(() => selectedAttachment = null),
+                              child: const Text('Remove attachment', style: TextStyle(color: Colors.red)),
+                            ),
+                          ),
+                      ],
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -589,6 +620,32 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                         controller: submissionLinkController,
                         decoration: const InputDecoration(labelText: 'Submission link'),
                       ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await FilePicker.pickFiles();
+                          if (result != null && result.files.single.path != null) {
+                            setSheetState(() {
+                              submissionFile = File(result.files.single.path!);
+                            });
+                          }
+                        },
+                        icon: const Icon(Icons.attach_file_rounded),
+                        label: Text(
+                          submissionFile != null
+                              ? 'File: ${p.basename(submissionFile!.path)}'
+                              : 'Attach file (PDF, Doc, Image, etc.)',
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (submissionFile != null)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: () => setSheetState(() => submissionFile = null),
+                            child: const Text('Remove file', style: TextStyle(color: Colors.red)),
+                          ),
+                        ),
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,
@@ -731,6 +788,8 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
     final gradedBy = _gradedByName(task);
     final submissionText = (task['submission_text'] as String? ?? '').trim();
     final submissionLink = (task['submission_link'] as String? ?? '').trim();
+    final attachmentUrl = (task['attachment'] as String? ?? '').trim();
+    final submissionFileUrl = (task['submission_file'] as String? ?? '').trim();
     final grade = (task['grade'] as String? ?? '').trim();
     final feedback = (task['feedback'] as String? ?? '').trim();
     final canManage = task['can_manage'] == true || _canManageTasks;
@@ -862,7 +921,29 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                 ),
               ],
             ),
-            if (submissionText.isNotEmpty || submissionLink.isNotEmpty) ...[
+            if (attachmentUrl.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final fileName = p.basename(Uri.tryParse(attachmentUrl)?.path ?? 'task_attachment');
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DocumentViewerScreen(
+                        url: attachmentUrl,
+                        fileName: fileName.isEmpty ? 'task_attachment' : fileName,
+                        title: 'Task Attachment',
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.attachment_rounded, size: 18),
+                label: Text(
+                  'Task Attachment (${p.basename(Uri.tryParse(attachmentUrl)?.path ?? 'file')})',
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+            if (submissionText.isNotEmpty || submissionLink.isNotEmpty || submissionFileUrl.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
                 width: double.infinity,
@@ -892,6 +973,28 @@ class _SectionTasksScreenState extends State<SectionTasksScreen> {
                         onPressed: () => _openUrl(submissionLink),
                         icon: const Icon(Icons.open_in_new_rounded),
                         label: const Text('Open submission link'),
+                      ),
+                    ],
+                    if (submissionFileUrl.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          final fileName = p.basename(Uri.tryParse(submissionFileUrl)?.path ?? 'submission_file');
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => DocumentViewerScreen(
+                                url: submissionFileUrl,
+                                fileName: fileName.isEmpty ? 'submission_file' : fileName,
+                                title: 'Submitted File',
+                              ),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.description_outlined, size: 18),
+                        label: Text(
+                          'View Submitted File (${p.basename(Uri.tryParse(submissionFileUrl)?.path ?? 'file')})',
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ],

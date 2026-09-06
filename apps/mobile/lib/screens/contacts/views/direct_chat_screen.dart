@@ -12,7 +12,9 @@ import 'package:mobile/core/theme/app_colors.dart';
 import 'package:mobile/core/theme/app_text_styles.dart';
 import 'package:flutter_chat_reactions/flutter_chat_reactions.dart';
 import 'package:mobile/shared/widgets/linkified_text.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart' as p;
+import 'package:mobile/screens/hubs/views/document_viewer_screen.dart';
+import 'package:mobile/screens/hubs/widget/image_viewer_page.dart';
 import 'package:mobile/shared/widgets/chat_background.dart';
 import 'package:mobile/core/utils/image_cropper_utils.dart';
 import 'package:mobile/screens/hubs/views/media_preview_screen.dart';
@@ -343,6 +345,20 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       final replyPrefix = replyMessage == null
           ? ''
           : '> ${_messageAuthor(replyMessage)}: ${_replySnippet(replyMessage)}\n\n';
+      final tempAttachments = attachmentsToSend.map((att) {
+        final ext = p.extension(att.name).toLowerCase().replaceAll('.', '');
+        final isImg = {'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'heic'}.contains(ext);
+        return {
+          'id': 'local_${DateTime.now().millisecondsSinceEpoch}_${att.name}',
+          'file_name': att.name,
+          'extension': ext,
+          'size_bytes': att.size,
+          'local_path': att.path,
+          'url': '',
+          'is_image': isImg,
+        };
+      }).toList();
+
       final tempId = 'temp_${DateTime.now().millisecondsSinceEpoch}';
       final tempMessage = {
         'id': tempId,
@@ -351,7 +367,7 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
         'is_read': false,
         'is_pending': true,
         'timestamp': DateTime.now().toIso8601String(),
-        'attachments': [],
+        'attachments': tempAttachments,
       };
 
       setState(() {
@@ -370,6 +386,18 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
       if (!mounted) return;
       setState(() {
         final sentMessage = Map<String, dynamic>.from(message);
+        if (tempAttachments.isNotEmpty && sentMessage['attachments'] is List) {
+          final serverAtts = List<Map<String, dynamic>>.from(
+            (sentMessage['attachments'] as List).map((a) => Map<String, dynamic>.from(a as Map)),
+          );
+          for (int i = 0; i < serverAtts.length; i++) {
+            if (i < tempAttachments.length) {
+              serverAtts[i]['local_path'] = tempAttachments[i]['local_path'];
+            }
+          }
+          sentMessage['attachments'] = serverAtts;
+        }
+
         final index = _messages.indexWhere((m) => m['id'] == tempId);
         if (index != -1) {
           _messages[index] = sentMessage;
@@ -769,21 +797,43 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                       ...attachments.whereType<Map>().map((raw) {
                         final attachment = Map<String, dynamic>.from(raw);
                         final url = attachment['url'] as String? ?? '';
+                        final localPath = attachment['local_path'] as String? ?? '';
                         final fileName = (attachment['file_name'] as String? ?? 'Attachment').trim();
                         final isImage = _isImageAttachment(attachment);
                         final color = _attachmentColorFor(attachment);
                         final icon = _attachmentIconFor(attachment);
+                        final hasValidMedia = url.isNotEmpty || localPath.isNotEmpty;
+
                         return Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
                             GestureDetector(
-                              onTap: url.isNotEmpty
-                                  ? () async {
-                                      final uri = Uri.tryParse(url);
-                                      if (uri != null) {
-                                        await launchUrl(uri, mode: LaunchMode.externalApplication);
+                              onTap: hasValidMedia
+                                  ? () {
+                                      if (isImage) {
+                                        Navigator.of(context).push(
+                                          PageRouteBuilder(
+                                            opaque: false,
+                                            pageBuilder: (context, _, __) => ImageViewerPage(
+                                              imagePath: localPath.isNotEmpty ? localPath : null,
+                                              imageUrl: url.isNotEmpty ? url : null,
+                                              heroTag: url.isNotEmpty ? url : localPath,
+                                              caption: fileName,
+                                            ),
+                                          ),
+                                        );
+                                      } else {
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute(
+                                            builder: (_) => DocumentViewerScreen(
+                                              url: url,
+                                              fileName: fileName,
+                                              title: _title,
+                                            ),
+                                          ),
+                                        );
                                       }
                                     }
                                   : null,
@@ -803,30 +853,32 @@ class _DirectChatScreenState extends State<DirectChatScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.stretch,
                                   children: [
-                                    if (isImage && url.isNotEmpty)
+                                    if (isImage && hasValidMedia)
                                       ClipRRect(
                                         borderRadius: const BorderRadius.vertical(
                                           top: Radius.circular(14),
                                         ),
                                         child: AspectRatio(
                                           aspectRatio: 1.08,
-                                          child: CachedNetworkImage(
-                                            imageUrl: url,
-                                            fit: BoxFit.cover,
-                                            placeholder: (context, url) => const Center(
-                                              child: Padding(
-                                                padding: EdgeInsets.all(18),
-                                                child: CircularProgressIndicator(strokeWidth: 2),
-                                              ),
-                                            ),
-                                            errorWidget: (context, url, error) {
-                                              return Container(
-                                                color: color.withValues(alpha: 0.14),
-                                                alignment: Alignment.center,
-                                                child: Icon(Icons.broken_image_rounded, color: color, size: 32),
-                                              );
-                                            },
-                                          ),
+                                          child: localPath.isNotEmpty && File(localPath).existsSync()
+                                              ? Image.file(File(localPath), fit: BoxFit.cover)
+                                              : CachedNetworkImage(
+                                                  imageUrl: url,
+                                                  fit: BoxFit.cover,
+                                                  placeholder: (context, url) => const Center(
+                                                    child: Padding(
+                                                      padding: EdgeInsets.all(18),
+                                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                                    ),
+                                                  ),
+                                                  errorWidget: (context, url, error) {
+                                                    return Container(
+                                                      color: color.withValues(alpha: 0.14),
+                                                      alignment: Alignment.center,
+                                                      child: Icon(Icons.broken_image_rounded, color: color, size: 32),
+                                                    );
+                                                  },
+                                                ),
                                         ),
                                       ),
                                     Padding(

@@ -43,7 +43,8 @@ class AutoCloudinaryStorage(MediaCloudinaryStorage):
     """
     Custom Cloudinary Storage backend that automatically routes files
     to the correct Cloudinary resource_type ('image', 'video', or 'raw').
-    This fixes 404 Not Found errors when storing PDFs, Docs, Videos, and Images.
+    Preserves file extensions so that Cloudinary delivers images, PDFs,
+    audio, and documents without 404 Not Found errors.
     """
 
     def _get_resource_type(self, name):
@@ -61,6 +62,37 @@ class AutoCloudinaryStorage(MediaCloudinaryStorage):
         if folder:
             options["folder"] = folder
         return cloudinary.uploader.upload(content, **options)
+
+    def _save(self, name, content):
+        from cloudinary_storage.storage import UploadedFile
+        name = self._normalise_name(name)
+        name = self._prepend_prefix(name)
+        ext = os.path.splitext(name)[1].lower()
+        content = UploadedFile(content, name)
+        response = self._upload(name, content)
+        public_id = response.get("public_id", name)
+        # Ensure file extension is preserved in the stored identifier
+        if ext and not public_id.lower().endswith(ext):
+            return f"{public_id}{ext}"
+        return public_id
+
+    def _get_url(self, name):
+        if not name:
+            return ""
+        if name.startswith("http://") or name.startswith("https://"):
+            return name
+        name = self._prepend_prefix(name)
+        res_type = self._get_resource_type(name)
+        cloudinary_resource = cloudinary.CloudinaryResource(
+            name,
+            default_resource_type=res_type,
+            type="upload",
+        )
+        return cloudinary_resource.build_url(secure=True)
+
+    def url(self, name):
+        return self._get_url(name)
+
 
 
 def upload_file_to_cloudinary(file_obj, folder: str = "campuz_uploads") -> dict:
