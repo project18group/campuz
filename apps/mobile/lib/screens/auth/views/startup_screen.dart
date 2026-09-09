@@ -91,13 +91,13 @@ class _StartupScreenState extends State<StartupScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.primary,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1A1A1A), Color(0xFF0D0D0D), Colors.black],
+            colors: [Color(0xFFC81822), Color(0xFFB10E15), Color(0xFF8E080E)],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
@@ -113,63 +113,10 @@ class _StartupScreenState extends State<StartupScreen>
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Logo with animated glow
-                        Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            // Animated glow effect
-                            TweenAnimationBuilder<double>(
-                              tween: Tween(begin: 0.0, end: 1.0),
-                              duration: const Duration(seconds: 2),
-                              builder: (context, value, child) {
-                                return Container(
-                                  width: 160 + (20 * value),
-                                  height: 160 + (20 * value),
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: AppColors.primary.withValues(
-                                          alpha: 0.3 * value,
-                                        ),
-                                        blurRadius: 60 * value,
-                                        spreadRadius: 10 * value,
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              },
-                              onEnd: () {
-                                if (mounted) {
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                            // Logo container
-                            Container(
-                              width: 120,
-                              height: 120,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: AppColors.primaryForeground,
-                                border: Border.all(
-                                  color: AppColors.primary,
-                                  width: 3,
-                                ),
-                              ),
-                              child: Center(
-                                child: Text(
-                                  'C',
-                                  style: AppTextStyles.display.copyWith(
-                                    fontSize: 56,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.textOnPrimary,
-                                    letterSpacing: -2,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
+                        Image.asset(
+                          'assets/images/tekchat_splash.png',
+                          width: MediaQuery.sizeOf(context).width * 0.72,
+                          fit: BoxFit.contain,
                         ),
                         const SizedBox(height: 40),
                         // Animated loading indicator
@@ -179,7 +126,7 @@ class _StartupScreenState extends State<StartupScreen>
                           child: CircularProgressIndicator(
                             strokeWidth: 3,
                             valueColor: AlwaysStoppedAnimation<Color>(
-                              AppColors.primary,
+                              Colors.white,
                             ),
                           ),
                         ),

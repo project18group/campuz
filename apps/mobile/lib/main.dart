@@ -8,6 +8,7 @@ import 'package:mobile/core/services/auth_api_service.dart';
 
 import 'package:mobile/core/services/push_notification_service.dart';
 
+
 // Global theme notifier
 final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.light);
 
